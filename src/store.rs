@@ -96,6 +96,16 @@ impl Session {
     }
 }
 
+/// Сайт для плитки домашней страницы.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopSite {
+    /// Домен без «www.».
+    pub host: String,
+    pub url: String,
+    pub visits: u32,
+    pub last: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistEntry {
     pub url: String,
@@ -167,6 +177,33 @@ impl History {
         v.sort_by(|a, b| b.ts.cmp(&a.ts));
         v.truncate(n);
         v
+    }
+
+    /// Самые посещаемые сайты для плиток домашней страницы: посещения страниц
+    /// одного сайта складываются; адрес плитки — главная страница сайта.
+    pub fn top_sites(&self, n: usize) -> Vec<TopSite> {
+        let mut sites: Vec<TopSite> = Vec::new();
+        for e in &self.entries {
+            let Ok(u) = url::Url::parse(&e.url) else { continue };
+            let (Some(host), "http" | "https") = (u.host_str(), u.scheme()) else { continue };
+            let host = host.strip_prefix("www.").unwrap_or(host);
+            match sites.iter_mut().find(|s| s.host == host) {
+                Some(s) => {
+                    s.visits += e.visits;
+                    s.last = s.last.max(e.ts);
+                }
+                None => sites.push(TopSite {
+                    host: host.to_string(),
+                    url: format!("{}://{}/", u.scheme(), u.host_str().unwrap_or(host)),
+                    visits: e.visits,
+                    last: e.ts,
+                }),
+            }
+        }
+        // Чаще — выше; при равенстве — то, что открывали недавно.
+        sites.sort_by(|a, b| b.visits.cmp(&a.visits).then(b.last.cmp(&a.last)));
+        sites.truncate(n);
+        sites
     }
 
     pub fn clear(&mut self) {
@@ -526,6 +563,30 @@ mod tests {
     #[test]
     fn now_is_after_2020() {
         assert!(now() > 1_577_836_800);
+    }
+
+    #[test]
+    fn top_sites_sum_visits_per_site() {
+        let mut a = entry("https://github.com/rust-lang", 10);
+        a.visits = 3;
+        let mut b = entry("https://www.github.com/", 20);
+        b.visits = 2;
+        let mut c = entry("https://example.com/a", 30);
+        c.visits = 4;
+        let h = history(vec![a, b, c, entry("about:blank", 40), entry("file:///C:/x.html", 50), entry("not a url", 60)]);
+        let top = h.top_sites(10);
+        let hosts: Vec<_> = top.iter().map(|s| (s.host.as_str(), s.visits)).collect();
+        assert_eq!(hosts, [("github.com", 5), ("example.com", 4)]);
+        assert_eq!(top[0].url, "https://github.com/");
+        assert_eq!(top[0].last, 20);
+    }
+
+    #[test]
+    fn top_sites_ties_go_to_recent_and_respect_limit() {
+        let h = history(vec![entry("https://a.test/", 1), entry("https://b.test/", 5), entry("https://c.test/", 3)]);
+        let hosts: Vec<_> = h.top_sites(2).into_iter().map(|s| s.host).collect();
+        assert_eq!(hosts, ["b.test", "c.test"]);
+        assert!(history(vec![]).top_sites(5).is_empty());
     }
 
     #[test]

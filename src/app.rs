@@ -33,6 +33,9 @@ const SPLIT_GAP: f64 = 8.0;
 /// Первая проверка обновлений — чуть позже запуска, чтобы не мешать загрузке вкладок.
 const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(10);
 const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(12 * 3600);
+/// Сколько плиток частых сайтов и строк «Продолжить» на домашней странице.
+const HOME_TILES: usize = 6;
+const HOME_RECENT: usize = 4;
 
 type Box4 = (f64, f64, f64, f64);
 
@@ -672,6 +675,7 @@ impl App {
                 .filter(|u| self.update_dismissed.as_deref() != Some(u.version.as_str()))
                 .map(|u| json!({ "version": u.version })),
             "updating": self.updating,
+            "home": self.home_data(),
         });
         self.eval_ui(&format!("window.seyro && seyro.render({state})"));
 
@@ -1303,6 +1307,7 @@ impl App {
             "default_browser" => self.make_default_browser(),
             "check_updates" => self.check_updates(true),
             "theme" => self.cycle_theme(),
+            "home" => self.show_home(),
             "update_now" => self.install_update(),
             "update_dismiss" => {
                 self.update_dismissed = self.update.as_ref().map(|u| u.version.clone());
@@ -1403,6 +1408,45 @@ impl App {
         self.window.set_minimized(false);
         self.window.set_visible(true);
         self.window.set_focus();
+    }
+
+    // ---------- Домашняя страница ----------
+
+    /// «Главная»: убрать вкладку с экрана — под ней интерфейс рисует домашнюю страницу.
+    fn show_home(&mut self) {
+        if self.find_open {
+            self.find_open = false;
+            self.run_find("", "clear");
+        }
+        self.palette_open = false;
+        self.tabs.deactivate();
+        self.layout();
+        self.focus_ui_if_empty();
+        self.push_state();
+        self.save();
+    }
+
+    /// Плитки и «Продолжить» для домашней страницы — только когда она видна.
+    fn home_data(&self) -> Value {
+        if self.tabs.active().is_some() {
+            return Value::Null;
+        }
+        let top: Vec<Value> = self
+            .history
+            .top_sites(HOME_TILES)
+            .into_iter()
+            .map(|s| json!({ "host": s.host, "url": s.url }))
+            .collect();
+        let mut seen = Vec::new();
+        let recent: Vec<Value> = self
+            .history
+            .recent(50)
+            .into_iter()
+            .filter(|e| !seen.contains(&e.url) && { seen.push(e.url.clone()); true })
+            .take(HOME_RECENT)
+            .map(|e| json!({ "url": e.url, "title": e.title }))
+            .collect();
+        json!({ "top": top, "recent": recent })
     }
 
     /// «Сменить тему»: как в Windows → светлая → тёмная → как в Windows.

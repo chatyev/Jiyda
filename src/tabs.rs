@@ -288,6 +288,11 @@ impl<V> TabList<V> {
 
     /// Сделать вкладку активной. Вторая половина пары тоже на экране, поэтому
     /// время открытия обновляется у обеих. false — такой вкладки нет.
+    /// Ни одной вкладки на экране — показывается домашняя страница.
+    pub fn deactivate(&mut self) {
+        self.active = None;
+    }
+
     pub fn activate(&mut self, id: u64, now: u64) -> bool {
         if self.get(id).is_none() {
             return false;
@@ -629,6 +634,16 @@ mod tests {
         assert_eq!(l.get(ids[0]).unwrap().last_active, NOW);
         assert!(!l.activate(999, NOW));
         assert_eq!(l.active(), Some(ids[0]));
+    }
+
+    #[test]
+    fn deactivate_shows_nothing_but_keeps_tabs() {
+        let (mut l, ids) = list(vec![st("https://a/", false, NOW)]);
+        l.activate(ids[0], NOW);
+        l.deactivate();
+        assert_eq!(l.active(), None);
+        assert!(l.visible().is_empty());
+        assert_eq!(urls(&l), ["https://a/"]);
     }
 
     // ---------- Сон ----------
