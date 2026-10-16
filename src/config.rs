@@ -24,6 +24,9 @@ pub struct Config {
     pub extensions: bool,
     /// Включить инструменты разработчика (F12).
     pub devtools: bool,
+    /// Своя полоса заголовка вместо рамки Windows: кнопки окна в сайдбаре, как в Arc.
+    /// false — обычное окно с системной рамкой.
+    pub custom_titlebar: bool,
 }
 
 impl Default for Config {
@@ -36,6 +39,7 @@ impl Default for Config {
             sleep_minutes: 60,
             extensions: true,
             devtools: true,
+            custom_titlebar: true,
         }
     }
 }
@@ -135,6 +139,7 @@ mod tests {
         assert!(!cfg.devtools);
         assert_eq!(cfg.sleep_minutes, 60);
         assert_eq!(cfg.frame_padding, 8.0);
+        assert!(cfg.custom_titlebar);
     }
 
     #[test]

@@ -46,6 +46,28 @@ body.no-sidebar #sidebar { display: none; }
 .icon-btn:hover { background: var(--hover); color: var(--text); }
 .icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+/* ----- Окно без рамки ----- */
+.winctl { display: none; gap: 0; margin-left: 4px; }
+body.frameless .winctl { display: flex; }
+.icon-btn.close:hover { background: #c42b1c; color: #fff; }
+#win-max .ico-restore, body.maximized #win-max .ico-max { display: none; }
+body.maximized #win-max .ico-restore { display: block; }
+/* Края для изменения размера: поверх всего, кроме развёрнутого окна. */
+#resize { display: none; }
+body.frameless:not(.maximized) #resize { display: block; }
+#resize div { position: fixed; z-index: 100; --t: 5px; }
+#resize [data-dir="n"] { top: 0; left: var(--t); right: var(--t); height: var(--t); cursor: n-resize; }
+#resize [data-dir="s"] { bottom: 0; left: var(--t); right: var(--t); height: var(--t); cursor: s-resize; }
+#resize [data-dir="e"] { right: 0; top: var(--t); bottom: var(--t); width: var(--t); cursor: e-resize; }
+#resize [data-dir="w"] { left: 0; top: var(--t); bottom: var(--t); width: var(--t); cursor: w-resize; }
+#resize [data-dir="nw"] { top: 0; left: 0; width: 10px; height: 10px; cursor: nw-resize; }
+#resize [data-dir="ne"] { top: 0; right: 0; width: 10px; height: 10px; cursor: ne-resize; }
+#resize [data-dir="sw"] { bottom: 0; left: 0; width: 10px; height: 10px; cursor: sw-resize; }
+#resize [data-dir="se"] { bottom: 0; right: 0; width: 10px; height: 10px; cursor: se-resize; }
+/* Когда сайдбар скрыт, окно можно тянуть за полоску рамки над страницей. */
+#topdrag { display: none; position: fixed; top: 0; left: 0; right: 0; height: var(--pad); z-index: 50; }
+body.frameless.no-sidebar #topdrag { display: block; }
+
 #urlbar {
   height: 34px; border-radius: var(--radius); background: rgba(255,255,255,.10);
   display: flex; align-items: center; padding: 0 12px; gap: 8px; cursor: text;
@@ -206,6 +228,19 @@ body.no-sidebar #findbar { left: var(--pad); }
     <button class="icon-btn" data-cmd="reload" title="Обновить (Ctrl+R)">
       <svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.8h-2.8"/></svg>
     </button>
+    <!-- Кнопки окна: только в режиме без рамки (custom_titlebar в config.json). -->
+    <div class="winctl">
+      <button class="icon-btn" data-cmd="win_min" title="Свернуть">
+        <svg viewBox="0 0 16 16"><path d="M3.5 8h9"/></svg>
+      </button>
+      <button class="icon-btn" data-cmd="win_max" id="win-max" title="Развернуть">
+        <svg viewBox="0 0 16 16" class="ico-max"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/></svg>
+        <svg viewBox="0 0 16 16" class="ico-restore"><rect x="3.5" y="5.5" width="7" height="7" rx="1.2"/><path d="M6 5.5V4.7c0-.7.5-1.2 1.2-1.2h4.1c.7 0 1.2.5 1.2 1.2v4.1c0 .7-.5 1.2-1.2 1.2h-.8"/></svg>
+      </button>
+      <button class="icon-btn close" data-cmd="win_close" title="Закрыть">
+        <svg viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
   </div>
 
   <div id="urlbar" title="Изменить адрес (Ctrl+L)"><span class="host">Новая вкладка</span></div>
@@ -226,6 +261,14 @@ body.no-sidebar #findbar { left: var(--pad); }
 </aside>
 
 <div id="edge" title="Показать панель"></div>
+
+<div id="topdrag"></div>
+
+<!-- Края окна без рамки: потянуть, чтобы изменить размер. -->
+<div id="resize">
+  <div data-dir="n"></div><div data-dir="s"></div><div data-dir="e"></div><div data-dir="w"></div>
+  <div data-dir="nw"></div><div data-dir="ne"></div><div data-dir="sw"></div><div data-dir="se"></div>
+</div>
 
 <main id="content">
   <div>
@@ -269,6 +312,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   const cfg = window.DRIFT_CONFIG || { sidebarWidth: 260, padding: 8 };
   document.documentElement.style.setProperty('--sw', cfg.sidebarWidth + 'px');
   document.documentElement.style.setProperty('--pad', cfg.padding + 'px');
+  document.body.classList.toggle('frameless', !!cfg.frameless);
 
   const $ = (s) => document.querySelector(s);
   const post = (m) => window.ipc.postMessage(JSON.stringify(m));
@@ -328,6 +372,8 @@ body.no-sidebar #findbar { left: var(--pad); }
   function render(s) {
     state = s;
     document.body.classList.toggle('no-sidebar', !s.sidebar);
+    document.body.classList.toggle('maximized', !!s.maximized);
+    $('#win-max').title = s.maximized ? 'Восстановить' : 'Развернуть';
     const pinned = $('#pinned'), today = $('#today');
     pinned.replaceChildren(...s.tabs.filter((t) => t.pinned).map(tabEl));
     today.replaceChildren(...s.tabs.filter((t) => !t.pinned).map(tabEl));
@@ -567,6 +613,25 @@ body.no-sidebar #findbar { left: var(--pad); }
   $('#findnext').onclick = () => runFind('next');
   $('#findprev').onclick = () => runFind('prev');
   $('#findclose').onclick = () => post({ type: 'find_close' });
+
+  // ---------- Окно без рамки ----------
+  // Тянуть окно — за пустое место сайдбара: верхнюю панель, фон под вкладками,
+  // подписи (или за рамку над страницей, если сайдбар скрыт). Двойной клик там —
+  // развернуть. Сам перенос делает Windows (drag_window в app.rs).
+  const DRAG_AREAS = '.toolbar, #topdrag, #sidebar, #scroll, .list, .divider, .section-label, .footer';
+  function dragStart(e) {
+    if (!document.body.classList.contains('frameless') || e.button !== 0) return;
+    const t = e.target;
+    if (t.closest('button, .tab, #urlbar') || !(t.matches(DRAG_AREAS) || t.closest('.toolbar'))) return;
+    e.preventDefault();
+    post(e.detail === 2 ? { type: 'key', k: 'win_max' } : { type: 'drag' });
+  }
+  addEventListener('mousedown', dragStart);
+  document.querySelectorAll('#resize [data-dir]').forEach((el) => el.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    post({ type: 'resize', dir: el.dataset.dir });
+  }));
 
   // ---------- Кнопки и горячие клавиши ----------
   document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => post({ type: 'key', k: b.dataset.cmd })));

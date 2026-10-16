@@ -34,10 +34,18 @@ fn main() {
                     *control_flow = ControlFlow::Exit;
                     return;
                 }
-                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => app.layout(),
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => app.on_resized(),
                 _ => {}
             },
-            Event::UserEvent(ev) => app.handle(ev),
+            Event::UserEvent(ev) => {
+                app.handle(ev);
+                // Окно без рамки закрывается кнопкой в интерфейсе.
+                if app.exit_requested() {
+                    app.shutdown();
+                    *control_flow = ControlFlow::Exit;
+                    return;
+                }
+            }
             // Все события пачки обработаны — время для отложенных дел.
             Event::MainEventsCleared => app.tick(),
             _ => {}

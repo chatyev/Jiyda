@@ -9,7 +9,7 @@ use crate::tabs::{AfterClose, TabList};
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
 use tao::event_loop::{EventLoop, EventLoopProxy};
-use tao::window::{Window, WindowBuilder};
+use tao::window::{ResizeDirection, Window, WindowBuilder};
 use wry::dpi::{LogicalPosition, LogicalSize};
 use wry::{NewWindowResponse, PageLoadEvent, Rect, WebContext, WebView, WebViewBuilder};
 
@@ -80,6 +80,25 @@ pub struct App {
     save_due: Option<Instant>,
     next_sleep_check: Instant,
     page_tabs: RateLimit,
+    /// Пользователь закрыл окно кнопкой в интерфейсе — main.rs завершит цикл событий.
+    exit_requested: bool,
+    /// Окно развёрнуто — интерфейс прячет зоны изменения размера и меняет значок кнопки.
+    maximized: bool,
+}
+
+/// Направление изменения размера окна из сообщения интерфейса (края рамки в index.html).
+fn resize_direction(dir: &str) -> Option<ResizeDirection> {
+    Some(match dir {
+        "n" => ResizeDirection::North,
+        "s" => ResizeDirection::South,
+        "e" => ResizeDirection::East,
+        "w" => ResizeDirection::West,
+        "ne" => ResizeDirection::NorthEast,
+        "nw" => ResizeDirection::NorthWest,
+        "se" => ResizeDirection::SouthEast,
+        "sw" => ResizeDirection::SouthWest,
+        _ => return None,
+    })
 }
 
 /// Общие настройки для всех WebView. Они обязаны совпадать, иначе WebView2
@@ -118,13 +137,19 @@ impl App {
         let downloads = Downloads::load(&paths.downloads);
         let proxy = event_loop.create_proxy();
 
-        let window = WindowBuilder::new()
+        let builder = WindowBuilder::new()
             .with_title("Drift")
             .with_inner_size(tao::dpi::LogicalSize::new(1360.0, 860.0))
             .with_min_inner_size(tao::dpi::LogicalSize::new(640.0, 400.0))
             .with_theme(Some(tao::window::Theme::Dark))
-            .build(event_loop)
-            .expect("не удалось создать окно");
+            .with_decorations(!cfg.custom_titlebar);
+        // Без рамки Windows всё равно рисует тень и скругляет углы, если попросить.
+        #[cfg(windows)]
+        let builder = {
+            use tao::platform::windows::WindowBuilderExtWindows;
+            builder.with_undecorated_shadow(true)
+        };
+        let window = builder.build(event_loop).expect("не удалось создать окно");
 
         let mut ctx = WebContext::new(Some(paths.webview_data.clone()));
 
@@ -137,7 +162,7 @@ impl App {
             .with_bounds(rect(0.0, 0.0, size.width, size.height))
             .with_initialization_script(format!(
                 "window.DRIFT_CONFIG = {};",
-                json!({ "sidebarWidth": cfg.sidebar_width, "padding": cfg.frame_padding })
+                json!({ "sidebarWidth": cfg.sidebar_width, "padding": cfg.frame_padding, "frameless": cfg.custom_titlebar })
             ))
             .with_ipc_handler(move |req| {
                 let _ = ui_proxy.send_event(UserEvent::FromUi(req.body().clone()));
@@ -169,6 +194,8 @@ impl App {
             save_due: None,
             next_sleep_check: Instant::now() + SLEEP_CHECK,
             page_tabs: RateLimit::new(PAGE_TABS_MAX, PAGE_TABS_WINDOW),
+            exit_requested: false,
+            maximized: false,
         };
         app.restore(session);
         Ok(app)
@@ -250,6 +277,20 @@ impl App {
 
     // ---------- Раскладка и отрисовка ----------
 
+    /// Окно изменило размер (в том числе развернули или восстановили).
+    pub fn on_resized(&mut self) {
+        self.layout();
+        let maximized = self.window.is_maximized();
+        if maximized != self.maximized {
+            self.maximized = maximized;
+            self.push_state();
+        }
+    }
+
+    pub fn exit_requested(&self) -> bool {
+        self.exit_requested
+    }
+
     pub fn layout(&mut self) {
         let (w, h) = self.window_size();
         let _ = self.ui.set_bounds(rect(0.0, 0.0, w, h));
@@ -290,6 +331,7 @@ impl App {
             "tabs": tabs,
             "active": self.tabs.active(),
             "sidebar": self.sidebar_visible,
+            "maximized": self.maximized,
             "palette": self.palette_open,
             "find": self.find_open,
             "closedCount": self.tabs.closed().len(),
@@ -667,6 +709,9 @@ impl App {
                 let _ = wv.reload();
             }),
             "devtools" => self.with_active_wv(|wv| wv.open_devtools()),
+            "win_min" => self.window.set_minimized(true),
+            "win_max" => self.window.set_maximized(!self.window.is_maximized()),
+            "win_close" => self.exit_requested = true,
             "copy_url" => {
                 if let Some(url) = self.tabs.active_tab().map(|t| t.url.clone()) {
                     if hotkeys::copy_to_clipboard(&url) {
@@ -842,6 +887,16 @@ impl App {
                 self.push_state();
             }
             "palette_close" => self.close_palette(),
+            // Перетаскивание и изменение размера отдаём Windows: так работают
+            // прилипание к краям экрана и разворот при перетаскивании к верху.
+            "drag" => {
+                let _ = self.window.drag_window();
+            }
+            "resize" => {
+                if let Some(dir) = v["dir"].as_str().and_then(resize_direction) {
+                    let _ = self.window.drag_resize_window(dir);
+                }
+            }
             "find" => {
                 let mode = v["mode"].as_str().filter(|m| matches!(*m, "next" | "prev")).unwrap_or("type");
                 self.run_find(v["text"].as_str().unwrap_or(""), mode);
@@ -864,7 +919,18 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_script, parse_find_result};
+    use super::{find_script, parse_find_result, resize_direction};
+    use tao::window::ResizeDirection;
+
+    #[test]
+    fn resize_directions_from_ui() {
+        assert_eq!(resize_direction("n"), Some(ResizeDirection::North));
+        assert_eq!(resize_direction("se"), Some(ResizeDirection::SouthEast));
+        assert_eq!(resize_direction("sw"), Some(ResizeDirection::SouthWest));
+        for bad in ["", "N", "north", "x", "nse"] {
+            assert_eq!(resize_direction(bad), None, "{bad}");
+        }
+    }
 
     #[test]
     fn find_result_with_matches() {
