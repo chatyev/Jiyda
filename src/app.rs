@@ -3,7 +3,8 @@
 use crate::config::{Config, Paths};
 use crate::input;
 use crate::limit::RateLimit;
-use crate::store::{History, SavedTab, Session, now};
+use crate::store::{History, Session, now};
+use crate::tabs::{AfterClose, TabList};
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
 use tao::event_loop::{EventLoop, EventLoopProxy};
@@ -13,7 +14,6 @@ use wry::{NewWindowResponse, PageLoadEvent, Rect, WebContext, WebView, WebViewBu
 
 const UI_HTML: &str = include_str!("../ui/index.html");
 const TAB_JS: &str = include_str!("tab.js");
-const CLOSED_LIMIT: usize = 50;
 /// Сессия и история пишутся на диск не сразу, а через эту паузу после изменения.
 const SAVE_DELAY: Duration = Duration::from_secs(2);
 /// Как часто проверять, не пора ли усыпить фоновые вкладки.
@@ -47,33 +47,6 @@ fn allowed_from_tab(cmd: &str) -> bool {
         .is_some_and(|n| n.len() == 1 && matches!(n.as_bytes()[0], b'1'..=b'9'))
 }
 
-pub struct Tab {
-    id: u64,
-    url: String,
-    title: String,
-    favicon: String,
-    pinned: bool,
-    pinned_url: Option<String>,
-    loading: bool,
-    media: bool,
-    last_active: u64,
-    /// None — вкладка спит (не загружена в память).
-    webview: Option<WebView>,
-}
-
-impl Tab {
-    fn saved(&self) -> SavedTab {
-        SavedTab {
-            url: self.url.clone(),
-            title: self.title.clone(),
-            pinned: self.pinned,
-            pinned_url: self.pinned_url.clone(),
-            favicon: self.favicon.clone(),
-            last_active: self.last_active,
-        }
-    }
-}
-
 pub struct App {
     window: Window,
     ctx: WebContext,
@@ -81,12 +54,9 @@ pub struct App {
     proxy: EventLoopProxy<UserEvent>,
     cfg: Config,
     paths: Paths,
-    tabs: Vec<Tab>,
-    active: Option<u64>,
-    next_id: u64,
+    tabs: TabList<WebView>,
     sidebar_visible: bool,
     palette_open: bool,
-    closed: Vec<SavedTab>,
     history: History,
     /// Когда сбросить сессию и историю на диск (None — изменений нет).
     save_due: Option<Instant>,
@@ -171,12 +141,9 @@ impl App {
             proxy,
             cfg,
             paths,
-            tabs: Vec::new(),
-            active: None,
-            next_id: 1,
+            tabs: TabList::new(session.closed.clone()),
             sidebar_visible: session.sidebar_visible.unwrap_or(true),
             palette_open: false,
-            closed: session.closed.clone(),
             history,
             save_due: None,
             next_sleep_check: Instant::now() + SLEEP_CHECK,
@@ -189,35 +156,7 @@ impl App {
     // ---------- Сессия ----------
 
     fn restore(&mut self, session: Session) {
-        let t = now();
-        let archive_after = self.cfg.archive_hours * 3600;
-        let mut active_id = None;
-        for (i, st) in session.tabs.into_iter().enumerate() {
-            let stale = archive_after > 0 && !st.pinned && st.last_active > 0
-                && t.saturating_sub(st.last_active) > archive_after;
-            if stale {
-                self.closed.push(st);
-                continue;
-            }
-            let id = self.alloc_id();
-            if session.active == Some(i) {
-                active_id = Some(id);
-            }
-            self.tabs.push(Tab {
-                id,
-                url: st.url,
-                title: st.title,
-                favicon: st.favicon,
-                pinned: st.pinned,
-                pinned_url: st.pinned_url,
-                loading: false,
-                media: false,
-                last_active: if st.last_active == 0 { t } else { st.last_active },
-                webview: None,
-            });
-        }
-        self.trim_closed();
-        let target = active_id.or_else(|| self.display_order().first().copied());
+        let target = self.tabs.restore(session.tabs, session.active, now(), self.cfg.archive_hours * 3600);
         match target {
             Some(id) => self.activate(id),
             None => {
@@ -239,14 +178,12 @@ impl App {
         if self.history.is_dirty() {
             self.history.save(&self.paths.history);
         }
-        let order = self.display_order();
-        let tabs: Vec<SavedTab> = order.iter().filter_map(|id| self.tab(*id)).map(Tab::saved).collect();
-        let active = self.active.and_then(|a| order.iter().position(|id| *id == a));
+        let (tabs, active) = self.tabs.to_saved();
         Session {
             tabs,
             active,
             sidebar_visible: Some(self.sidebar_visible),
-            closed: self.closed.clone(),
+            closed: self.tabs.closed().to_vec(),
         }
         .save(&self.paths.session);
     }
@@ -276,34 +213,6 @@ impl App {
 
     // ---------- Вспомогательное ----------
 
-    fn alloc_id(&mut self) -> u64 {
-        let id = self.next_id;
-        self.next_id += 1;
-        id
-    }
-
-    fn tab(&self, id: u64) -> Option<&Tab> {
-        self.tabs.iter().find(|t| t.id == id)
-    }
-
-    fn tab_mut(&mut self, id: u64) -> Option<&mut Tab> {
-        self.tabs.iter_mut().find(|t| t.id == id)
-    }
-
-    /// Порядок в сайдбаре: сначала закреплённые, потом остальные.
-    fn display_order(&self) -> Vec<u64> {
-        let pinned = self.tabs.iter().filter(|t| t.pinned).map(|t| t.id);
-        let rest = self.tabs.iter().filter(|t| !t.pinned).map(|t| t.id);
-        pinned.chain(rest).collect()
-    }
-
-    fn trim_closed(&mut self) {
-        if self.closed.len() > CLOSED_LIMIT {
-            let extra = self.closed.len() - CLOSED_LIMIT;
-            self.closed.drain(..extra);
-        }
-    }
-
     fn window_size(&self) -> (f64, f64) {
         let s = self.window.inner_size().to_logical::<f64>(self.window.scale_factor());
         (s.width, s.height)
@@ -322,9 +231,9 @@ impl App {
         let (w, h) = self.window_size();
         let _ = self.ui.set_bounds(rect(0.0, 0.0, w, h));
         let r = self.content_rect();
-        let show_id = if self.palette_open { None } else { self.active };
-        for t in &self.tabs {
-            if let Some(wv) = &t.webview {
+        let show_id = if self.palette_open { None } else { self.tabs.active() };
+        for t in self.tabs.iter() {
+            if let Some(wv) = &t.view {
                 if Some(t.id) == show_id {
                     let _ = wv.set_bounds(r);
                     let _ = wv.set_visible(true);
@@ -337,9 +246,9 @@ impl App {
 
     fn push_state(&mut self) {
         let tabs: Vec<Value> = self
-            .display_order()
-            .iter()
-            .filter_map(|id| self.tab(*id))
+            .tabs
+            .ordered()
+            .into_iter()
             .map(|t| {
                 json!({
                     "id": t.id,
@@ -347,25 +256,25 @@ impl App {
                     "url": t.url,
                     "favicon": t.favicon,
                     "pinned": t.pinned,
-                    "drifted": t.pinned && t.pinned_url.as_deref().is_some_and(|u| u != t.url),
+                    "drifted": t.drifted(),
                     "loading": t.loading,
                     "media": t.media,
-                    "asleep": t.webview.is_none(),
+                    "asleep": t.view.is_none(),
                 })
             })
             .collect();
         let state = json!({
             "tabs": tabs,
-            "active": self.active,
+            "active": self.tabs.active(),
             "sidebar": self.sidebar_visible,
             "palette": self.palette_open,
-            "closedCount": self.closed.len(),
+            "closedCount": self.tabs.closed().len(),
         });
         self.eval_ui(&format!("window.drift && drift.render({state})"));
 
         let title = self
-            .active
-            .and_then(|id| self.tab(id))
+            .tabs
+            .active_tab()
             .map(|t| if t.title.is_empty() { t.url.clone() } else { t.title.clone() });
         self.window.set_title(&match title {
             Some(t) => format!("{t} — Drift"),
@@ -427,27 +336,9 @@ impl App {
     }
 
     fn open_tab(&mut self, url: String, background: bool) {
-        let id = self.alloc_id();
+        let id = self.tabs.alloc_id();
         let webview = self.build_webview(id, &url, false);
-        let tab = Tab {
-            id,
-            url,
-            title: String::new(),
-            favicon: String::new(),
-            pinned: false,
-            pinned_url: None,
-            loading: true,
-            media: false,
-            last_active: now(),
-            webview,
-        };
-        // Новая вкладка встаёт сразу после активной (как в Arc), иначе в конец.
-        let pos = self
-            .active
-            .and_then(|a| self.tabs.iter().position(|t| t.id == a && !t.pinned))
-            .map(|i| i + 1)
-            .unwrap_or(self.tabs.len());
-        self.tabs.insert(pos, tab);
+        self.tabs.insert(id, url, now(), webview);
         if background {
             self.push_state();
         } else {
@@ -457,24 +348,20 @@ impl App {
     }
 
     fn activate(&mut self, id: u64) {
-        if self.tab(id).is_none() {
-            return;
-        }
-        if self.tab(id).is_some_and(|t| t.webview.is_none()) {
-            let url = self.tab(id).map(|t| t.url.clone()).unwrap_or_default();
+        // Спящую вкладку сначала загружаем.
+        if let Some(url) = self.tabs.get(id).filter(|t| t.view.is_none()).map(|t| t.url.clone()) {
             let wv = self.build_webview(id, &url, true);
-            if let Some(t) = self.tab_mut(id) {
+            if let Some(t) = self.tabs.get_mut(id) {
                 t.loading = wv.is_some();
-                t.webview = wv;
+                t.view = wv;
             }
         }
-        self.active = Some(id);
-        if let Some(t) = self.tab_mut(id) {
-            t.last_active = now();
+        if !self.tabs.activate(id, now()) {
+            return;
         }
         self.palette_open = false;
         self.layout();
-        if let Some(wv) = self.tab(id).and_then(|t| t.webview.as_ref()) {
+        if let Some(wv) = self.tabs.get(id).and_then(|t| t.view.as_ref()) {
             let _ = wv.focus();
         }
         self.sleep_idle_tabs();
@@ -482,26 +369,16 @@ impl App {
         self.save();
     }
 
+    fn activate_opt(&mut self, id: Option<u64>) {
+        if let Some(id) = id {
+            self.activate(id);
+        }
+    }
+
     /// Выгрузить из памяти давно не открывавшиеся фоновые вкладки.
     /// Возвращает true, если хоть одна вкладка уснула.
     fn sleep_idle_tabs(&mut self) -> bool {
-        if self.cfg.sleep_minutes == 0 {
-            return false;
-        }
-        let limit = self.cfg.sleep_minutes * 60;
-        let t = now();
-        let active = self.active;
-        let mut any = false;
-        for tab in &mut self.tabs {
-            if Some(tab.id) != active && !tab.media && tab.webview.is_some()
-                && t.saturating_sub(tab.last_active) > limit
-            {
-                tab.webview = None;
-                tab.loading = false;
-                any = true;
-            }
-        }
-        any
+        self.tabs.sleep_idle(now(), self.cfg.sleep_minutes * 60)
     }
 
     /// Открыть вкладку по просьбе страницы, если она не превысила лимит.
@@ -515,150 +392,71 @@ impl App {
     }
 
     fn close_tab(&mut self, id: u64) {
-        let Some(idx) = self.tabs.iter().position(|t| t.id == id) else { return };
-        let was_active = self.active == Some(id);
-        let next = if was_active { self.neighbor(id) } else { self.active };
-
-        if self.tabs[idx].pinned {
-            // Закреплённая вкладка не удаляется: выгружается и возвращается к своему адресу.
-            let t = &mut self.tabs[idx];
-            t.webview = None;
-            t.loading = false;
-            t.media = false;
-            if let Some(u) = t.pinned_url.clone() {
-                t.url = u;
-            }
-        } else {
-            let t = self.tabs.remove(idx);
-            if t.url.starts_with("http") {
-                self.closed.push(t.saved());
-                self.trim_closed();
-            }
+        if let Some(after) = self.tabs.close(id) {
+            self.after_close(after);
         }
-
-        if was_active {
-            self.active = None;
-            match next {
-                Some(n) => self.activate(n),
-                None => {
-                    self.layout();
-                    self.push_state();
-                    self.save();
-                }
-            }
-        } else {
-            self.push_state();
-            self.save();
-        }
-    }
-
-    /// Соседняя вкладка, на которую переходим после закрытия.
-    fn neighbor(&self, id: u64) -> Option<u64> {
-        let order = self.display_order();
-        let i = order.iter().position(|x| *x == id)?;
-        let is_pinned = self.tab(id).is_some_and(|t| t.pinned);
-        let same_group = |x: &u64| self.tab(*x).is_some_and(|t| t.pinned == is_pinned);
-        order[i + 1..].iter().find(|x| same_group(x))
-            .or_else(|| order[..i].iter().rev().find(|x| same_group(x)))
-            .or_else(|| order.iter().find(|x| **x != id))
-            .copied()
-    }
-
-    fn reopen_closed(&mut self) {
-        if let Some(st) = self.closed.pop() {
-            self.open_tab(st.url, false);
-        } else {
-            self.toast("Нет закрытых вкладок");
-        }
-    }
-
-    fn cycle(&mut self, delta: isize) {
-        let order = self.display_order();
-        if order.is_empty() {
-            return;
-        }
-        let cur = self.active.and_then(|a| order.iter().position(|x| *x == a)).unwrap_or(0) as isize;
-        let n = order.len() as isize;
-        let next = ((cur + delta) % n + n) % n;
-        self.activate(order[next as usize]);
-    }
-
-    fn goto_index(&mut self, n: usize) {
-        let order = self.display_order();
-        let target = if n == 9 { order.last() } else { order.get(n.saturating_sub(1)) };
-        if let Some(id) = target.copied() {
-            self.activate(id);
-        }
-    }
-
-    fn set_pinned(&mut self, id: u64, pinned: bool) {
-        if let Some(t) = self.tab_mut(id) {
-            t.pinned = pinned;
-            t.pinned_url = if pinned { Some(t.url.clone()) } else { None };
-        }
-        self.push_state();
-        self.save();
-    }
-
-    fn move_tab(&mut self, id: u64, before: Option<u64>, pinned: bool) {
-        let Some(idx) = self.tabs.iter().position(|t| t.id == id) else { return };
-        let mut t = self.tabs.remove(idx);
-        if t.pinned != pinned {
-            t.pinned = pinned;
-            t.pinned_url = if pinned { Some(t.url.clone()) } else { None };
-        }
-        let pos = before
-            .and_then(|b| self.tabs.iter().position(|x| x.id == b))
-            .unwrap_or(self.tabs.len());
-        self.tabs.insert(pos, t);
-        self.push_state();
-        self.save();
     }
 
     fn clear_unpinned(&mut self) {
-        let active_unpinned = self.active.is_some_and(|a| self.tab(a).is_some_and(|t| !t.pinned));
-        let (keep, gone): (Vec<Tab>, Vec<Tab>) = std::mem::take(&mut self.tabs).into_iter().partition(|t| t.pinned);
-        self.tabs = keep;
-        for t in gone {
-            if t.url.starts_with("http") {
-                self.closed.push(t.saved());
-            }
-        }
-        self.trim_closed();
-        if active_unpinned {
-            self.active = None;
-            if let Some(first) = self.display_order().first().copied() {
-                self.activate(first);
-                return;
-            }
+        let after = self.tabs.clear_unpinned();
+        self.after_close(after);
+    }
+
+    /// Обновить экран после закрытия вкладок: если закрыли активную — перейти на `next`.
+    fn after_close(&mut self, after: AfterClose) {
+        if after.was_active
+            && let Some(n) = after.next
+        {
+            self.activate(n);
+            return;
         }
         self.layout();
         self.push_state();
         self.save();
     }
 
+    fn reopen_closed(&mut self) {
+        if let Some(st) = self.tabs.pop_closed() {
+            self.open_tab(st.url, false);
+        } else {
+            self.toast("Нет закрытых вкладок");
+        }
+    }
+
+    fn set_pinned(&mut self, id: u64, pinned: bool) {
+        self.tabs.set_pinned(id, pinned);
+        self.push_state();
+        self.save();
+    }
+
+    fn move_tab(&mut self, id: u64, before: Option<u64>, pinned: bool) {
+        self.tabs.move_tab(id, before, pinned);
+        self.push_state();
+        self.save();
+    }
+
     fn navigate(&mut self, text: &str, new_tab: bool) {
         let Some(url) = input::resolve(text, &self.cfg.search_url) else { return };
-        match self.active.filter(|_| !new_tab) {
+        match self.tabs.active().filter(|_| !new_tab) {
             Some(id) => self.load_in(id, &url),
             None => self.open_tab(url, false),
         }
     }
 
     fn load_in(&mut self, id: u64, url: &str) {
-        let has_wv = self.tab(id).is_some_and(|t| t.webview.is_some());
-        if let Some(t) = self.tab_mut(id) {
+        let has_wv = self.tabs.get(id).is_some_and(|t| t.view.is_some());
+        if let Some(t) = self.tabs.get_mut(id) {
             t.url = url.to_string();
         }
         if has_wv
-            && let Some(wv) = self.tab(id).and_then(|t| t.webview.as_ref()) {
+            && let Some(wv) = self.tabs.get(id).and_then(|t| t.view.as_ref()) {
                 let _ = wv.load_url(url);
             }
         self.activate(id);
     }
 
     fn with_active_wv(&self, f: impl FnOnce(&WebView)) {
-        if let Some(wv) = self.active.and_then(|id| self.tab(id)).and_then(|t| t.webview.as_ref()) {
+        if let Some(wv) = self.tabs.active().and_then(|id| self.tabs.get(id)).and_then(|t| t.view.as_ref()) {
             f(wv);
         }
     }
@@ -666,7 +464,7 @@ impl App {
     fn open_palette(&mut self, mode: &str) {
         self.palette_open = true;
         self.layout();
-        let current = self.active.and_then(|id| self.tab(id)).map(|t| t.url.clone()).unwrap_or_default();
+        let current = self.tabs.active().and_then(|id| self.tabs.get(id)).map(|t| t.url.clone()).unwrap_or_default();
         let hist: Vec<Value> = self
             .history
             .recent(800)
@@ -701,16 +499,16 @@ impl App {
         match cmd {
             "new_tab" => self.open_palette("new"),
             "edit_url" => {
-                if self.active.is_some() { self.open_palette("edit") } else { self.open_palette("new") }
+                if self.tabs.active().is_some() { self.open_palette("edit") } else { self.open_palette("new") }
             }
             "close" => {
-                if let Some(id) = self.active {
+                if let Some(id) = self.tabs.active() {
                     self.close_tab(id);
                 }
             }
             "reopen" => self.reopen_closed(),
-            "next" => self.cycle(1),
-            "prev" => self.cycle(-1),
+            "next" => self.activate_opt(self.tabs.cycle_target(1)),
+            "prev" => self.activate_opt(self.tabs.cycle_target(-1)),
             "toggle_sidebar" => {
                 self.sidebar_visible = !self.sidebar_visible;
                 self.layout();
@@ -718,8 +516,8 @@ impl App {
                 self.save();
             }
             "pin" => {
-                if let Some(id) = self.active {
-                    let p = self.tab(id).is_some_and(|t| t.pinned);
+                if let Some(id) = self.tabs.active() {
+                    let p = self.tabs.get(id).is_some_and(|t| t.pinned);
                     self.set_pinned(id, !p);
                 }
             }
@@ -737,7 +535,7 @@ impl App {
             "clear" => self.clear_unpinned(),
             c if c.starts_with("goto:") => {
                 if let Ok(n) = c[5..].parse() {
-                    self.goto_index(n);
+                    self.activate_opt(self.tabs.goto_target(n));
                 }
             }
             _ => {}
@@ -749,8 +547,8 @@ impl App {
             UserEvent::FromUi(body) => self.handle_ui(&body),
             UserEvent::FromTab { id, msg } => self.handle_tab_msg(id, &msg),
             UserEvent::Title { id, title } => {
-                let url = self.tab(id).and_then(|t| t.webview.as_ref()).and_then(|w| w.url().ok());
-                if let Some(t) = self.tab_mut(id) {
+                let url = self.tabs.get(id).and_then(|t| t.view.as_ref()).and_then(|w| w.url().ok());
+                if let Some(t) = self.tabs.get_mut(id) {
                     t.title = title.clone();
                     if let Some(u) = url.filter(|u| !u.is_empty()) {
                         t.url = u;
@@ -762,7 +560,7 @@ impl App {
             }
             UserEvent::Load { id, started, url } => {
                 let mut visited = None;
-                if let Some(t) = self.tab_mut(id) {
+                if let Some(t) = self.tabs.get_mut(id) {
                     t.loading = started;
                     if !url.is_empty() {
                         t.url = url.clone();
@@ -794,7 +592,7 @@ impl App {
         match v["t"].as_str().unwrap_or("") {
             // Страница может прислать что угодно, поэтому команды из вкладки
             // принимаем только от активной вкладки.
-            "key" if self.active == Some(id) => {
+            "key" if self.tabs.active() == Some(id) => {
                 match v["k"].as_str() {
                     Some(k) if allowed_from_tab(k) => self.command(k),
                     Some(k) => log::warn!("вкладка {id} прислала запрещённую команду {k:?}"),
@@ -802,7 +600,7 @@ impl App {
                 }
             }
             // Ctrl/средний клик возможен только во вкладке, которая сейчас на экране.
-            "open_bg" if self.active == Some(id) => {
+            "open_bg" if self.tabs.active() == Some(id) => {
                 if let Some(u) = v["u"].as_str().filter(|u| u.starts_with("http")) {
                     self.open_tab_from_page(u.to_string(), true);
                 }
@@ -810,14 +608,14 @@ impl App {
             "icon" => {
                 let u = v["u"].as_str().unwrap_or("").to_string();
                 if u.starts_with("http") || u.starts_with("data:image/") {
-                    if let Some(t) = self.tab_mut(id) {
+                    if let Some(t) = self.tabs.get_mut(id) {
                         t.favicon = u;
                     }
                     self.push_state();
                 }
             }
             "media" => {
-                if let Some(t) = self.tab_mut(id) {
+                if let Some(t) = self.tabs.get_mut(id) {
                     t.media = v["on"].as_bool().unwrap_or(false);
                 }
                 self.push_state();
@@ -856,7 +654,7 @@ impl App {
             }
             "reset_pinned" => {
                 if let Some(id) = id
-                    && let Some(u) = self.tab(id).and_then(|t| t.pinned_url.clone()) {
+                    && let Some(u) = self.tabs.get(id).and_then(|t| t.pinned_url.clone()) {
                         self.load_in(id, &u);
                     }
             }

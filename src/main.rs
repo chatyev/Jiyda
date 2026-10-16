@@ -7,6 +7,7 @@ mod input;
 mod limit;
 mod logging;
 mod store;
+mod tabs;
 
 use app::{App, UserEvent};
 use tao::event::{Event, WindowEvent};
