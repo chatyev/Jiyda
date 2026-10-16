@@ -1,8 +1,8 @@
 // Встраивается в каждую страницу. Ловит Ctrl/средний клик по ссылкам, иконку сайта
 // и воспроизведение звука. Горячие клавиши браузера ловит hotkeys.rs, не страница.
 (function () {
-  if (window.__drift) return;
-  window.__drift = true;
+  if (window.__seyro) return;
+  window.__seyro = true;
 
   const post = (m) => { try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) {} };
   const isTop = window.top === window;

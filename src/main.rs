@@ -16,7 +16,14 @@ use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 fn main() {
+    // До ребрендинга браузер назывался Drift: переносим его данные до того, как что-то их откроет.
+    let migration = config::migrate_old_data();
     logging::init(&config::Paths::new().log);
+    match migration {
+        Ok(true) => log::info!("данные Drift перенесены в папку Seyro"),
+        Ok(false) => {}
+        Err(e) => log::warn!("не удалось перенести данные Drift, работаю со старой папкой: {e}"),
+    }
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let mut app = match App::new(&event_loop) {
         Ok(a) => a,

@@ -204,7 +204,7 @@ impl App {
         let proxy = event_loop.create_proxy();
 
         let builder = WindowBuilder::new()
-            .with_title("Drift")
+            .with_title("Seyro Browser")
             .with_inner_size(tao::dpi::LogicalSize::new(1360.0, 860.0))
             .with_min_inner_size(tao::dpi::LogicalSize::new(640.0, 400.0))
             .with_theme(Some(tao::window::Theme::Dark))
@@ -226,7 +226,7 @@ impl App {
             .with_html(UI_HTML)
             .with_bounds(rect(0.0, 0.0, size.width, size.height))
             .with_initialization_script(format!(
-                "window.DRIFT_CONFIG = {};",
+                "window.SEYRO_CONFIG = {};",
                 json!({ "sidebarWidth": cfg.sidebar_width, "padding": cfg.frame_padding, "frameless": cfg.custom_titlebar })
             ))
             .with_ipc_handler(move |req| {
@@ -463,15 +463,15 @@ impl App {
                 .collect::<Vec<_>>(),
             "activeSpace": self.active_space,
         });
-        self.eval_ui(&format!("window.drift && drift.render({state})"));
+        self.eval_ui(&format!("window.seyro && seyro.render({state})"));
 
         let title = self
             .tabs
             .active_tab()
             .map(|t| if t.title.is_empty() { t.url.clone() } else { t.title.clone() });
         self.window.set_title(&match title {
-            Some(t) => format!("{t} — Drift"),
-            None => "Drift".into(),
+            Some(t) => format!("{t} — Seyro Browser"),
+            None => "Seyro Browser".into(),
         });
     }
 
@@ -480,7 +480,7 @@ impl App {
     }
 
     fn toast(&self, text: &str) {
-        self.eval_ui(&format!("window.drift && drift.toast({})", json!(text)));
+        self.eval_ui(&format!("window.seyro && seyro.toast({})", json!(text)));
     }
 
     // ---------- Вкладки ----------
@@ -845,7 +845,7 @@ impl App {
         self.push_state();
         let _ = self.ui.focus();
         self.eval_ui(&format!(
-            "window.drift && drift.openPalette({}, {}, {})",
+            "window.seyro && seyro.openPalette({}, {}, {})",
             json!(mode),
             json!(current),
             Value::Array(items)
@@ -863,7 +863,7 @@ impl App {
         self.layout();
         self.push_state();
         let _ = self.ui.focus();
-        self.eval_ui("window.drift && drift.openFind()");
+        self.eval_ui("window.seyro && seyro.openFind()");
     }
 
     fn close_find(&mut self) {
@@ -1107,7 +1107,7 @@ impl App {
                 if self.find_open && self.tabs.active() == Some(id)
                     && let Some((n, i)) = parse_find_result(&json)
                 {
-                    self.eval_ui(&format!("window.drift && drift.findResult({})", json!({ "n": n, "i": i })));
+                    self.eval_ui(&format!("window.seyro && seyro.findResult({})", json!({ "n": n, "i": i })));
                 }
             }
             // Клавиши приходят от WebView2, а не от страницы, но фокус может остаться

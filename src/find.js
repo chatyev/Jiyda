@@ -4,18 +4,18 @@
 // Подсветка — CSS Custom Highlight API: страница и выделение не меняются.
 // Возвращает { n: число совпадений, i: номер текущего (с нуля) или -1 }.
 (q, mode) => {
-  const st = window.__driftFind || (window.__driftFind = { q: '', ranges: [], i: -1 });
+  const st = window.__seyroFind || (window.__seyroFind = { q: '', ranges: [], i: -1 });
   const hl = window.CSS && CSS.highlights;
   if (mode === 'clear' || !q) {
-    if (hl) { hl.delete('drift-find'); hl.delete('drift-find-current'); }
+    if (hl) { hl.delete('seyro-find'); hl.delete('seyro-find-current'); }
     st.q = ''; st.ranges = []; st.i = -1;
     return { n: 0, i: -1 };
   }
-  if (!document.getElementById('drift-find-style')) {
+  if (!document.getElementById('seyro-find-style')) {
     const s = document.createElement('style');
-    s.id = 'drift-find-style';
-    s.textContent = '::highlight(drift-find){background:#fde68a;color:#111}'
-      + '::highlight(drift-find-current){background:#f59e0b;color:#111}';
+    s.id = 'seyro-find-style';
+    s.textContent = '::highlight(seyro-find){background:#fde68a;color:#111}'
+      + '::highlight(seyro-find-current){background:#f59e0b;color:#111}';
     (document.head || document.documentElement).appendChild(s);
   }
 
@@ -49,12 +49,12 @@
   }
 
   if (hl) {
-    hl.set('drift-find', new Highlight(...st.ranges));
+    hl.set('seyro-find', new Highlight(...st.ranges));
     if (st.i >= 0) {
       const cur = new Highlight(st.ranges[st.i]);
       cur.priority = 1;
-      hl.set('drift-find-current', cur);
-    } else hl.delete('drift-find-current');
+      hl.set('seyro-find-current', cur);
+    } else hl.delete('seyro-find-current');
   }
   if (st.i >= 0) {
     const r = st.ranges[st.i], b = r.getBoundingClientRect();

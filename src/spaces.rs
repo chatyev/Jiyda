@@ -174,7 +174,7 @@ mod tests {
             webview_data: dir.join("webview"),
             spaces: dir.join("spaces"),
             extensions: dir.join("extensions"),
-            log: dir.join("drift.log"),
+            log: dir.join("seyro.log"),
         };
         assert_eq!(profile_dir(&paths, MAIN_ID), dir.join("webview"));
         assert_eq!(profile_dir(&paths, 7), dir.join("spaces").join("7").join("webview"));

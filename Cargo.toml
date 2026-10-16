@@ -1,8 +1,8 @@
 [package]
-name = "drift"
+name = "seyro"
 version = "0.1.0"
 edition = "2024"
-description = "Arc-подобный браузер на Rust поверх WebView2"
+description = "Seyro Browser — Arc-подобный браузер на Rust поверх WebView2"
 
 [dependencies]
 dirs = "6"

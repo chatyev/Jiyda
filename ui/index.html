@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Drift</title>
+<title>Seyro Browser</title>
 <style>
 /* ===== Тема: меняй эти переменные, чтобы перекрасить браузер ===== */
 :root {
@@ -303,7 +303,7 @@ body.no-sidebar #findbar { left: var(--pad); }
 
 <main id="content">
   <div>
-    <div class="big">Drift</div>
+    <div class="big">Seyro Browser</div>
     <div>Откройте что-нибудь</div>
     <div class="hints">
       <kbd>Ctrl+T</kbd><span>новая вкладка</span>
@@ -340,7 +340,7 @@ body.no-sidebar #findbar { left: var(--pad); }
 
 <script>
 (() => {
-  const cfg = window.DRIFT_CONFIG || { sidebarWidth: 260, padding: 8 };
+  const cfg = window.SEYRO_CONFIG || { sidebarWidth: 260, padding: 8 };
   document.documentElement.style.setProperty('--sw', cfg.sidebarWidth + 'px');
   document.documentElement.style.setProperty('--pad', cfg.padding + 'px');
   document.body.classList.toggle('frameless', !!cfg.frameless);
@@ -396,7 +396,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     el.onmouseup = (e) => { if (e.button === 1) post({ type: 'close', id: t.id }); };
     el.onclick = () => post({ type: 'activate', id: t.id });
     el.oncontextmenu = (e) => { e.preventDefault(); openMenu(e.clientX, e.clientY, t); };
-    el.ondragstart = (e) => { e.dataTransfer.setData('text/drift-tab', String(t.id)); e.dataTransfer.effectAllowed = 'move'; };
+    el.ondragstart = (e) => { e.dataTransfer.setData('text/seyro-tab', String(t.id)); e.dataTransfer.effectAllowed = 'move'; };
     return el;
   }
 
@@ -556,7 +556,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   }
   for (const list of [$('#pinned'), $('#today')]) {
     list.addEventListener('dragover', (e) => {
-      if (!e.dataTransfer.types.includes('text/drift-tab')) return;
+      if (!e.dataTransfer.types.includes('text/seyro-tab')) return;
       e.preventDefault();
       clearDrop();
       const row = e.target.closest('.list > .tab');
@@ -568,7 +568,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     list.addEventListener('dragleave', (e) => { if (!list.contains(e.relatedTarget)) clearDrop(); });
     list.addEventListener('drop', (e) => {
       e.preventDefault();
-      const id = Number(e.dataTransfer.getData('text/drift-tab'));
+      const id = Number(e.dataTransfer.getData('text/seyro-tab'));
       const row = e.target.closest('.list > .tab');
       let before = null;
       if (row) {
@@ -585,7 +585,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   $('#pinned-label').addEventListener('dragover', (e) => e.preventDefault());
   $('#pinned-label').addEventListener('drop', (e) => {
     e.preventDefault();
-    const id = Number(e.dataTransfer.getData('text/drift-tab'));
+    const id = Number(e.dataTransfer.getData('text/seyro-tab'));
     if (id) post({ type: 'move', id, before: null, pinned: true });
   });
 
@@ -872,7 +872,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   }, true);
   addEventListener('contextmenu', (e) => { if (!e.target.closest('input')) e.preventDefault(); });
 
-  window.drift = { render, toast, openPalette, openFind, findResult };
+  window.seyro = { render, toast, openPalette, openFind, findResult };
   post({ type: 'ready' });
 })();
 </script>

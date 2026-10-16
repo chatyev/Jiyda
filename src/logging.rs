@@ -1,4 +1,4 @@
-//! Журнал в %LOCALAPPDATA%\Drift\drift.log (+ консоль в отладочной сборке).
+//! Журнал в %LOCALAPPDATA%\Seyro\seyro.log (+ консоль в отладочной сборке).
 
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -8,7 +8,7 @@ use simplelog::{
     TerminalMode, WriteLogger,
 };
 
-/// Больше этого размера журнал при запуске переносится в drift.old.log.
+/// Больше этого размера журнал при запуске переносится в seyro.old.log.
 const MAX_LOG_SIZE: u64 = 1024 * 1024;
 
 pub fn init(path: &Path) {
@@ -37,5 +37,5 @@ pub fn init(path: &Path) {
         log::error!("паника: {info}");
     }));
 
-    log::info!("Drift {} запущен", env!("CARGO_PKG_VERSION"));
+    log::info!("Seyro Browser {} запущен", env!("CARGO_PKG_VERSION"));
 }

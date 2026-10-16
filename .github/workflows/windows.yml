@@ -1,4 +1,4 @@
-# Сборка Drift под Windows на GitHub: при каждом push собирается drift.exe,
+# Сборка Seyro Browser под Windows на GitHub: при каждом push собирается seyro.exe,
 # скачать его можно во вкладке Actions → последний запуск → Artifacts.
 name: windows-build
 
@@ -17,5 +17,5 @@ jobs:
       - run: cargo build --release
       - uses: actions/upload-artifact@v4
         with:
-          name: drift-windows
-          path: target/release/drift.exe
+          name: seyro-windows
+          path: target/release/seyro.exe
