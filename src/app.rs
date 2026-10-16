@@ -1,6 +1,7 @@
 //! Ядро браузера: окно, вкладки, раскладка, обработка команд.
 
 use crate::config::{Config, Paths};
+use crate::hotkeys;
 use crate::input;
 use crate::limit::RateLimit;
 use crate::store::{DownloadState, Downloads, History, Session, now};
@@ -39,45 +40,27 @@ pub enum UserEvent {
     Download { id: u64, url: String, path: Option<String>, ok: bool },
     /// Результат поиска по странице (JSON от скрипта во вкладке).
     FindResult { id: u64, json: String },
+    /// Горячая клавиша во вкладке (см. hotkeys.rs).
+    Hotkey { id: u64, cmd: String },
 }
 
-/// Скрипт поиска по странице. `mode`: "type" — текст поменялся, искать с начала
-/// текущего совпадения; "next" / "prev" — следующее / предыдущее.
+const FIND_JS: &str = include_str!("find.js");
+
+/// Скрипт поиска по странице (см. find.js): `mode` — "type", "next", "prev" или "clear".
 fn find_script(query: &str, mode: &str) -> String {
-    format!(
-        r#"(() => {{
-  const q = {q}, mode = {mode}, sel = getSelection();
-  if (mode === 'type' && sel.rangeCount) sel.collapseToStart();
-  if (!q) {{ sel.removeAllRanges(); return {{ ok: false, n: 0 }}; }}
-  const ok = window.find(q, false, mode === 'prev', true, false, false, false);
-  const text = (document.body ? document.body.innerText : '').toLowerCase(), s = q.toLowerCase();
-  let n = 0;
-  for (let i = text.indexOf(s); i !== -1 && n < 1000; i = text.indexOf(s, i + s.length)) n++;
-  return {{ ok, n }};
-}})()"#,
-        q = json!(query),
-        mode = json!(mode)
-    )
+    format!("({FIND_JS})({}, {})", json!(query), json!(mode))
 }
 
-/// Разобрать ответ скрипта поиска. Страница может подменить что угодно,
-/// поэтому берём только два поля нужных типов.
-fn parse_find_result(json: &str) -> Option<(bool, u64)> {
+/// Разобрать ответ скрипта поиска: (число совпадений, номер текущего с нуля).
+/// Страница может подменить что угодно, поэтому проверяем типы и диапазон.
+fn parse_find_result(json: &str) -> Option<(u64, Option<u64>)> {
     let v: Value = serde_json::from_str(json).ok()?;
-    Some((v["ok"].as_bool()?, v["n"].as_u64()?))
-}
-
-/// Команды, которые принимаются из страницы (их присылает tab.js по горячим клавишам).
-/// Страница может отправить такое сообщение и сама, поэтому команд, способных
-/// навредить (закрыть все вкладки, открыть DevTools), здесь нет.
-fn allowed_from_tab(cmd: &str) -> bool {
-    matches!(
-        cmd,
-        "new_tab" | "edit_url" | "close" | "reopen" | "next" | "prev" | "toggle_sidebar" | "pin" | "copied"
-            | "find" | "downloads"
-    ) || cmd
-        .strip_prefix("goto:")
-        .is_some_and(|n| n.len() == 1 && matches!(n.as_bytes()[0], b'1'..=b'9'))
+    let n = v["n"].as_u64()?;
+    match v["i"].as_i64()? {
+        -1 if n == 0 => Some((0, None)),
+        i if i >= 0 && (i as u64) < n => Some((n, Some(i as u64))),
+        _ => None,
+    }
 }
 
 pub struct App {
@@ -372,7 +355,13 @@ impl App {
                 let _ = p6.send_event(UserEvent::Download { id, url, path, ok });
             });
         match builder.build_as_child(&self.window) {
-            Ok(wv) => Some(wv),
+            Ok(wv) => {
+                let p = self.proxy.clone();
+                hotkeys::install(&wv, move |cmd| {
+                    let _ = p.send_event(UserEvent::Hotkey { id, cmd });
+                });
+                Some(wv)
+            }
             Err(e) => {
                 log::error!("не удалось создать вкладку: {e}");
                 self.toast(&format!("Ошибка WebView2: {e}"));
@@ -395,8 +384,9 @@ impl App {
 
     fn activate(&mut self, id: u64) {
         // Поиск относится к странице, при переходе на другую вкладку он закрывается.
-        if self.tabs.active() != Some(id) {
+        if self.find_open && self.tabs.active() != Some(id) {
             self.find_open = false;
+            self.run_find("", "clear");
         }
         // Спящую вкладку сначала загружаем.
         if let Some(url) = self.tabs.get(id).filter(|t| t.view.is_none()).map(|t| t.url.clone()) {
@@ -559,6 +549,7 @@ impl App {
             return;
         }
         self.find_open = false;
+        self.run_find("", "clear");
         self.layout();
         self.with_active_wv(|wv| {
             let _ = wv.focus();
@@ -676,7 +667,15 @@ impl App {
                 let _ = wv.reload();
             }),
             "devtools" => self.with_active_wv(|wv| wv.open_devtools()),
-            "copied" => self.toast("Ссылка скопирована"),
+            "copy_url" => {
+                if let Some(url) = self.tabs.active_tab().map(|t| t.url.clone()) {
+                    if hotkeys::copy_to_clipboard(&url) {
+                        self.toast("Ссылка скопирована");
+                    } else {
+                        self.toast("Не удалось скопировать ссылку");
+                    }
+                }
+            }
             "clear" => self.clear_unpinned(),
             "find" => self.open_find(),
             "downloads" => self.open_palette("downloads"),
@@ -749,9 +748,16 @@ impl App {
             }
             UserEvent::FindResult { id, json } => {
                 if self.find_open && self.tabs.active() == Some(id)
-                    && let Some((ok, n)) = parse_find_result(&json)
+                    && let Some((n, i)) = parse_find_result(&json)
                 {
-                    self.eval_ui(&format!("window.drift && drift.findResult({})", json!({ "ok": ok, "n": n })));
+                    self.eval_ui(&format!("window.drift && drift.findResult({})", json!({ "n": n, "i": i })));
+                }
+            }
+            // Клавиши приходят от WebView2, а не от страницы, но фокус может остаться
+            // в скрытой вкладке — слушаем только ту, что на экране.
+            UserEvent::Hotkey { id, cmd } => {
+                if self.tabs.active() == Some(id) {
+                    self.command(&cmd);
                 }
             }
         }
@@ -759,16 +765,9 @@ impl App {
 
     fn handle_tab_msg(&mut self, id: u64, msg: &str) {
         let Ok(v) = serde_json::from_str::<Value>(msg) else { return };
+        // Страница может прислать что угодно: команд браузера отсюда не принимаем
+        // (горячие клавиши ловит hotkeys.rs), только сведения о ней самой.
         match v["t"].as_str().unwrap_or("") {
-            // Страница может прислать что угодно, поэтому команды из вкладки
-            // принимаем только от активной вкладки.
-            "key" if self.tabs.active() == Some(id) => {
-                match v["k"].as_str() {
-                    Some(k) if allowed_from_tab(k) => self.command(k),
-                    Some(k) => log::warn!("вкладка {id} прислала запрещённую команду {k:?}"),
-                    None => {}
-                }
-            }
             // Ctrl/средний клик возможен только во вкладке, которая сейчас на экране.
             "open_bg" if self.tabs.active() == Some(id) => {
                 if let Some(u) = v["u"].as_str().filter(|u| u.starts_with("http")) {
@@ -844,10 +843,7 @@ impl App {
             }
             "palette_close" => self.close_palette(),
             "find" => {
-                let mode = match v["mode"].as_str() {
-                    Some(m @ ("next" | "prev")) => m,
-                    _ => "type",
-                };
+                let mode = v["mode"].as_str().filter(|m| matches!(*m, "next" | "prev")).unwrap_or("type");
                 self.run_find(v["text"].as_str().unwrap_or(""), mode);
             }
             "find_close" => self.close_find(),
@@ -868,39 +864,39 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::{allowed_from_tab, find_script, parse_find_result};
+    use super::{find_script, parse_find_result};
 
     #[test]
-    fn find_result_takes_only_typed_fields() {
-        assert_eq!(parse_find_result(r#"{"ok":true,"n":3}"#), Some((true, 3)));
-        assert_eq!(parse_find_result(r#"{"ok":false,"n":0,"extra":"<script>"}"#), Some((false, 0)));
-        assert_eq!(parse_find_result(r#"{"ok":"yes","n":3}"#), None);
-        assert_eq!(parse_find_result(r#"{"ok":true,"n":-1}"#), None);
-        assert_eq!(parse_find_result(r#""{\"ok\":true,\"n\":1}""#), None);
-        assert_eq!(parse_find_result("null"), None);
-        assert_eq!(parse_find_result("not json"), None);
+    fn find_result_with_matches() {
+        assert_eq!(parse_find_result(r#"{"n":7,"i":2}"#), Some((7, Some(2))));
+        assert_eq!(parse_find_result(r#"{"n":1,"i":0,"extra":"<script>"}"#), Some((1, Some(0))));
     }
 
     #[test]
-    fn find_script_embeds_query_as_js_string() {
+    fn find_result_without_matches() {
+        assert_eq!(parse_find_result(r#"{"n":0,"i":-1}"#), Some((0, None)));
+    }
+
+    #[test]
+    fn find_result_rejects_bad_values() {
+        for bad in [
+            r#"{"n":3,"i":3}"#,
+            r#"{"n":3,"i":-1}"#,
+            r#"{"n":0,"i":0}"#,
+            r#"{"n":-1,"i":-1}"#,
+            r#"{"n":"3","i":0}"#,
+            r#"{"n":3}"#,
+            r#""{\"n\":1,\"i\":0}""#,
+            "null",
+            "not json",
+        ] {
+            assert_eq!(parse_find_result(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn find_script_calls_function_with_json_arguments() {
         let js = find_script("a\"b'</script>\n", "next");
-        assert!(js.contains(r#"const q = "a\"b'</script>\n", mode = "next""#), "{js}");
-    }
-
-    #[test]
-    fn tab_hotkey_commands_are_allowed() {
-        for cmd in ["new_tab", "edit_url", "close", "reopen", "next", "prev", "toggle_sidebar", "pin", "copied", "find", "downloads"] {
-            assert!(allowed_from_tab(cmd), "{cmd}");
-        }
-        for n in 1..=9 {
-            assert!(allowed_from_tab(&format!("goto:{n}")));
-        }
-    }
-
-    #[test]
-    fn dangerous_or_unknown_commands_are_rejected() {
-        for cmd in ["clear", "devtools", "back", "forward", "reload", "clear_history", "clear_data", "open_downloads_folder", "", "goto:", "goto:0", "goto:10", "goto:x", "NEW_TAB"] {
-            assert!(!allowed_from_tab(cmd), "{cmd}");
-        }
+        assert!(js.starts_with('(') && js.ends_with(r#")("a\"b'</script>\n", "next")"#), "{js}");
     }
 }

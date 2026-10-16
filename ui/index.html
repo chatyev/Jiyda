@@ -553,10 +553,11 @@ body.no-sidebar #findbar { left: var(--pad); }
     if (findInput.value) runFind('type');
   }
   const runFind = (mode) => post({ type: 'find', text: findInput.value, mode });
+  // r: { n — число совпадений, i — номер текущего с нуля или null }.
   function findResult(r) {
     const q = findInput.value;
-    $('#findcount').textContent = !q ? '' : r.n > 0 ? r.n + ' совп.' : r.ok ? 'найдено' : 'не найдено';
-    $('#findbar').classList.toggle('miss', !!q && !r.ok);
+    $('#findcount').textContent = !q ? '' : r.n > 0 ? (r.i + 1) + ' из ' + r.n : 'не найдено';
+    $('#findbar').classList.toggle('miss', !!q && r.n === 0);
   }
   findInput.addEventListener('input', () => runFind('type'));
   findInput.addEventListener('keydown', (e) => {

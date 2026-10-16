@@ -1,49 +1,11 @@
-// Встраивается в каждую страницу. Ловит горячие клавиши браузера,
-// Ctrl/средний клик по ссылкам, иконку сайта и воспроизведение звука.
+// Встраивается в каждую страницу. Ловит Ctrl/средний клик по ссылкам, иконку сайта
+// и воспроизведение звука. Горячие клавиши браузера ловит hotkeys.rs, не страница.
 (function () {
   if (window.__drift) return;
   window.__drift = true;
 
   const post = (m) => { try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) {} };
   const isTop = window.top === window;
-
-  window.addEventListener('keydown', (e) => {
-    const c = e.ctrlKey || e.metaKey, s = e.shiftKey, a = e.altKey;
-    if (!c || a) return;
-    const k = e.key, kl = k.length === 1 ? k.toLowerCase() : k;
-    // На русской раскладке e.key будет кириллицей, поэтому смотрим ещё и e.code.
-    const code = e.code;
-    let cmd = null;
-    if ((kl === 't' || code === 'KeyT') && s) cmd = 'reopen';
-    else if (kl === 't' || code === 'KeyT') cmd = 'new_tab';
-    else if (kl === 'l' || code === 'KeyL') cmd = 'edit_url';
-    else if (kl === 'w' || code === 'KeyW') cmd = 'close';
-    else if (k === 'Tab') cmd = s ? 'prev' : 'next';
-    else if ((kl === 's' || code === 'KeyS') && !s) cmd = 'toggle_sidebar';
-    else if ((kl === 'd' || code === 'KeyD') && !s) cmd = 'pin';
-    else if ((kl === 'u' || code === 'KeyU') && s) cmd = 'copy_url';
-    else if ((kl === 'f' || code === 'KeyF') && !s) cmd = 'find';
-    else if ((kl === 'j' || code === 'KeyJ') && !s) cmd = 'downloads';
-    else if (/^Digit[1-9]$/.test(code) && !s) cmd = 'goto:' + code.slice(5);
-    if (!cmd) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    if (cmd === 'copy_url') { copy(window.top.location.href); post({ t: 'key', k: 'copied' }); return; }
-    post({ t: 'key', k: cmd });
-  }, true);
-
-  function copy(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
-    } else fallbackCopy(text);
-  }
-  function fallbackCopy(text) {
-    const ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.documentElement.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch (_) {}
-    ta.remove();
-  }
 
   // Ctrl+клик и клик колёсиком по ссылке — открыть в фоновой вкладке.
   function linkFrom(e) {

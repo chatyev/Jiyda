@@ -3,6 +3,7 @@
 
 mod app;
 mod config;
+mod hotkeys;
 mod input;
 mod limit;
 mod logging;

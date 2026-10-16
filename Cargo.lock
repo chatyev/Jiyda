@@ -419,6 +419,8 @@ dependencies = [
  "tao",
  "tempfile",
  "url",
+ "webview2-com",
+ "windows",
  "wry",
 ]
 
