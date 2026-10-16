@@ -5,6 +5,7 @@ mod app;
 mod config;
 mod hotkeys;
 mod input;
+mod instance;
 mod limit;
 mod logging;
 mod spaces;
@@ -16,6 +17,14 @@ use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 fn main() {
+    // Адреса из командной строки (так Windows передаёт ссылки браузеру по умолчанию).
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let urls = instance::urls_from_args(std::env::args().skip(1), &cwd);
+    // Seyro уже работает — отдаём адреса ему и выходим, второе окно не нужно.
+    if instance::send_to_running(&urls) {
+        return;
+    }
+
     // До ребрендинга браузер назывался Drift: переносим его данные до того, как что-то их откроет.
     let migration = config::migrate_old_data();
     logging::init(&config::Paths::new().log);
@@ -33,6 +42,13 @@ fn main() {
             std::process::exit(1);
         }
     };
+    let proxy = event_loop.create_proxy();
+    instance::listen(move |urls| {
+        let _ = proxy.send_event(UserEvent::External { urls });
+    });
+    if !urls.is_empty() {
+        app.handle(UserEvent::External { urls });
+    }
 
     event_loop.run(move |event, _, control_flow| {
         match event {

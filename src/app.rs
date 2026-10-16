@@ -3,6 +3,7 @@
 use crate::config::{Config, Paths};
 use crate::hotkeys;
 use crate::input;
+use crate::instance;
 use crate::limit::RateLimit;
 use crate::spaces;
 use crate::store::{DownloadState, Downloads, History, SavedSpace, Session, now};
@@ -55,6 +56,8 @@ pub enum UserEvent {
     FindResult { id: u64, json: String },
     /// Горячая клавиша во вкладке (см. hotkeys.rs).
     Hotkey { id: u64, cmd: String },
+    /// Адреса из командной строки или от нового запуска seyro.exe (см. instance.rs).
+    External { urls: Vec<String> },
 }
 
 const FIND_JS: &str = include_str!("find.js");
@@ -1119,6 +1122,7 @@ impl App {
             "open_downloads_folder" => self.open_downloads_folder(),
             "clear_history" => self.clear_history(),
             "clear_data" => self.clear_site_data(),
+            "default_browser" => self.make_default_browser(),
             c if c.starts_with("goto:") => {
                 if let Ok(n) = c[5..].parse() {
                     self.activate_opt(self.tabs.goto_target(n));
@@ -1198,6 +1202,30 @@ impl App {
                     self.command(&cmd);
                 }
             }
+            UserEvent::External { urls } => self.open_external(urls),
+        }
+    }
+
+    /// Ссылки из других программ: каждая — новой вкладкой в текущем пространстве,
+    /// окно выходит на передний план (и без ссылок — повторный запуск ярлыком).
+    fn open_external(&mut self, urls: Vec<String>) {
+        log::info!("ссылки из других программ: {}", urls.len());
+        for url in urls {
+            self.open_tab(url, false);
+        }
+        self.window.set_minimized(false);
+        self.window.set_visible(true);
+        self.window.set_focus();
+    }
+
+    fn make_default_browser(&self) {
+        if !instance::registered_as_browser() {
+            self.toast("Сначала установите Seyro установщиком — он добавит его в список браузеров Windows");
+            return;
+        }
+        if !instance::open_default_apps_settings() {
+            log::error!("не удалось открыть «Параметры» → «Приложения по умолчанию»");
+            self.toast("Не удалось открыть «Параметры»");
         }
     }
 
