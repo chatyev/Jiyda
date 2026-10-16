@@ -43,6 +43,7 @@ fn main() {
                     return;
                 }
                 WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => app.on_resized(),
+                WindowEvent::Focused(true) => app.on_focus(),
                 _ => {}
             },
             Event::UserEvent(ev) => {

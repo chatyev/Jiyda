@@ -313,6 +313,7 @@ impl App {
         match target {
             Some(id) => self.activate(id),
             None => {
+                self.focus_ui_if_empty();
                 self.layout();
                 self.push_state();
             }
@@ -685,9 +686,35 @@ impl App {
             self.activate(n);
             return;
         }
+        self.focus_ui_if_empty();
         self.layout();
         self.push_state();
         self.save();
+    }
+
+    /// Окно получило фокус (запуск, Alt+Tab, клик по панели задач). Windows отдаёт его
+    /// самому окну, а не WebView внутри — передаём туда, где ждут ввода с клавиатуры.
+    pub fn on_focus(&self) {
+        if self.palette_open || self.find_open {
+            let _ = self.ui.focus();
+            return;
+        }
+        match self.tabs.active_tab().and_then(|t| t.view.as_ref()) {
+            Some(wv) => {
+                let _ = wv.focus();
+            }
+            None => {
+                let _ = self.ui.focus();
+            }
+        }
+    }
+
+    /// Когда вкладок на экране нет, клавиатура должна попадать в интерфейс —
+    /// иначе фокус ни у кого, и Ctrl+T и другие клавиши не работают до клика мышью.
+    fn focus_ui_if_empty(&self) {
+        if self.tabs.active().is_none() {
+            let _ = self.ui.focus();
+        }
     }
 
     fn reopen_closed(&mut self) {
@@ -761,6 +788,7 @@ impl App {
         match self.tabs.active().or_else(|| self.tabs.order().first().copied()) {
             Some(id) => self.activate(id),
             None => {
+                self.focus_ui_if_empty();
                 self.layout();
                 self.push_state();
                 self.save();

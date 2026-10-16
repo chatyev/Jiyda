@@ -232,11 +232,11 @@ body.no-sidebar #findbar { left: var(--pad); }
 
 /* ===== Контекстное меню ===== */
 #menu {
-  position: fixed; display: none; min-width: 190px; padding: 4px; background: var(--panel);
+  position: fixed; display: none; min-width: min(190px, calc(var(--sw) - 12px)); padding: 4px; background: var(--panel);
   border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.45); z-index: 10;
 }
 #menu.open { display: block; }
-#menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; }
+#menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #menu button:hover { background: rgba(255,255,255,.1); }
 </style>
 </head>
@@ -618,10 +618,14 @@ body.no-sidebar #findbar { left: var(--pad); }
       b.onclick = () => { closeMenu(); fn(); };
       return b;
     }));
+    // Страница вкладки — отдельное окно поверх интерфейса, и меню, заехавшее на неё,
+    // окажется под ней. Поэтому меню всегда целиком внутри сайдбара.
+    const edge = state.sidebar ? cfg.sidebarWidth : innerWidth;
+    m.style.maxWidth = edge - 12 + 'px';
     m.classList.add('open');
     const r = m.getBoundingClientRect();
-    m.style.left = Math.min(x, innerWidth - r.width - 6) + 'px';
-    m.style.top = Math.min(y, innerHeight - r.height - 6) + 'px';
+    m.style.left = Math.max(6, Math.min(x, edge - r.width - 6)) + 'px';
+    m.style.top = Math.max(6, Math.min(y, innerHeight - r.height - 6)) + 'px';
   }
   const closeMenu = () => $('#menu').classList.remove('open');
   addEventListener('mousedown', (e) => { if (!e.target.closest('#menu')) closeMenu(); });
@@ -851,19 +855,25 @@ body.no-sidebar #findbar { left: var(--pad); }
   $('#edge').onclick = () => post({ type: 'key', k: 'toggle_sidebar' });
 
   addEventListener('keydown', (e) => {
-    const c = e.ctrlKey || e.metaKey, s = e.shiftKey, code = e.code;
+    const c = e.ctrlKey || e.metaKey, s = e.shiftKey;
+    // Клавиша по физическому месту, а не по букве — работает на любой раскладке.
+    // e.code бывает пустым (удалённый рабочий стол, программные нажатия), тогда
+    // смотрим e.keyCode — это виртуальный код Windows, он тоже не зависит от раскладки.
+    const key = (ch) => e.code === 'Key' + ch || (!e.code && e.keyCode === ch.charCodeAt(0));
+    const digit = e.code ? (/^Digit([1-9])$/.exec(e.code) || [])[1]
+      : (e.keyCode >= 49 && e.keyCode <= 57 ? String(e.keyCode - 48) : undefined);
     let k = null;
     if (c && !e.altKey) {
-      if (code === 'KeyT') k = s ? 'reopen' : 'new_tab';
-      else if (code === 'KeyL') k = 'edit_url';
-      else if (code === 'KeyW') k = 'close';
+      if (key('T')) k = s ? 'reopen' : 'new_tab';
+      else if (key('L')) k = 'edit_url';
+      else if (key('W')) k = 'close';
       else if (e.key === 'Tab') k = s ? 'prev' : 'next';
-      else if (code === 'KeyS' && !s) k = 'toggle_sidebar';
-      else if (code === 'KeyD' && !s) k = 'pin';
-      else if (code === 'KeyR') k = 'reload';
-      else if (code === 'KeyF' && !s) k = 'find';
-      else if (code === 'KeyJ' && !s) k = 'downloads';
-      else if (/^Digit[1-9]$/.test(code) && !s) k = 'goto:' + code.slice(5);
+      else if (key('S') && !s) k = 'toggle_sidebar';
+      else if (key('D') && !s) k = 'pin';
+      else if (key('R')) k = 'reload';
+      else if (key('F') && !s) k = 'find';
+      else if (key('J') && !s) k = 'downloads';
+      else if (digit) k = (s ? 'space:' : 'goto:') + digit;
     } else if (e.altKey && !c && e.key === 'ArrowLeft') k = 'back';
     else if (e.altKey && !c && e.key === 'ArrowRight') k = 'forward';
     else if (e.key === 'F5') k = 'reload';
