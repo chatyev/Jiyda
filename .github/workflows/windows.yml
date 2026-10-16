@@ -1,4 +1,4 @@
-# Сборка Seyro Browser под Windows на GitHub: при каждом push собирается seyro.exe,
+# Сборка Seyro под Windows на GitHub: при каждом push собирается seyro.exe,
 # скачать его можно во вкладке Actions → последний запуск → Artifacts.
 name: windows-build
 

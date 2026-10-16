@@ -9,8 +9,8 @@ fn main() {
     let mut res = winresource::WindowsResource::new();
     // Номер ресурса 1 — по нему же окно берёт значок (app.rs, Icon::from_resource).
     res.set_icon_with_id("assets/seyro.ico", "1");
-    res.set("ProductName", "Seyro Browser");
-    res.set("FileDescription", "Seyro Browser");
+    res.set("ProductName", "Seyro");
+    res.set("FileDescription", "Seyro");
     res.set("InternalName", "seyro");
     res.set("OriginalFilename", "seyro.exe");
     if let Err(e) = res.compile() {

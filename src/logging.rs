@@ -37,5 +37,5 @@ pub fn init(path: &Path) {
         log::error!("паника: {info}");
     }));
 
-    log::info!("Seyro Browser {} запущен", env!("CARGO_PKG_VERSION"));
+    log::info!("Seyro {} запущен", env!("CARGO_PKG_VERSION"));
 }

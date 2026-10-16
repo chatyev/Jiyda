@@ -1,6 +1,6 @@
-<p align="center"><img src="assets/seyro-logo.png" alt="Seyro Browser" width="360"></p>
+<p align="center"><img src="assets/seyro-logo.png" alt="Seyro" width="360"></p>
 
-# Seyro Browser
+# Seyro
 
 Лёгкий браузер в духе Arc для Windows. Ядро написано на Rust, страницы рендерит WebView2 (Chromium из Edge, уже встроен в Windows 10/11).
 
