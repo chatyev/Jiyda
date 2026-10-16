@@ -2,6 +2,7 @@
 
 use crate::config::{Config, Paths};
 use crate::hotkeys;
+use crate::i18n;
 use crate::input;
 use crate::instance;
 use crate::limit::RateLimit;
@@ -263,6 +264,9 @@ impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>) -> wry::Result<Self> {
         let paths = Paths::new();
         let cfg = Config::load(&paths);
+        // Язык — до всего, что пишет пользователю (в том числе имён пространств по умолчанию).
+        let lang = i18n::init(&cfg.language);
+        log::info!("язык интерфейса: {lang:?}");
         let mut session = Session::load(&paths.session);
         let theme = session
             .theme
@@ -324,6 +328,7 @@ impl App {
                     "sidebarWidth": cfg.sidebar_width,
                     "padding": cfg.frame_padding,
                     "frameless": cfg.custom_titlebar,
+                    "lang": i18n::code(),
                     "logo": format!("data:image/png;base64,{}", base64(LOGO_PNG)),
                 })
             ))
@@ -498,13 +503,13 @@ impl App {
             }
             Ok(None) => {
                 if manual {
-                    self.toast(&format!("У вас последняя версия Seyro ({})", update::CURRENT));
+                    self.toast(&i18n::trf("У вас последняя версия Seyro ({})", &[&update::CURRENT]));
                 }
             }
             Err(e) => {
                 log::warn!("не удалось проверить обновления: {e}");
                 if manual {
-                    self.toast("Не удалось проверить обновления — нет связи с GitHub?");
+                    self.toast(i18n::tr("Не удалось проверить обновления — нет связи с GitHub?"));
                 }
             }
         }
@@ -533,7 +538,7 @@ impl App {
             Ok(p) => p,
             Err(e) => {
                 log::error!("не удалось скачать обновление: {e}");
-                self.toast("Не удалось скачать обновление");
+                self.toast(i18n::tr("Не удалось скачать обновление"));
                 self.push_state();
                 return;
             }
@@ -547,7 +552,7 @@ impl App {
             }
             Err(e) => {
                 log::error!("не удалось запустить установщик {}: {e}", path.display());
-                self.toast("Не удалось запустить установщик обновления");
+                self.toast(i18n::tr("Не удалось запустить установщик обновления"));
                 self.push_state();
             }
         }
@@ -739,7 +744,7 @@ impl App {
             }
             Err(e) => {
                 log::error!("не удалось создать вкладку: {e}");
-                self.toast(&format!("Ошибка WebView2: {e}"));
+                self.toast(&i18n::trf("Ошибка WebView2: {}", &[&e]));
                 None
             }
         }
@@ -815,7 +820,7 @@ impl App {
             self.open_tab(url, background);
         } else {
             log::warn!("страница открывает слишком много вкладок, заблокировано: {url}");
-            self.toast("Заблокировано: страница открывает слишком много вкладок");
+            self.toast(i18n::tr("Заблокировано: страница открывает слишком много вкладок"));
         }
     }
 
@@ -838,7 +843,7 @@ impl App {
             t.loading = false;
         }
         let name = space.name.clone();
-        self.toast(&format!("Новая вкладка в пространстве «{name}»"));
+        self.toast(&i18n::trf("Новая вкладка в пространстве «{}»", &[&name]));
         self.push_state();
         self.save();
     }
@@ -897,7 +902,7 @@ impl App {
         if let Some(st) = self.tabs.pop_closed() {
             self.open_tab(st.url, false);
         } else {
-            self.toast("Нет закрытых вкладок");
+            self.toast(i18n::tr("Нет закрытых вкладок"));
         }
     }
 
@@ -978,7 +983,7 @@ impl App {
         // Номера удалённых пространств не берём: их папки, возможно, ещё не стёрты.
         used.extend(self.deleted_spaces.iter().map(|id| (*id, "")));
         let Some(mut meta) = spaces::new_space(&used) else {
-            self.toast(&format!("Больше {} пространств создать нельзя", spaces::MAX_SPACES));
+            self.toast(&i18n::trf("Больше {} пространств создать нельзя", &[&spaces::MAX_SPACES]));
             return;
         };
         // На диске может остаться папка от старых данных — новому пространству нужен чистый профиль.
@@ -1022,7 +1027,7 @@ impl App {
         let idx = self.active_space;
         let id = self.spaces[idx].id;
         if id == spaces::MAIN_ID {
-            self.toast("Пространство «Основное» удалить нельзя");
+            self.toast(i18n::tr("Пространство «Основное» удалить нельзя"));
             return;
         }
         let name = self.spaces[idx].name.clone();
@@ -1035,7 +1040,7 @@ impl App {
         drop(removed);
         self.deleted_spaces.push(id);
         log::info!("удалено пространство {id} «{name}», данные будут стёрты при следующем запуске");
-        self.toast(&format!("Пространство «{name}» удалено"));
+        self.toast(&i18n::trf("Пространство «{}» удалено", &[&name]));
         self.push_state();
         self.save_now();
     }
@@ -1153,7 +1158,7 @@ impl App {
         let Some(d) = self.downloads.get(id) else { return };
         let path = std::path::Path::new(&d.path);
         if d.path.is_empty() || !path.exists() {
-            self.toast("Файл не найден: возможно, его удалили или переместили");
+            self.toast(i18n::tr("Файл не найден: возможно, его удалили или переместили"));
             return;
         }
         let mut cmd = std::process::Command::new("explorer");
@@ -1179,7 +1184,7 @@ impl App {
         self.history.clear();
         self.save_now();
         log::info!("история очищена");
-        self.toast("История очищена");
+        self.toast(i18n::tr("История очищена"));
     }
 
     /// Куки, кэш, хранилища и сохранённые пароли всех сайтов: профиль общий для всех WebView.
@@ -1193,17 +1198,17 @@ impl App {
             self.tabs.iter().find_map(|t| t.view.as_ref())
         };
         let Some(wv) = wv else {
-            self.toast("Откройте любую вкладку в этом пространстве и повторите");
+            self.toast(i18n::tr("Откройте любую вкладку в этом пространстве и повторите"));
             return;
         };
         match wv.clear_all_browsing_data() {
             Ok(()) => {
                 log::info!("данные сайтов пространства «{}» очищены", space.name);
-                self.toast(&format!("Данные сайтов в «{}» очищены", space.name));
+                self.toast(&i18n::trf("Данные сайтов в «{}» очищены", &[&space.name]));
             }
             Err(e) => {
                 log::error!("не удалось очистить данные сайтов: {e}");
-                self.toast("Не удалось очистить данные сайтов");
+                self.toast(i18n::tr("Не удалось очистить данные сайтов"));
             }
         }
     }
@@ -1264,9 +1269,9 @@ impl App {
             "copy_url" => {
                 if let Some(url) = self.tabs.active_tab().map(|t| t.url.clone()) {
                     if hotkeys::copy_to_clipboard(&url) {
-                        self.toast("Ссылка скопирована");
+                        self.toast(i18n::tr("Ссылка скопирована"));
                     } else {
-                        self.toast("Не удалось скопировать ссылку");
+                        self.toast(i18n::tr("Не удалось скопировать ссылку"));
                     }
                 }
             }
@@ -1352,14 +1357,14 @@ impl App {
                 self.downloads.started(&url, &path, now());
                 self.downloads.save(&self.paths.downloads);
                 if let Some(d) = self.downloads.recent().next() {
-                    self.toast(&format!("Загрузка: {} (Ctrl+J — список)", d.name()));
+                    self.toast(&i18n::trf("Загрузка: {} (Ctrl+J — список)", &[&d.name()]));
                 }
             }
             UserEvent::Download { id, url, path, ok } => {
                 let d = self.downloads.finished(&url, path.as_deref(), ok, now());
                 let text = match d.state {
-                    DownloadState::Done => format!("Загружено: {}", d.name()),
-                    _ => format!("Загрузка не удалась: {}", d.name()),
+                    DownloadState::Done => i18n::trf("Загружено: {}", &[&d.name()]),
+                    _ => i18n::trf("Загрузка не удалась: {}", &[&d.name()]),
                 };
                 self.downloads.save(&self.paths.downloads);
                 // Вкладка, открытая только ради загрузки, остаётся пустой — закрываем её, как Chrome.
@@ -1415,23 +1420,23 @@ impl App {
                 let _ = wv.set_theme(theme);
             }
         }
-        self.toast(match self.theme.as_str() {
+        self.toast(i18n::tr(match self.theme.as_str() {
             "light" => "Тема: светлая",
             "dark" => "Тема: тёмная",
             _ => "Тема: как в Windows",
-        });
+        }));
         self.push_state();
         self.save();
     }
 
     fn make_default_browser(&self) {
         if !instance::registered_as_browser() {
-            self.toast("Сначала установите Seyro установщиком — он добавит его в список браузеров Windows");
+            self.toast(i18n::tr("Сначала установите Seyro установщиком — он добавит его в список браузеров Windows"));
             return;
         }
         if !instance::open_default_apps_settings() {
             log::error!("не удалось открыть «Параметры» → «Приложения по умолчанию»");
-            self.toast("Не удалось открыть «Параметры»");
+            self.toast(i18n::tr("Не удалось открыть «Параметры»"));
         }
     }
 

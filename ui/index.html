@@ -420,6 +420,80 @@ body.no-sidebar #findbar { left: var(--pad); }
 <script>
 (() => {
   const cfg = window.SEYRO_CONFIG || { sidebarWidth: 260, padding: 8 };
+  // ---------- Язык ----------
+  // Как в i18n.rs: ключ перевода — сама русская строка; {0}, {1} — подстановки.
+  // Язык выбирает Rust (как в Windows или "language" в config.json).
+  const EN = {
+    // Разметка: подписи и подсказки.
+    'Библиотека': 'Library', 'Вкладки': 'Tabs', 'Закреплённые': 'Pinned', 'Новая вкладка': 'New Tab',
+    'Обновить': 'Update', 'Откройте что-нибудь': 'Open something', 'Очистить': 'Clear', 'Поиск': 'Search',
+    'Пространства': 'Spaces', 'вернуть закрытую': 'reopen closed tab', 'закрепить вкладку': 'pin tab',
+    'изменить адрес': 'edit address', 'новая вкладка': 'new tab', 'скрыть / показать панель': 'hide / show sidebar',
+    'Найти на странице…': 'Find in page…', 'Поиск или адрес…': 'Search or enter a URL…',
+    'Вперёд (Alt+→)': 'Forward (Alt+→)', 'Назад (Alt+←)': 'Back (Alt+←)', 'Обновить (Ctrl+R)': 'Reload (Ctrl+R)',
+    'Загрузки': 'Downloads', 'Закрыть (Esc)': 'Close (Esc)', 'Закрыть': 'Close',
+    'Закрыть все незакреплённые вкладки (вернуть — Ctrl+Shift+T)': 'Close all unpinned tabs (Ctrl+Shift+T brings them back)',
+    'Изменить адрес (Ctrl+L)': 'Edit address (Ctrl+L)', 'Новая вкладка (Ctrl+T)': 'New tab (Ctrl+T)',
+    'Новое пространство: свои вкладки, куки и логины': 'New space with its own tabs, cookies and logins',
+    'Поиск или адрес': 'Search or address', 'Показать панель': 'Show sidebar',
+    'Потяните, чтобы изменить ширину половин': 'Drag to resize the halves',
+    'Предыдущее (Shift+Enter)': 'Previous (Shift+Enter)', 'Следующее (Enter)': 'Next (Enter)',
+    'Развернуть': 'Maximize', 'Восстановить': 'Restore', 'Свернуть': 'Minimize',
+    'Скачать и установить новую версию; вкладки сохранятся': 'Download and install the new version; your tabs are kept',
+    'Скрыть до следующего запуска': 'Hide until next launch', 'Скрыть панель (Ctrl+S)': 'Hide sidebar (Ctrl+S)',
+    // Вкладки и меню.
+    'Вернуться к закреплённому адресу': 'Back to the pinned address', 'Выгрузить (Ctrl+W)': 'Unload (Ctrl+W)',
+    'Закрыть (Ctrl+W)': 'Close (Ctrl+W)', 'Выгрузить': 'Unload', 'Дублировать': 'Duplicate', 'Закрепить': 'Pin',
+    'Открепить': 'Unpin', 'Копировать ссылку': 'Copy link', 'Ссылка скопирована': 'Link copied',
+    'Закрыть разделение': 'Close split view', 'Открыть рядом с текущей': 'Open next to current',
+    // Пространства.
+    'Новое пространство': 'New space', 'Переименовать': 'Rename', 'Удалить…': 'Delete…',
+    'Цвет пространства': 'Space color', 'Пространство: ': 'Space: ', 'пространство ': 'space ',
+    'Новое имя пространства…': 'New space name…', 'Введите новое имя': 'Type a new name',
+    'Назвать пространство «{0}»': 'Rename space to “{0}”', 'Удалить пространство?': 'Delete space?',
+    'Удалить «{0}» вместе с вкладками, куки и логинами?': 'Delete “{0}” with its tabs, cookies and logins?',
+    // Палитра.
+    'Изменить адрес…': 'Edit address…', 'Поиск по загрузкам…': 'Search downloads…',
+    'Что открыть рядом: вкладка, адрес или поиск…': 'Open alongside: a tab, address or search…',
+    'Открыть': 'Open', 'Искать': 'Search', 'Перейти': 'Switch', 'Открыть рядом': 'Open alongside',
+    'История': 'History', 'Команда': 'Command', 'Enter — да': 'Enter to confirm', 'Отмена': 'Cancel',
+    'Открыть папку «Загрузки»': 'Open Downloads folder', 'Загрузок пока нет': 'No downloads yet',
+    'Загружается': 'Downloading', 'Показать в папке': 'Show in folder', 'Не удалась': 'Failed',
+    // Команды палитры.
+    'Найти на странице': 'Find in page', 'Вернуть закрытую вкладку': 'Reopen closed tab',
+    'Разделить экран: открыть рядом': 'Split screen: open alongside',
+    'Закрыть все незакреплённые вкладки': 'Close all unpinned tabs', 'Инструменты разработчика': 'Developer tools',
+    'Очистить историю': 'Clear history', 'Удалить всю историю посещений?': 'Delete your entire browsing history?',
+    'Очистить данные сайтов': 'Clear site data',
+    'Удалить куки, кэш и пароли сайтов в этом пространстве?': 'Delete cookies, cache and saved passwords for this space?',
+    'Переименовать пространство': 'Rename space', 'Удалить пространство': 'Delete space',
+    'Сделать Seyro браузером по умолчанию': 'Make Seyro the default browser', 'Проверить обновления': 'Check for updates',
+    'Сменить тему: как в Windows, светлая, тёмная': 'Change theme: system, light, dark',
+    // Поиск по странице и обновление.
+    ' из ': ' of ', 'не найдено': 'no matches', 'Скачиваю…': 'Downloading…',
+  };
+  const tr = (s, ...args) => {
+    let r = (cfg.lang === 'en' && EN[s]) || s;
+    args.forEach((a, i) => { r = r.replace('{' + i + '}', a); });
+    return r;
+  };
+  // Статическая разметка переводится один раз: тексты, подсказки и заглушки полей.
+  (function translatePage() {
+    if (cfg.lang !== 'en') return;
+    document.documentElement.lang = 'en';
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n; (n = walker.nextNode());) {
+      const k = n.data.trim();
+      if (EN[k]) n.data = n.data.replace(k, EN[k]);
+    }
+    for (const el of document.querySelectorAll('[title], [placeholder]')) {
+      for (const a of ['title', 'placeholder']) {
+        const v = el.getAttribute(a);
+        if (v && EN[v]) el.setAttribute(a, EN[v]);
+      }
+    }
+  })();
+
   document.documentElement.style.setProperty('--sw', cfg.sidebarWidth + 'px');
   document.documentElement.style.setProperty('--pad', cfg.padding + 'px');
   document.body.classList.toggle('frameless', !!cfg.frameless);
@@ -457,18 +531,18 @@ body.no-sidebar #findbar { left: var(--pad); }
     el.appendChild(favEl(t));
     const title = document.createElement('div');
     title.className = 'title';
-    title.textContent = t.title || hostOf(t.url) || 'Новая вкладка';
+    title.textContent = t.title || hostOf(t.url) || tr('Новая вкладка');
     el.appendChild(title);
     if (t.media) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = '🔊'; el.appendChild(b); }
     if (t.drifted) {
       const b = document.createElement('button'); b.className = 'badge'; b.textContent = '↺';
-      b.title = 'Вернуться к закреплённому адресу';
+      b.title = tr('Вернуться к закреплённому адресу');
       b.onclick = (e) => { e.stopPropagation(); post({ type: 'reset_pinned', id: t.id }); };
       el.appendChild(b);
     }
     const x = document.createElement('button');
     x.className = 'x'; x.textContent = '×';
-    x.title = t.pinned ? 'Выгрузить (Ctrl+W)' : 'Закрыть (Ctrl+W)';
+    x.title = t.pinned ? tr('Выгрузить (Ctrl+W)') : tr('Закрыть (Ctrl+W)');
     x.onclick = (e) => { e.stopPropagation(); post({ type: 'close', id: t.id }); };
     el.appendChild(x);
 
@@ -485,7 +559,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     const u = state.update, bar = $('#update');
     bar.hidden = !u && !state.updating;
     if (bar.hidden) return;
-    $('#update-text').textContent = state.updating ? 'Скачиваю…' : 'Seyro ' + u.version;
+    $('#update-text').textContent = state.updating ? tr('Скачиваю…') : 'Seyro ' + u.version;
     $('.update-go').disabled = !!state.updating;
     $('.update-x').hidden = !!state.updating;
   }
@@ -534,16 +608,16 @@ body.no-sidebar #findbar { left: var(--pad); }
       const b = document.createElement('button');
       b.style.background = SPACE_COLORS[key];
       b.className = key === s.color ? 'cur' : '';
-      b.title = 'Цвет пространства';
+      b.title = tr('Цвет пространства');
       b.onclick = () => { closeMenu(); post({ type: 'space_color', index: i, color: key }); };
       sw.appendChild(b);
     }
     const sep = () => Object.assign(document.createElement('div'), { className: 'sep' });
-    const items = [['Новое пространство', () => post({ type: 'key', k: 'space_new' })], ['Переименовать', go('rename_space')], sep(), sw];
+    const items = [[tr('Новое пространство'), () => post({ type: 'key', k: 'space_new' })], [tr('Переименовать'), go('rename_space')], sep(), sw];
     if (!s.main) {
       const del = document.createElement('button');
       del.className = 'danger';
-      del.textContent = 'Удалить…';
+      del.textContent = tr('Удалить…');
       del.onclick = () => { closeMenu(); go('delete_space_confirm')(); };
       items.push(sep(), del);
     }
@@ -637,7 +711,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     applyTheme();
     document.body.classList.toggle('no-sidebar', !s.sidebar);
     document.body.classList.toggle('maximized', !!s.maximized);
-    $('#win-max').title = s.maximized ? 'Восстановить' : 'Развернуть';
+    $('#win-max').title = s.maximized ? tr('Восстановить') : tr('Развернуть');
     const pinned = $('#pinned'), today = $('#today');
     pinned.replaceChildren(...rows(s.tabs.filter((t) => t.pinned)));
     today.replaceChildren(...rows(s.tabs.filter((t) => !t.pinned)));
@@ -648,7 +722,7 @@ body.no-sidebar #findbar { left: var(--pad); }
 
     const act = s.tabs.find((t) => t.id === s.active);
     const host = $('#urlbar .host');
-    host.textContent = act ? hostOf(act.url) : 'Новая вкладка';
+    host.textContent = act ? hostOf(act.url) : tr('Новая вкладка');
     $('#urlbar').title = act ? act.url : 'Ctrl+L';
     $('#content').style.visibility = act && !s.palette ? 'hidden' : 'visible';
     $('#content > div').style.visibility = act ? 'hidden' : 'visible';
@@ -699,13 +773,13 @@ body.no-sidebar #findbar { left: var(--pad); }
   function openMenu(x, y, t) {
     const m = $('#menu');
     const items = [
-      [t.pinned ? 'Открепить' : 'Закрепить', () => post({ type: t.pinned ? 'unpin' : 'pin', id: t.id })],
-      ['Копировать ссылку', () => { copy(t.url); toast('Ссылка скопирована'); }],
-      ['Дублировать', () => post({ type: 'navigate', text: t.url, mode: 'new' })],
+      [t.pinned ? tr('Открепить') : tr('Закрепить'), () => post({ type: t.pinned ? 'unpin' : 'pin', id: t.id })],
+      [tr('Копировать ссылку'), () => { copy(t.url); toast(tr('Ссылка скопирована')); }],
+      [tr('Дублировать'), () => post({ type: 'navigate', text: t.url, mode: 'new' })],
     ];
-    if (splitOf(t.id)) items.push(['Закрыть разделение', () => post({ type: 'unsplit', id: t.id })]);
-    else if (state.active && t.id !== state.active) items.push(['Открыть рядом с текущей', () => post({ type: 'split', id: t.id })]);
-    items.push([t.pinned ? 'Выгрузить' : 'Закрыть', () => post({ type: 'close', id: t.id })]);
+    if (splitOf(t.id)) items.push([tr('Закрыть разделение'), () => post({ type: 'unsplit', id: t.id })]);
+    else if (state.active && t.id !== state.active) items.push([tr('Открыть рядом с текущей'), () => post({ type: 'split', id: t.id })]);
+    items.push([t.pinned ? tr('Выгрузить') : tr('Закрыть'), () => post({ type: 'close', id: t.id })]);
     showMenu(x, y, items);
   }
 
@@ -755,23 +829,23 @@ body.no-sidebar #findbar { left: var(--pad); }
 
   // Команды палитры: находятся по названию. confirm — текст подтверждения для необратимых.
   const COMMANDS = [
-    { k: 'find', t: 'Найти на странице', hint: 'Ctrl+F' },
-    { k: 'downloads', t: 'Загрузки', hint: 'Ctrl+J' },
-    { k: 'reopen', t: 'Вернуть закрытую вкладку', hint: 'Ctrl+Shift+T' },
-    { k: 'split', t: 'Разделить экран: открыть рядом' },
-    { k: 'unsplit', t: 'Закрыть разделение' },
-    { k: 'clear', t: 'Закрыть все незакреплённые вкладки' },
-    { k: 'devtools', t: 'Инструменты разработчика', hint: 'F12' },
-    { k: 'clear_history', t: 'Очистить историю', confirm: 'Удалить всю историю посещений?' },
-    { k: 'clear_data', t: 'Очистить данные сайтов', confirm: 'Удалить куки, кэш и пароли сайтов в этом пространстве?' },
-    { k: 'space_new', t: 'Новое пространство' },
-    { k: 'default_browser', t: 'Сделать Seyro браузером по умолчанию' },
-    { k: 'check_updates', t: 'Проверить обновления' },
-    { k: 'theme', t: 'Сменить тему: как в Windows, светлая, тёмная' },
-    { k: 'rename_space', t: 'Переименовать пространство' },
-    { k: 'delete_space_confirm', t: 'Удалить пространство', notMain: true },
+    { k: 'find', t: tr('Найти на странице'), hint: 'Ctrl+F' },
+    { k: 'downloads', t: tr('Загрузки'), hint: 'Ctrl+J' },
+    { k: 'reopen', t: tr('Вернуть закрытую вкладку'), hint: 'Ctrl+Shift+T' },
+    { k: 'split', t: tr('Разделить экран: открыть рядом') },
+    { k: 'unsplit', t: tr('Закрыть разделение') },
+    { k: 'clear', t: tr('Закрыть все незакреплённые вкладки') },
+    { k: 'devtools', t: tr('Инструменты разработчика'), hint: 'F12' },
+    { k: 'clear_history', t: tr('Очистить историю'), confirm: tr('Удалить всю историю посещений?') },
+    { k: 'clear_data', t: tr('Очистить данные сайтов'), confirm: tr('Удалить куки, кэш и пароли сайтов в этом пространстве?') },
+    { k: 'space_new', t: tr('Новое пространство') },
+    { k: 'default_browser', t: tr('Сделать Seyro браузером по умолчанию') },
+    { k: 'check_updates', t: tr('Проверить обновления') },
+    { k: 'theme', t: tr('Сменить тему: как в Windows, светлая, тёмная') },
+    { k: 'rename_space', t: tr('Переименовать пространство') },
+    { k: 'delete_space_confirm', t: tr('Удалить пространство'), notMain: true },
   ];
-  const DL_STATE = { running: ['⟳', 'Загружается'], done: ['✓', 'Показать в папке'], failed: ['✕', 'Не удалась'] };
+  const DL_STATE = { running: ['⟳', tr('Загружается')], done: ['✓', tr('Показать в папке')], failed: ['✕', tr('Не удалась')] };
 
   function openPalette(mode, current, list) {
     pMode = mode;
@@ -779,9 +853,9 @@ body.no-sidebar #findbar { left: var(--pad); }
     const input = $('#pinput');
     input.value = mode === 'edit' || mode === 'rename_space' ? current : '';
     input.placeholder = {
-      edit: 'Изменить адрес…', downloads: 'Поиск по загрузкам…', split: 'Что открыть рядом: вкладка, адрес или поиск…',
-      rename_space: 'Новое имя пространства…', delete_space: 'Удалить пространство?',
-    }[mode] || 'Поиск или адрес…';
+      edit: tr('Изменить адрес…'), downloads: tr('Поиск по загрузкам…'), split: tr('Что открыть рядом: вкладка, адрес или поиск…'),
+      rename_space: tr('Новое имя пространства…'), delete_space: tr('Удалить пространство?'),
+    }[mode] || tr('Поиск или адрес…');
     $('#palette').classList.add('open');
     closeMenu();
     update();
@@ -800,41 +874,41 @@ body.no-sidebar #findbar { left: var(--pad); }
     results = [];
     if (pMode === 'rename_space') {
       results.push(q
-        ? { kind: 'rename', ico: '✎', t: `Назвать пространство «${q}»`, sub: 'Enter', name: q }
-        : { kind: 'none', ico: '✎', t: 'Введите новое имя', sub: '' });
+        ? { kind: 'rename', ico: '✎tr(', t: tr('Назвать пространство «{0}»', q), sub: ')Enter', name: q }
+        : { kind: 'none', ico: '✎', t: tr('Введите новое имя'), sub: '' });
       sel = 0;
       drawResults();
       return;
     }
     if (pMode === 'delete_space') {
       results = [
-        { kind: 'cmd', ico: '!', danger: true, k: 'delete_space', sub: 'Enter — да',
-          t: `Удалить «${curSpace().name}» вместе с вкладками, куки и логинами?` },
-        { kind: 'cancel', ico: '×', t: 'Отмена', sub: 'Esc' },
+        { kind: 'cmd', ico: '!', danger: true, k: 'delete_space', sub: tr('Enter — да'),
+          t: tr('Удалить «{0}» вместе с вкладками, куки и логинами?', curSpace().name) },
+        { kind: 'cancel', ico: '×', t: tr('Отмена'), sub: 'Esc' },
       ];
       sel = 0;
       drawResults();
       return;
     }
     if (pMode === 'downloads') {
-      results.push({ kind: 'cmd', ico: '📁', t: 'Открыть папку «Загрузки»', sub: '', k: 'open_downloads_folder' });
+      results.push({ kind: 'cmd', ico: '📁', t: tr('Открыть папку «Загрузки»'), sub: '', k: 'open_downloads_folder' });
       for (const d of items.filter((d) => !ql || match(d.name) || match(d.url)).slice(0, 50)) {
         const [ico, sub] = DL_STATE[d.state] || DL_STATE.failed;
         results.push({ kind: 'dl', ico, t: d.name, u: hostOf(d.url), sub, id: d.id });
       }
-      if (!items.length) results.push({ kind: 'none', ico: '', t: 'Загрузок пока нет', sub: '' });
+      if (!items.length) results.push({ kind: 'none', ico: '', t: tr('Загрузок пока нет'), sub: '' });
       sel = 0;
       drawResults();
       return;
     }
     if (q) {
       results.push(looksLikeUrl(q)
-        ? { kind: 'go', ico: '↗', t: q, sub: 'Открыть', text: q }
-        : { kind: 'go', ico: '⌕', t: q, sub: 'Искать', text: q });
+        ? { kind: 'go', ico: '↗', t: q, sub: tr('Открыть'), text: q }
+        : { kind: 'go', ico: '⌕', t: q, sub: tr('Искать'), text: q });
     }
     const tabs = state.tabs.filter((t) => t.id !== state.active && (!ql || match(t.title) || match(t.url)));
     for (const t of tabs.slice(0, ql ? 4 : 6)) {
-      results.push({ kind: 'tab', ico: '⇥', t: t.title || hostOf(t.url), u: hostOf(t.url), sub: pMode === 'split' ? 'Открыть рядом' : 'Перейти', id: t.id });
+      results.push({ kind: 'tab', ico: '⇥', t: t.title || hostOf(t.url), u: hostOf(t.url), sub: pMode === 'split' ? tr('Открыть рядом') : tr('Перейти'), id: t.id });
     }
     if (ql) {
       const openUrls = new Set(state.tabs.map((t) => t.url));
@@ -842,18 +916,18 @@ body.no-sidebar #findbar { left: var(--pad); }
       // Сначала совпадения по началу домена, потом по частоте посещений.
       hits.sort((a, b) => (hostOf(b.url).startsWith(ql) - hostOf(a.url).startsWith(ql)) || (b.visits - a.visits));
       for (const h of hits.slice(0, 6)) {
-        results.push({ kind: 'hist', ico: '◷', t: h.title || h.url, u: hostOf(h.url), sub: 'История', text: h.url });
+        results.push({ kind: 'hist', ico: '◷', t: h.title || h.url, u: hostOf(h.url), sub: tr('История'), text: h.url });
       }
       if (pMode !== 'split') {
         (state.spaces || []).forEach((s, i) => {
-          if (i !== state.activeSpace && (match(s.name) || match('пространство ' + s.name))) {
-            results.push({ kind: 'space', ico: '◆', t: 'Пространство: ' + s.name, sub: i < 9 ? 'Ctrl+Shift+' + (i + 1) : '', index: i });
+          if (i !== state.activeSpace && (match(s.name) || match(tr('пространство ') + s.name))) {
+            results.push({ kind: 'space', ico: '◆', t: tr('Пространство: ') + s.name, sub: i < 9 ? 'Ctrl+Shift+' + (i + 1) : '', index: i });
           }
         });
       }
       const canRun = (c) => pMode !== 'split' && !(c.notMain && curSpace().main);
       for (const c of COMMANDS.filter((c) => canRun(c) && match(c.t)).slice(0, 4)) {
-        results.push({ kind: 'cmd', ico: '›', t: c.t, sub: c.hint || 'Команда', k: c.k, confirm: c.confirm });
+        results.push({ kind: 'cmd', ico: '›', t: c.t, sub: c.hint || tr('Команда'), k: c.k, confirm: c.confirm });
       }
     }
     sel = 0;
@@ -863,8 +937,8 @@ body.no-sidebar #findbar { left: var(--pad); }
   // Для необратимой команды вместо выполнения показываем вопрос с подтверждением.
   function askConfirm(r) {
     results = [
-      { kind: 'cmd', ico: '!', t: r.confirm, sub: 'Enter — да', k: r.k, danger: true },
-      { kind: 'cancel', ico: '×', t: 'Отмена', sub: 'Esc' },
+      { kind: 'cmd', ico: '!', t: r.confirm, sub: tr('Enter — да'), k: r.k, danger: true },
+      { kind: 'cancel', ico: '×', t: tr('Отмена'), sub: 'Esc' },
     ];
     sel = 0;
     drawResults();
@@ -922,7 +996,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   // r: { n — число совпадений, i — номер текущего с нуля или null }.
   function findResult(r) {
     const q = findInput.value;
-    $('#findcount').textContent = !q ? '' : r.n > 0 ? (r.i + 1) + ' из ' + r.n : 'не найдено';
+    $('#findcount').textContent = !q ? '' : r.n > 0 ? (r.i + 1) + tr(' из ') + r.n : tr('не найдено');
     $('#findbar').classList.toggle('miss', !!q && r.n === 0);
   }
   findInput.addEventListener('input', () => runFind('type'));

@@ -4,6 +4,7 @@
 mod app;
 mod config;
 mod hotkeys;
+mod i18n;
 mod input;
 mod instance;
 mod limit;

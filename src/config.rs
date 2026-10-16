@@ -63,6 +63,8 @@ pub struct Config {
     pub custom_titlebar: bool,
     /// Проверять новые версии на GitHub (при запуске и раз в 12 часов) и предлагать обновиться.
     pub check_updates: bool,
+    /// Язык интерфейса: "auto" (как в Windows), "ru" или "en".
+    pub language: String,
 }
 
 impl Default for Config {
@@ -77,6 +79,7 @@ impl Default for Config {
             devtools: true,
             custom_titlebar: true,
             check_updates: true,
+            language: "auto".into(),
         }
     }
 }

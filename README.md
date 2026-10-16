@@ -106,11 +106,12 @@ git push --tags
   "extensions": true,
   "devtools": true,
   "custom_titlebar": true,
-  "check_updates": true
+  "check_updates": true,
+  "language": "auto"
 }
 ```
 
-Например, для DuckDuckGo: `"search_url": "https://duckduckgo.com/?q=%s"`. `0` в `archive_hours` или `sleep_minutes` отключает соответствующую функцию. `"custom_titlebar": false` возвращает обычную рамку окна Windows. `"check_updates": false` отключает проверку обновлений. После правки перезапусти браузер.
+Например, для DuckDuckGo: `"search_url": "https://duckduckgo.com/?q=%s"`. `0` в `archive_hours` или `sleep_minutes` отключает соответствующую функцию. `"custom_titlebar": false` возвращает обычную рамку окна Windows. `"check_updates": false` отключает проверку обновлений. `"language"`: `"auto"` — язык как в Windows (русский для русской Windows, иначе английский), `"ru"` или `"en"`. Тема меняется командой палитры «Сменить тему». После правки перезапусти браузер.
 
 ### Расширения
 
@@ -124,6 +125,7 @@ src/app.rs     — ядро: окно, WebView, раскладка, команд
 src/tabs.rs    — модель вкладок без WebView: порядок, закрытие, сон/архив, Split View
 src/spaces.rs  — пространства: имена, цвета, папки профилей
 src/instance.rs — один экземпляр программы, ссылки из командной строки и других программ
+src/i18n.rs    — язык сообщений: русский или английский
 src/update.rs  — автообновление: новая версия на GitHub Releases, скачивание и запуск установщика
 src/store.rs   — сохранение сессии и истории
 src/config.rs  — настройки и пути

@@ -19,7 +19,7 @@ const NAME_MAX: usize = 40;
 pub const COLORS: [&str; 7] = ["violet", "blue", "teal", "green", "orange", "rose", "gray"];
 
 pub fn default_name(id: u32) -> String {
-    if id == MAIN_ID { "Основное".into() } else { format!("Пространство {id}") }
+    if id == MAIN_ID { crate::i18n::tr("Основное").into() } else { crate::i18n::trf("Пространство {}", &[&id]) }
 }
 
 /// Имя от пользователя: без лишних пробелов и не длиннее NAME_MAX. None — пустое.
