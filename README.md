@@ -70,7 +70,7 @@
 
    Получится `target\installer\SeyroSetup-<версия>.exe`; версия берётся из `Cargo.toml`.
 
-GitHub Actions (`.github/workflows/windows.yml`) при каждом push собирает `seyro.exe` и установщик (Actions → последний запуск → Artifacts). Чтобы выпустить версию: подними `version` в `Cargo.toml`, закоммить и поставь метку — установщик сам появится в Releases:
+GitHub Actions (`.github/workflows/windows.yml`) при каждом push собирает `seyro.exe` и установщик (Actions → последний запуск → Artifacts). Чтобы выпустить версию: подними `version` в `Cargo.toml`, напиши release notes на английском в `docs/releases/v<версия>.md` (без них релиз не соберётся), закоммить и поставь метку — установщик с этим описанием сам появится в Releases:
 
 ```
 git tag v0.2.0

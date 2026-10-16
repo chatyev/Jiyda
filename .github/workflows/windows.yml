@@ -2,7 +2,7 @@
 # При каждом push собираются seyro.exe и установщик SeyroSetup-<версия>.exe —
 # их можно скачать во вкладке Actions → последний запуск → Artifacts.
 # При метке вида v0.2.0 (git tag v0.2.0 && git push --tags) установщик
-# выкладывается в Releases.
+# выкладывается в Releases с описанием из docs/releases/<метка>.md (на английском).
 name: windows-build
 
 on:
@@ -21,13 +21,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
-      - name: Версия из метки совпадает с Cargo.toml
+      - name: Версия из метки совпадает с Cargo.toml, release notes написаны
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
           $cargo = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           $tag = "${{ github.ref_name }}".TrimStart('v')
           if ($cargo -ne $tag) { throw "Метка v$tag, а в Cargo.toml версия $cargo" }
+          if (-not (Test-Path "docs/releases/${{ github.ref_name }}.md")) {
+            throw "Нет release notes: docs/releases/${{ github.ref_name }}.md (на английском)"
+          }
 
       - name: Inno Setup
         shell: pwsh
@@ -52,5 +55,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: Seyro ${{ github.ref_name }}
+          body_path: docs/releases/${{ github.ref_name }}.md
           files: target/installer/SeyroSetup-*.exe
-          generate_release_notes: true
