@@ -23,6 +23,8 @@ pub struct Session {
     /// Индекс активного пространства в `spaces`.
     pub active_space: usize,
     pub sidebar_visible: Option<bool>,
+    /// Тема интерфейса: "system" (как в Windows), "light" или "dark".
+    pub theme: Option<String>,
     /// Удалённые пространства: их папки данных стираются при следующем запуске
     /// (пока браузер работает, файлы заняты).
     pub deleted_spaces: Vec<u32>,

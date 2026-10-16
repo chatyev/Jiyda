@@ -4,50 +4,79 @@
 <meta charset="utf-8">
 <title>Seyro</title>
 <style>
-/* ===== Тема: меняй эти переменные, чтобы перекрасить браузер ===== */
+/* ===== Тема: светлая по умолчанию, тёмная — по системе или выбору (data-theme) ===== */
 :root {
-  --bg-a: #2a2f5c;
-  --bg-b: #4a3470;
-  --bg-c: #6b3557;
-  --text: #f4f2fa;
-  --text-dim: rgba(244, 242, 250, .62);
-  --hover: rgba(255, 255, 255, .09);
-  --active: rgba(255, 255, 255, .20);
-  --line: rgba(255, 255, 255, .12);
-  --accent: #ffb86b;
-  --panel: rgba(22, 20, 36, .92);
+  --bg: #eeeef3;            /* фон окна вокруг страницы */
+  --sidebar: transparent;
+  --text: #1d1d24;
+  --text-dim: #6c6c78;
+  --text-faint: #9a9aa6;
+  --hover: rgba(20, 20, 40, .05);
+  --active: rgba(255, 255, 255, .92);
+  --active-shadow: 0 1px 2px rgba(20, 20, 40, .08), 0 0 0 1px rgba(20, 20, 40, .04);
+  --line: rgba(20, 20, 40, .08);
+  --accent: #6c5cf5;
+  --accent-soft: rgba(108, 92, 245, .12);
+  --panel: rgba(255, 255, 255, .97);
+  --panel-shadow: 0 18px 50px rgba(20, 20, 50, .18), 0 0 0 1px rgba(20, 20, 40, .06);
+  --page: #ffffff;          /* подложка под страницей */
+  --danger: #e5484d;
   --radius: 10px;
   --sw: 260px;   /* ширина сайдбара — задаётся из config.json */
   --pad: 8px;    /* рамка вокруг страницы */
   --find-h: 40px; /* высота панели поиска — та же, что FIND_BAR_H в app.rs */
+  --space: #6c5cf5; /* цвет текущего пространства — даёт сайдбару лёгкий оттенок */
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #17171c;
+  --text: #ececf2;
+  --text-dim: rgba(236, 236, 242, .62);
+  --text-faint: rgba(236, 236, 242, .38);
+  --hover: rgba(255, 255, 255, .06);
+  --active: rgba(255, 255, 255, .11);
+  --active-shadow: 0 0 0 1px rgba(255, 255, 255, .04);
+  --line: rgba(255, 255, 255, .08);
+  --accent: #8e80ff;
+  --accent-soft: rgba(142, 128, 255, .18);
+  --panel: rgba(34, 34, 42, .98);
+  --panel-shadow: 0 18px 50px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .06);
+  --page: #1f1f26;
+  --danger: #ff6b6f;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   height: 100%; overflow: hidden; user-select: none;
   font: 13px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
-  background: linear-gradient(160deg, var(--bg-a) 0%, var(--bg-b) 55%, var(--bg-c) 100%);
+  background: color-mix(in srgb, var(--space) 6%, var(--bg));
 }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+svg.i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
 /* ===== Сайдбар ===== */
 #sidebar {
   position: fixed; left: 0; top: 0; bottom: 0; width: var(--sw);
-  display: flex; flex-direction: column; padding: 10px 8px 8px 10px; gap: 6px;
+  display: flex; flex-direction: column; padding: 10px 8px 8px 10px; gap: 4px;
 }
 body.no-sidebar #sidebar { display: none; }
 
-.toolbar { display: flex; align-items: center; gap: 2px; height: 30px; }
-.toolbar .spacer { flex: 1; }
+/* Верхняя строка: знак и название, действия, кнопки окна. За пустое место окно тянется. */
+.toolbar { display: flex; align-items: center; gap: 2px; height: 32px; }
+.toolbar .spacer { flex: 1; align-self: stretch; }
+.brand { display: flex; align-items: center; gap: 8px; padding-left: 4px; font-weight: 650; font-size: 14px; letter-spacing: .01em; }
+.brand img { width: 22px; height: 22px; display: block; }
+.brand img:not([src]) { display: none; }
 .icon-btn {
-  width: 30px; height: 28px; border-radius: 7px; display: grid; place-items: center;
-  color: var(--text-dim); font-size: 15px;
+  width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  color: var(--text-dim); font-size: 15px; flex: none;
 }
 .icon-btn:hover { background: var(--hover); color: var(--text); }
-.icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ----- Окно без рамки ----- */
-.winctl { display: none; gap: 0; margin-left: 4px; }
+.winctl { display: none; gap: 0; margin-left: 2px; }
 body.frameless .winctl { display: flex; }
 .icon-btn.close:hover { background: #c42b1c; color: #fff; }
 #win-max .ico-restore, body.maximized #win-max .ico-max { display: none; }
@@ -68,36 +97,52 @@ body.frameless:not(.maximized) #resize { display: block; }
 #topdrag { display: none; position: fixed; top: 0; left: 0; right: 0; height: var(--pad); z-index: 50; }
 body.frameless.no-sidebar #topdrag { display: block; }
 
+/* Строка навигации: назад, вперёд, обновить и адрес текущей вкладки. */
+.navrow { display: flex; align-items: center; gap: 2px; margin: 4px 0 6px; }
 #urlbar {
-  height: 34px; border-radius: var(--radius); background: rgba(255,255,255,.10);
-  display: flex; align-items: center; padding: 0 12px; gap: 8px; cursor: text;
+  flex: 1; min-width: 0; height: 32px; border-radius: 9px; margin-left: 4px;
+  background: var(--active); box-shadow: var(--active-shadow);
+  display: flex; align-items: center; padding: 0 10px; gap: 7px; cursor: text;
   color: var(--text-dim); white-space: nowrap; overflow: hidden;
 }
-#urlbar:hover { background: rgba(255,255,255,.15); }
-#urlbar .host { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
-#urlbar .lock { opacity: .6; font-size: 11px; }
+#urlbar:hover { color: var(--text); }
+#urlbar .host { color: var(--text); overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
 
 .section-label {
-  font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim);
-  padding: 8px 8px 2px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11.5px; color: var(--text-faint); padding: 12px 8px 4px; font-weight: 550;
 }
-.list { display: flex; flex-direction: column; gap: 1px; min-height: 6px; }
+.section-label .act { color: var(--text-faint); font-size: 11.5px; padding: 1px 6px; border-radius: 5px; font-weight: 500; }
+.section-label .act:hover { background: var(--hover); color: var(--text); }
+.section-label .act.plus { font-size: 16px; line-height: 1; padding: 0 5px 2px; }
+.list { display: flex; flex-direction: column; gap: 1px; min-height: 4px; }
 #scroll { flex: 1; overflow-y: auto; overflow-x: hidden; margin-right: -4px; padding-right: 4px; }
 #scroll::-webkit-scrollbar { width: 6px; }
-#scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+#scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 
-.divider { height: 1px; background: var(--line); margin: 8px 6px; }
-
-.tab {
-  position: relative; height: 34px; border-radius: 8px; padding: 0 6px 0 9px;
-  display: flex; align-items: center; gap: 9px; cursor: default;
+/* Строки сайдбара: пункты навигации, пространства, вкладки. */
+.row, .tab {
+  position: relative; height: 32px; border-radius: 8px; padding: 0 6px 0 9px;
+  display: flex; align-items: center; gap: 10px; cursor: default; color: var(--text);
 }
-.tab:hover { background: var(--hover); }
-.tab.active { background: var(--active); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+.row { width: 100%; text-align: left; }
+.row:hover, .tab:hover { background: var(--hover); }
+.row .ri { width: 18px; height: 18px; display: grid; place-items: center; color: var(--text-dim); flex: none; }
+.row .rt { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row .kbd { color: var(--text-faint); font-size: 11px; }
+
+.space-row.active { background: var(--accent-soft); }
+.space-ico {
+  width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 700; color: #fff; flex: none;
+}
+.space-row .count { color: var(--text-faint); font-size: 11px; }
+
+.tab.active { background: var(--active); box-shadow: var(--active-shadow); }
 .tab.asleep .title { color: var(--text-dim); }
 .tab .fav {
   width: 16px; height: 16px; border-radius: 4px; flex: none; display: grid; place-items: center;
-  font-size: 10px; font-weight: 700; background: rgba(255,255,255,.18); overflow: hidden;
+  font-size: 10px; font-weight: 700; background: var(--line); color: var(--text-dim); overflow: hidden;
 }
 .tab .fav img { width: 16px; height: 16px; display: block; }
 .tab .title { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -113,7 +158,7 @@ body.frameless.no-sidebar #topdrag { display: block; }
 /* Пара Split View — одна строка с двумя половинами. */
 .tab.split { padding: 0 3px; gap: 3px; }
 .tab.split.shown { background: var(--hover); }
-.tab.split > .tab { flex: 1 1 0; min-width: 0; height: 28px; padding: 0 3px 0 6px; gap: 6px; border-radius: 6px; }
+.tab.split > .tab { flex: 1 1 0; min-width: 0; height: 26px; padding: 0 3px 0 6px; gap: 6px; border-radius: 6px; }
 .tab.split > .tab .x { width: 18px; height: 18px; }
 .tab.split:hover > .tab:not(:hover):not(.active) .x { display: none; }
 .tab.drop-before::before, .tab.drop-after::after {
@@ -123,45 +168,30 @@ body.frameless.no-sidebar #topdrag { display: block; }
 .tab.drop-after::after { bottom: -1px; }
 .list.drop-end { box-shadow: inset 0 -2px 0 var(--accent); }
 
-#newtab {
-  height: 34px; border-radius: 8px; display: flex; align-items: center; gap: 9px; padding: 0 9px;
-  color: var(--text-dim); width: 100%; text-align: left;
-}
-#newtab:hover { background: var(--hover); color: var(--text); }
-#newtab .plus { width: 16px; text-align: center; font-size: 17px; }
+#newtab { color: var(--text-dim); margin-top: 2px; }
+#newtab:hover { color: var(--text); }
 
 /* Плашка «доступна новая версия». */
-#update { display: flex; align-items: center; gap: 6px; padding: 7px 6px 7px 10px; border-radius: 8px; background: rgba(255,255,255,.10); font-size: 12px; }
+#update {
+  display: flex; align-items: center; gap: 6px; padding: 7px 6px 7px 10px; border-radius: 9px;
+  background: var(--active); box-shadow: var(--active-shadow); font-size: 12px;
+}
 #update[hidden] { display: none; }
 #update-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#update .update-go { padding: 3px 9px; border-radius: 6px; background: var(--accent); color: #1b1b24; font-weight: 600; }
+#update .update-go { padding: 3px 10px; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 600; }
 #update .update-go:disabled { opacity: .5; cursor: default; }
 #update .update-x { width: 20px; height: 20px; border-radius: 5px; color: var(--text-dim); }
 #update .update-x:hover { background: var(--hover); color: var(--text); }
 
-/* Пространства: значки внизу сайдбара. */
-#spacesbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 2px 2px; }
-.space-btn {
-  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
-  font-size: 12px; font-weight: 700; color: #fff; opacity: .55;
-}
-.space-btn:hover { opacity: .85; }
-.space-btn.active { opacity: 1; box-shadow: 0 0 0 2px var(--text); }
-.space-btn.add { color: var(--text-dim); background: rgba(255,255,255,.08); font-size: 16px; font-weight: 400; opacity: 1; }
-.space-btn.add:hover { background: var(--hover); color: var(--text); }
-#menu .swatches { display: flex; gap: 6px; padding: 6px 10px; }
-#menu .swatches button { width: 18px; height: 18px; padding: 0; border-radius: 50%; }
-#menu .swatches button.cur { box-shadow: 0 0 0 2px var(--text); }
-
-.footer { display: flex; align-items: center; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
-.footer .link { color: var(--text-dim); font-size: 12px; padding: 5px 8px; border-radius: 6px; }
-.footer .link:hover { background: var(--hover); color: var(--text); }
+#menu .swatches { display: flex; gap: 8px; padding: 7px 10px; }
+#menu .swatches button { width: 16px; height: 16px; padding: 0; border-radius: 50%; }
+#menu .swatches button.cur { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--text-faint); }
 
 #toast {
-  position: fixed; left: 12px; bottom: 46px; max-width: calc(var(--sw) - 24px);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 8px 12px; font-size: 12px; opacity: 0; transform: translateY(6px);
-  transition: .18s ease; pointer-events: none; word-break: break-all;
+  position: fixed; left: 12px; bottom: 14px; max-width: calc(var(--sw) - 24px);
+  background: var(--panel); box-shadow: var(--panel-shadow); border-radius: 9px;
+  padding: 9px 12px; font-size: 12px; opacity: 0; transform: translateY(6px);
+  transition: .18s ease; pointer-events: none; word-break: break-word; z-index: 20;
 }
 #toast.show { opacity: 1; transform: none; }
 body.no-sidebar #toast { left: 50%; transform: translateX(-50%); bottom: 20px; }
@@ -169,65 +199,67 @@ body.no-sidebar #toast { left: 50%; transform: translateX(-50%); bottom: 20px; }
 /* ===== Область страницы (видна, когда вкладка скрыта) ===== */
 #content {
   position: fixed; top: var(--pad); right: var(--pad); bottom: var(--pad); left: var(--sw);
-  border-radius: 6px; background: rgba(15, 14, 26, .55);
+  border-radius: 12px; background: var(--page); box-shadow: 0 1px 3px rgba(20, 20, 40, .08);
   display: grid; place-items: center; text-align: center; color: var(--text-dim);
 }
 body.no-sidebar #content { left: var(--pad); }
 #content .logo { width: 72px; height: 72px; display: block; margin: 0 auto 14px; }
 #content .logo:not([src]) { display: none; }
-#content .big { font-size: 22px; color: var(--text); margin-bottom: 8px; font-weight: 600; }
+#content .big { font-size: 22px; color: var(--text); margin-bottom: 8px; font-weight: 650; }
 #content kbd {
   font: 12px "Cascadia Mono", Consolas, monospace; padding: 2px 6px; border-radius: 5px;
-  border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text);
+  border: 1px solid var(--line); background: var(--hover); color: var(--text);
 }
 #content .hints { display: grid; grid-template-columns: auto auto; gap: 6px 14px; margin-top: 16px; text-align: left; }
 /* Split View: разделитель между страницами и рамка вокруг активной половины.
    Страницы лежат поверх интерфейса, поэтому видны только края этих элементов. */
 #splitdiv { position: fixed; z-index: 60; cursor: col-resize; display: grid; place-items: center; }
-#splitdiv::after { content: ""; width: 4px; height: 44px; border-radius: 2px; background: rgba(255,255,255,.28); }
+#splitdiv::after { content: ""; width: 4px; height: 44px; border-radius: 2px; background: var(--text-faint); opacity: .5; }
 #splitdiv[hidden] { display: none; }
-#splitdiv:hover::after, #splitdiv.drag::after { background: var(--accent); }
-#splitframe { position: fixed; border: 2px solid var(--accent); border-radius: 8px; pointer-events: none; opacity: .75; }
+#splitdiv:hover::after, #splitdiv.drag::after { background: var(--accent); opacity: 1; }
+#splitframe { position: fixed; border: 2px solid var(--accent); border-radius: 10px; pointer-events: none; opacity: .7; }
 #edge { position: fixed; left: 0; top: 0; bottom: 0; width: var(--pad); cursor: e-resize; display: none; }
 body.no-sidebar #edge { display: block; }
 
-/* ===== Командная палитра ===== */
+/* ===== Командная палитра: поле поиска с результатами ===== */
 #palette {
-  position: fixed; inset: 0; display: none; background: rgba(8, 6, 18, .35);
-  backdrop-filter: blur(2px);
+  position: fixed; inset: 0; display: none; background: rgba(20, 20, 40, .18);
+  backdrop-filter: blur(3px);
 }
+:root[data-theme="dark"] #palette { background: rgba(0, 0, 0, .35); }
 #palette.open { display: block; }
 #palette .box {
   position: absolute; left: 50%; top: 14vh; transform: translateX(-50%);
   width: min(640px, calc(100vw - 40px)); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 14px;
-  box-shadow: 0 24px 70px rgba(0,0,0,.5); overflow: hidden;
+  border-radius: 16px; box-shadow: var(--panel-shadow); overflow: hidden;
 }
+#palette .field { display: flex; align-items: center; gap: 10px; padding: 0 16px; }
+#palette .field svg { width: 18px; height: 18px; color: var(--text-faint); }
 #palette input {
-  width: 100%; height: 54px; padding: 0 18px; border: 0; outline: 0; background: transparent;
-  color: var(--text); font: 17px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  flex: 1; min-width: 0; height: 54px; border: 0; outline: 0; background: transparent;
+  color: var(--text); font: 16px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   user-select: text;
 }
-#palette input::placeholder { color: var(--text-dim); }
+#palette input::placeholder { color: var(--text-faint); }
+#palette .hint { font-size: 11px; color: var(--text-faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
 #results { border-top: 1px solid var(--line); padding: 6px; max-height: 60vh; overflow-y: auto; }
 #results:empty { display: none; }
 .res {
-  display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px; border-radius: 8px;
+  display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px; border-radius: 9px;
   cursor: default;
 }
-.res.sel { background: rgba(255,255,255,.12); }
+.res.sel { background: var(--accent-soft); }
 .res .ico { width: 18px; text-align: center; color: var(--text-dim); flex: none; }
 .res .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.res .u { color: var(--text-dim); font-size: 12px; margin-left: 8px; }
-.res .kind { color: var(--text-dim); font-size: 11px; flex: none; }
-
-.res.danger .t { color: #ff9b8f; }
+.res .u { color: var(--text-faint); font-size: 12px; margin-left: 8px; }
+.res .kind { color: var(--text-faint); font-size: 11px; flex: none; }
+.res.danger .t { color: var(--danger); }
 
 /* ===== Поиск по странице (полоса над вкладкой) ===== */
 #findbar {
   position: fixed; top: var(--pad); left: var(--sw); right: var(--pad); height: calc(var(--find-h) - 4px);
   display: flex; align-items: center; gap: 4px; padding: 0 6px 0 12px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); box-shadow: var(--panel-shadow); border-radius: 10px;
 }
 #findbar[hidden] { display: none; }
 body.no-sidebar #findbar { left: var(--pad); }
@@ -235,36 +267,33 @@ body.no-sidebar #findbar { left: var(--pad); }
   flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--text);
   font: inherit; font-size: 14px; user-select: text;
 }
-#findbar input::placeholder { color: var(--text-dim); }
-#findbar.miss input { color: #ff9b8f; }
+#findbar input::placeholder { color: var(--text-faint); }
+#findbar.miss input { color: var(--danger); }
 #findcount { color: var(--text-dim); font-size: 12px; padding: 0 6px; white-space: nowrap; }
 
 /* ===== Контекстное меню ===== */
 #menu {
-  position: fixed; display: none; min-width: min(190px, calc(var(--sw) - 12px)); padding: 4px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.45); z-index: 10;
+  position: fixed; display: none; min-width: min(196px, calc(var(--sw) - 12px)); padding: 5px; background: var(--panel);
+  border-radius: 12px; box-shadow: var(--panel-shadow); z-index: 10;
 }
 #menu.open { display: block; }
-#menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#menu button:hover { background: rgba(255,255,255,.1); }
+#menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#menu button:hover { background: var(--hover); }
+#menu button.danger { color: var(--danger); }
+#menu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
 </style>
 </head>
 <body>
 
 <aside id="sidebar">
   <div class="toolbar">
+    <div class="brand"><img id="brand-logo" alt=""><span>Seyro</span></div>
+    <div class="spacer"></div>
     <button class="icon-btn" data-cmd="toggle_sidebar" title="Скрыть панель (Ctrl+S)">
       <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
     </button>
-    <div class="spacer"></div>
-    <button class="icon-btn" data-cmd="back" title="Назад (Alt+←)">
-      <svg viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></svg>
-    </button>
-    <button class="icon-btn" data-cmd="forward" title="Вперёд (Alt+→)">
-      <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
-    </button>
-    <button class="icon-btn" data-cmd="reload" title="Обновить (Ctrl+R)">
-      <svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.8h-2.8"/></svg>
+    <button class="icon-btn" data-cmd="new_tab" title="Новая вкладка (Ctrl+T)">
+      <svg viewBox="0 0 16 16"><path d="M8.5 2.5H4a1.5 1.5 0 0 0-1.5 1.5v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V7.5"/><path d="m11.5 2.2 2.3 2.3L8.3 10H6V7.7z"/></svg>
     </button>
     <!-- Кнопки окна: только в режиме без рамки (custom_titlebar в config.json). -->
     <div class="winctl">
@@ -281,14 +310,49 @@ body.no-sidebar #findbar { left: var(--pad); }
     </div>
   </div>
 
-  <div id="urlbar" title="Изменить адрес (Ctrl+L)"><span class="host">Новая вкладка</span></div>
+  <div class="navrow">
+    <button class="icon-btn" data-cmd="back" title="Назад (Alt+←)">
+      <svg viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <button class="icon-btn" data-cmd="forward" title="Вперёд (Alt+→)">
+      <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
+    </button>
+    <button class="icon-btn" data-cmd="reload" title="Обновить (Ctrl+R)">
+      <svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.8h-2.8"/></svg>
+    </button>
+    <div id="urlbar" title="Изменить адрес (Ctrl+L)"><span class="host">Новая вкладка</span></div>
+  </div>
 
   <div id="scroll">
-    <div class="section-label" id="pinned-label">Закреплённые</div>
+    <div class="list" id="nav">
+      <button class="row" data-cmd="new_tab" title="Поиск или адрес">
+        <span class="ri"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg></span>
+        <span class="rt">Поиск</span><span class="kbd">Ctrl+T</span>
+      </button>
+      <button class="row" data-cmd="downloads" title="Загрузки">
+        <span class="ri"><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M6 2.5v11"/></svg></span>
+        <span class="rt">Библиотека</span><span class="kbd">Ctrl+J</span>
+      </button>
+    </div>
+
+    <div class="section-label">
+      <span>Пространства</span>
+      <button class="act plus" data-cmd="space_new" title="Новое пространство: свои вкладки, куки и логины">+</button>
+    </div>
+    <div class="list" id="spacesbar"></div>
+
+    <div class="section-label" id="pinned-label"><span>Закреплённые</span></div>
     <div class="list" id="pinned" data-pinned="1"></div>
-    <div class="divider"></div>
-    <button id="newtab"><span class="plus">+</span>Новая вкладка</button>
+
+    <div class="section-label">
+      <span>Вкладки</span>
+      <button class="act" data-cmd="clear" title="Закрыть все незакреплённые вкладки (вернуть — Ctrl+Shift+T)">Очистить</button>
+    </div>
     <div class="list" id="today" data-pinned="0"></div>
+    <button class="row" id="newtab">
+      <span class="ri"><svg class="i" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></span>
+      <span class="rt">Новая вкладка</span>
+    </button>
   </div>
 
   <!-- Новая версия: показывается, когда GitHub сообщил о ней (update.rs). -->
@@ -296,14 +360,6 @@ body.no-sidebar #findbar { left: var(--pad); }
     <span id="update-text"></span>
     <button class="update-go" data-cmd="update_now" title="Скачать и установить новую версию; вкладки сохранятся">Обновить</button>
     <button class="update-x" data-cmd="update_dismiss" title="Скрыть до следующего запуска">×</button>
-  </div>
-
-  <div id="spacesbar"></div>
-
-  <div class="footer">
-    <button class="link" data-cmd="reopen" title="Ctrl+Shift+T">Вернуть закрытую</button>
-    <div class="spacer" style="flex:1"></div>
-    <button class="link" data-cmd="clear" title="Закрыть все незакреплённые вкладки">Очистить ↓</button>
   </div>
 </aside>
 
@@ -350,7 +406,11 @@ body.no-sidebar #findbar { left: var(--pad); }
 
 <div id="palette">
   <div class="box">
-    <input id="pinput" spellcheck="false" autocomplete="off" placeholder="Поиск или адрес…">
+    <div class="field">
+      <svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+      <input id="pinput" spellcheck="false" autocomplete="off" placeholder="Поиск или адрес…">
+      <span class="hint">Esc</span>
+    </div>
     <div id="results"></div>
   </div>
 </div>
@@ -363,7 +423,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   document.documentElement.style.setProperty('--sw', cfg.sidebarWidth + 'px');
   document.documentElement.style.setProperty('--pad', cfg.padding + 'px');
   document.body.classList.toggle('frameless', !!cfg.frameless);
-  if (cfg.logo) document.getElementById('logo').src = cfg.logo;
+  if (cfg.logo) { document.getElementById('logo').src = cfg.logo; document.getElementById('brand-logo').src = cfg.logo; }
 
   const $ = (s) => document.querySelector(s);
   const post = (m) => window.ipc.postMessage(JSON.stringify(m));
@@ -431,42 +491,39 @@ body.no-sidebar #findbar { left: var(--pad); }
   }
 
   // ---------- Пространства ----------
-  // Ключи — те же, что spaces::COLORS в Rust: три цвета фона сайдбара и цвет значка.
+  // Ключи — те же, что spaces::COLORS в Rust.
   const SPACE_COLORS = {
-    violet: ['#2a2f5c', '#4a3470', '#6b3557', '#8b6fd6'],
-    blue: ['#1d2f55', '#21477a', '#2a5f8f', '#4f8fe0'],
-    teal: ['#123a3c', '#185553', '#226861', '#3fb0a0'],
-    green: ['#1d3a26', '#2a5233', '#45662d', '#6cbf5a'],
-    orange: ['#4d2a16', '#6e3d1d', '#83392a', '#e98a3c'],
-    rose: ['#4a1d36', '#6c2848', '#843446', '#e0628f'],
-    gray: ['#24262c', '#33363e', '#41434b', '#9aa0aa'],
+    violet: '#6c5cf5', blue: '#3b82f6', teal: '#14b8a6', green: '#22c55e',
+    orange: '#f97316', rose: '#f43f5e', gray: '#8b8f99',
   };
-  const paletteOf = (key) => SPACE_COLORS[key] || SPACE_COLORS.violet;
+  const colorOf = (key) => SPACE_COLORS[key] || SPACE_COLORS.violet;
   const curSpace = () => (state.spaces || [])[state.activeSpace] || { name: '', color: 'violet', main: true };
 
   function renderSpaces() {
-    const sp = curSpace(), [a, b, c] = paletteOf(sp.color), root = document.documentElement.style;
-    root.setProperty('--bg-a', a); root.setProperty('--bg-b', b); root.setProperty('--bg-c', c);
-    const bar = $('#spacesbar');
-    bar.replaceChildren(...(state.spaces || []).map((s, i) => {
+    // Цвет пространства — в значке и лёгким оттенком в фоне окна.
+    document.documentElement.style.setProperty('--space', colorOf(curSpace().color));
+    $('#spacesbar').replaceChildren(...(state.spaces || []).map((s, i) => {
       const el = document.createElement('button');
-      el.className = 'space-btn' + (i === state.activeSpace ? ' active' : '');
-      el.style.background = paletteOf(s.color)[3];
-      el.textContent = (s.name.trim()[0] || '?').toUpperCase();
-      el.title = `${s.name} — вкладок: ${s.tabs}` + (i < 9 ? ` (Ctrl+Shift+${i + 1})` : '');
+      el.className = 'row space-row' + (i === state.activeSpace ? ' active' : '');
+      el.title = s.name + (i < 9 ? ` (Ctrl+Shift+${i + 1})` : '');
+      const ico = document.createElement('span');
+      ico.className = 'space-ico';
+      ico.style.background = colorOf(s.color);
+      ico.textContent = (s.name.trim()[0] || '?').toUpperCase();
+      const name = document.createElement('span');
+      name.className = 'rt';
+      name.textContent = s.name;
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = s.tabs || '';
+      el.append(ico, name, count);
       el.onclick = () => post({ type: 'space', index: i });
       el.oncontextmenu = (e) => { e.preventDefault(); openSpaceMenu(e.clientX, e.clientY, i); };
       return el;
     }));
-    const add = document.createElement('button');
-    add.className = 'space-btn add';
-    add.textContent = '+';
-    add.title = 'Новое пространство: свои вкладки, куки и логины';
-    add.onclick = () => post({ type: 'key', k: 'space_new' });
-    bar.appendChild(add);
   }
 
-  // Меню значка. Переименование и удаление работают с активным пространством,
+  // Меню пространства. Переименование и удаление работают с активным пространством,
   // поэтому сначала переходим в выбранное.
   function openSpaceMenu(x, y, i) {
     const s = state.spaces[i];
@@ -475,17 +532,23 @@ body.no-sidebar #findbar { left: var(--pad); }
     sw.className = 'swatches';
     for (const key of Object.keys(SPACE_COLORS)) {
       const b = document.createElement('button');
-      b.style.background = SPACE_COLORS[key][3];
+      b.style.background = SPACE_COLORS[key];
       b.className = key === s.color ? 'cur' : '';
       b.title = 'Цвет пространства';
       b.onclick = () => { closeMenu(); post({ type: 'space_color', index: i, color: key }); };
       sw.appendChild(b);
     }
-    const items = [['Переименовать', go('rename_space')], sw];
-    if (!s.main) items.push(['Удалить пространство…', go('delete_space_confirm')]);
+    const sep = () => Object.assign(document.createElement('div'), { className: 'sep' });
+    const items = [['Новое пространство', () => post({ type: 'key', k: 'space_new' })], ['Переименовать', go('rename_space')], sep(), sw];
+    if (!s.main) {
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = 'Удалить…';
+      del.onclick = () => { closeMenu(); go('delete_space_confirm')(); };
+      items.push(sep(), del);
+    }
     showMenu(x, y, items);
   }
-
   // ---------- Split View ----------
   const splitOf = (id) => (state.splits || []).find((p) => p.left === id || p.right === id);
 
@@ -558,8 +621,20 @@ body.no-sidebar #findbar { left: var(--pad); }
   $('#splitdiv').addEventListener('pointerup', splitDragEnd);
   $('#splitdiv').addEventListener('lostpointercapture', splitDragEnd);
 
+  // ---------- Тема ----------
+  // state.theme: 'system' (как в Windows), 'light' или 'dark'.
+  const darkSystem = matchMedia('(prefers-color-scheme: dark)');
+  function applyTheme() {
+    const t = state.theme || 'system';
+    const dark = t === 'dark' || (t === 'system' && darkSystem.matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  }
+  darkSystem.addEventListener('change', applyTheme);
+  applyTheme();
+
   function render(s) {
     state = s;
+    applyTheme();
     document.body.classList.toggle('no-sidebar', !s.sidebar);
     document.body.classList.toggle('maximized', !!s.maximized);
     $('#win-max').title = s.maximized ? 'Восстановить' : 'Развернуть';
@@ -692,6 +767,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     { k: 'space_new', t: 'Новое пространство' },
     { k: 'default_browser', t: 'Сделать Seyro браузером по умолчанию' },
     { k: 'check_updates', t: 'Проверить обновления' },
+    { k: 'theme', t: 'Сменить тему: как в Windows, светлая, тёмная' },
     { k: 'rename_space', t: 'Переименовать пространство' },
     { k: 'delete_space_confirm', t: 'Удалить пространство', notMain: true },
   ];

@@ -127,6 +127,8 @@ pub struct App {
     /// Удалённые пространства, чьи папки данных ещё не стёрты (см. Session::deleted_spaces).
     deleted_spaces: Vec<u32>,
     sidebar_visible: bool,
+    /// Тема интерфейса: "system", "light" или "dark" (команда палитры «Сменить тему»).
+    theme: String,
     palette_open: bool,
     find_open: bool,
     history: History,
@@ -168,22 +170,63 @@ fn resize_direction(dir: &str) -> Option<ResizeDirection> {
 
 /// Общие настройки для всех WebView. Они обязаны совпадать, иначе WebView2
 /// откажется использовать одну папку данных для разных вкладок.
-fn common<'a>(b: WebViewBuilder<'a>, cfg: &Config, paths: &Paths) -> WebViewBuilder<'a> {
+fn common<'a>(b: WebViewBuilder<'a>, cfg: &Config, paths: &Paths, theme: &str, dark: bool) -> WebViewBuilder<'a> {
     let b = b
         .with_devtools(cfg.devtools)
         .with_hotkeys_zoom(true)
         .with_clipboard(true)
         .with_general_autofill_enabled(true)
-        .with_background_color((24, 24, 32, 255));
+        // Подложка до загрузки страницы — под тему, чтобы не мелькал чужой цвет.
+        .with_background_color(if dark { (31, 31, 38, 255) } else { (255, 255, 255, 255) });
     #[cfg(windows)]
     let b = {
         use wry::WebViewBuilderExtWindows;
-        let b = b.with_browser_extensions_enabled(cfg.extensions);
+        // Сайты, которые умеют светлую и тёмную тему, показываются в теме Seyro.
+        let b = b.with_browser_extensions_enabled(cfg.extensions).with_theme(page_theme(theme));
         if cfg.extensions { b.with_extensions_path(paths.extensions.clone()) } else { b }
     };
     #[cfg(not(windows))]
+    let _ = theme;
+    #[cfg(not(windows))]
     let _ = paths;
     b
+}
+
+/// Тема для страниц (CSS prefers-color-scheme): как выбрано в Seyro.
+#[cfg(windows)]
+fn page_theme(theme: &str) -> wry::Theme {
+    match theme {
+        "light" => wry::Theme::Light,
+        "dark" => wry::Theme::Dark,
+        _ => wry::Theme::Auto,
+    }
+}
+
+/// Тема окна Windows (рамка, полосы прокрутки) для настройки темы; None — как в системе.
+fn window_theme(theme: &str) -> Option<tao::window::Theme> {
+    match theme {
+        "light" => Some(tao::window::Theme::Light),
+        "dark" => Some(tao::window::Theme::Dark),
+        _ => None,
+    }
+}
+
+/// Тёмная ли тема сейчас: выбранная явно или системная.
+fn theme_is_dark(theme: &str, window: &Window) -> bool {
+    match theme {
+        "light" => false,
+        "dark" => true,
+        _ => window.theme() == tao::window::Theme::Dark,
+    }
+}
+
+/// Следующая тема по кругу для команды «Сменить тему».
+fn next_theme(theme: &str) -> &'static str {
+    match theme {
+        "system" => "light",
+        "light" => "dark",
+        _ => "system",
+    }
 }
 
 fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
@@ -221,6 +264,11 @@ impl App {
         let paths = Paths::new();
         let cfg = Config::load(&paths);
         let mut session = Session::load(&paths.session);
+        let theme = session
+            .theme
+            .clone()
+            .filter(|t| matches!(t.as_str(), "system" | "light" | "dark"))
+            .unwrap_or_else(|| "system".into());
         let deleted_spaces = remove_deleted_spaces(&paths, std::mem::take(&mut session.deleted_spaces));
         let saved_spaces: Vec<SavedSpace> = spaces::normalize(session.take_spaces())
             .into_iter()
@@ -244,7 +292,7 @@ impl App {
             .with_title("Seyro")
             .with_inner_size(tao::dpi::LogicalSize::new(1360.0, 860.0))
             .with_min_inner_size(tao::dpi::LogicalSize::new(640.0, 400.0))
-            .with_theme(Some(tao::window::Theme::Dark))
+            .with_theme(window_theme(&theme))
             .with_decorations(!cfg.custom_titlebar);
         // Без рамки Windows всё равно рисует тень и скругляет углы, если попросить.
         // Значок окна и панели задач — тот же, что встроен в seyro.exe (ресурс 1, см. build.rs).
@@ -267,7 +315,7 @@ impl App {
         let size = window.inner_size().to_logical::<f64>(window.scale_factor());
         let ui_proxy = proxy.clone();
         let nav_proxy = proxy.clone();
-        let ui = common(WebViewBuilder::new_with_web_context(&mut space_slots[0].ctx), &cfg, &paths)
+        let ui = common(WebViewBuilder::new_with_web_context(&mut space_slots[0].ctx), &cfg, &paths, &theme, theme_is_dark(&theme, &window))
             .with_html(UI_HTML)
             .with_bounds(rect(0.0, 0.0, size.width, size.height))
             .with_initialization_script(format!(
@@ -305,6 +353,7 @@ impl App {
             active_space,
             deleted_spaces,
             sidebar_visible: session.sidebar_visible.unwrap_or(true),
+            theme,
             palette_open: false,
             find_open: false,
             history,
@@ -380,6 +429,7 @@ impl App {
             spaces,
             active_space: self.active_space,
             sidebar_visible: Some(self.sidebar_visible),
+            theme: Some(self.theme.clone()),
             deleted_spaces: self.deleted_spaces.clone(),
             ..Default::default()
         }
@@ -597,6 +647,7 @@ impl App {
             "tabs": tabs,
             "active": self.tabs.active(),
             "sidebar": self.sidebar_visible,
+            "theme": self.theme,
             "maximized": self.maximized,
             "palette": self.palette_open,
             "find": self.find_open,
@@ -643,7 +694,8 @@ impl App {
         let p = self.proxy.clone();
         let (p1, p2, p3, p4, p5, p6) = (p.clone(), p.clone(), p.clone(), p.clone(), p.clone(), p);
         let bounds = self.content_rect();
-        let builder = common(WebViewBuilder::new_with_web_context(&mut self.spaces[self.active_space].ctx), &self.cfg, &self.paths)
+        let dark = theme_is_dark(&self.theme, &self.window);
+        let builder = common(WebViewBuilder::new_with_web_context(&mut self.spaces[self.active_space].ctx), &self.cfg, &self.paths, &self.theme, dark)
             .with_url(url)
             .with_bounds(bounds)
             .with_visible(visible)
@@ -1245,6 +1297,7 @@ impl App {
             "clear_data" => self.clear_site_data(),
             "default_browser" => self.make_default_browser(),
             "check_updates" => self.check_updates(true),
+            "theme" => self.cycle_theme(),
             "update_now" => self.install_update(),
             "update_dismiss" => {
                 self.update_dismissed = self.update.as_ref().map(|u| u.version.clone());
@@ -1345,6 +1398,30 @@ impl App {
         self.window.set_minimized(false);
         self.window.set_visible(true);
         self.window.set_focus();
+    }
+
+    /// «Сменить тему»: как в Windows → светлая → тёмная → как в Windows.
+    fn cycle_theme(&mut self) {
+        self.theme = next_theme(&self.theme).to_string();
+        self.window.set_theme(window_theme(&self.theme));
+        // Уже открытые страницы во всех пространствах — тоже.
+        #[cfg(windows)]
+        {
+            use wry::WebViewExtWindows;
+            let theme = page_theme(&self.theme);
+            let _ = self.ui.set_theme(theme);
+            let views = self.tabs.iter().chain(self.spaces.iter().flat_map(|s| s.tabs.iter())).filter_map(|t| t.view.as_ref());
+            for wv in views {
+                let _ = wv.set_theme(theme);
+            }
+        }
+        self.toast(match self.theme.as_str() {
+            "light" => "Тема: светлая",
+            "dark" => "Тема: тёмная",
+            _ => "Тема: как в Windows",
+        });
+        self.push_state();
+        self.save();
     }
 
     fn make_default_browser(&self) {
