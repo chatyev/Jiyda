@@ -45,6 +45,12 @@
 
 Клавиши работают на любой странице (в том числе пустой) и на русской раскладке: браузер ловит их до страницы, так что сайт не может ни перехватить их, ни подделать.
 
+## Установка
+
+Скачай `SeyroSetup-<версия>.exe` со страницы Releases и запусти. Установщик ставит Seyro для текущего пользователя (без прав администратора) в `%LOCALAPPDATA%\Programs\Seyro`, создаёт ярлык в «Пуске» и, если отметить, на рабочем столе. Удаляется через «Параметры → Приложения»; вкладки, пространства и логины при этом остаются в `%LOCALAPPDATA%\Seyro`.
+
+Пока программа не подписана сертификатом, Windows SmartScreen при первом запуске установщика предупредит о неизвестном издателе: «Подробнее» → «Выполнить в любом случае».
+
 ## Сборка и запуск
 
 1. Установи Rust: <https://rustup.rs> (при установке согласись поставить Visual Studio Build Tools, если попросит).
@@ -54,9 +60,22 @@
    cargo run --release
    ```
 
-   Готовый файл будет в `target\release\seyro.exe`. Его можно закрепить на панели задач.
+   Готовый файл будет в `target\release\seyro.exe`.
 
-Если нет желания собирать локально, залей проект в свой GitHub-репозиторий: workflow `.github/workflows/windows.yml` сам соберёт `seyro.exe` (Actions → последний запуск → Artifacts).
+3. Установщик (нужен [Inno Setup 6](https://jrsoftware.org/isdl.php)):
+
+   ```
+   powershell -ExecutionPolicy Bypass -File installer\build.ps1
+   ```
+
+   Получится `target\installer\SeyroSetup-<версия>.exe`; версия берётся из `Cargo.toml`.
+
+GitHub Actions (`.github/workflows/windows.yml`) при каждом push собирает `seyro.exe` и установщик (Actions → последний запуск → Artifacts). Чтобы выпустить версию: подними `version` в `Cargo.toml`, закоммить и поставь метку — установщик сам появится в Releases:
+
+```
+git tag v0.2.0
+git push --tags
+```
 
 ## Где лежат данные
 
@@ -111,6 +130,7 @@ src/tab.js     — скрипт, встраиваемый в каждую стр
 src/find.js    — поиск по странице с подсветкой
 ui/index.html  — весь интерфейс: сайдбар, палитра, меню
 build.rs       — встраивает в seyro.exe значок и название программы
+installer/     — установщик Inno Setup (seyro.iss) и скрипт сборки (build.ps1)
 assets/        — бренд: seyro.ico (значок программы), seyro-logo.png, seyro-mark.png (знак),
                  seyro-tile.png (плитка с прозрачными углами); в source/ — исходные файлы без обработки
 ```

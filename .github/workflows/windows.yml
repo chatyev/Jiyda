@@ -1,10 +1,16 @@
-# Сборка Seyro под Windows на GitHub: при каждом push собирается seyro.exe,
-# скачать его можно во вкладке Actions → последний запуск → Artifacts.
+# Сборка Seyro под Windows на GitHub.
+# При каждом push собираются seyro.exe и установщик SeyroSetup-<версия>.exe —
+# их можно скачать во вкладке Actions → последний запуск → Artifacts.
+# При метке вида v0.2.0 (git tag v0.2.0 && git push --tags) установщик
+# выкладывается в Releases.
 name: windows-build
 
 on:
   push:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -14,8 +20,37 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
-      - run: cargo build --release
+
+      - name: Версия из метки совпадает с Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $cargo = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          if ($cargo -ne $tag) { throw "Метка v$tag, а в Cargo.toml версия $cargo" }
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
+              -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Установщик
+        shell: pwsh
+        run: ./installer/build.ps1
+
       - uses: actions/upload-artifact@v4
         with:
           name: seyro-windows
-          path: target/release/seyro.exe
+          path: |
+            target/release/seyro.exe
+            target/installer/SeyroSetup-*.exe
+
+      - name: Релиз
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/installer/SeyroSetup-*.exe
+          generate_release_notes: true
