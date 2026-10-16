@@ -2,8 +2,10 @@
 
 use crate::config::{Config, Paths};
 use crate::input;
+use crate::limit::RateLimit;
 use crate::store::{History, SavedTab, Session, now};
 use serde_json::{Value, json};
+use std::time::{Duration, Instant};
 use tao::event_loop::{EventLoop, EventLoopProxy};
 use tao::window::{Window, WindowBuilder};
 use wry::dpi::{LogicalPosition, LogicalSize};
@@ -12,6 +14,13 @@ use wry::{NewWindowResponse, PageLoadEvent, Rect, WebContext, WebView, WebViewBu
 const UI_HTML: &str = include_str!("../ui/index.html");
 const TAB_JS: &str = include_str!("tab.js");
 const CLOSED_LIMIT: usize = 50;
+/// Сессия и история пишутся на диск не сразу, а через эту паузу после изменения.
+const SAVE_DELAY: Duration = Duration::from_secs(2);
+/// Как часто проверять, не пора ли усыпить фоновые вкладки.
+const SLEEP_CHECK: Duration = Duration::from_secs(60);
+/// Сколько вкладок страницы могут открыть (window.open, Ctrl/средний клик) за окно времени.
+const PAGE_TABS_MAX: usize = 10;
+const PAGE_TABS_WINDOW: Duration = Duration::from_secs(5);
 
 /// События, которые приходят в главный поток из обработчиков WebView.
 #[derive(Debug)]
@@ -21,7 +30,21 @@ pub enum UserEvent {
     Title { id: u64, title: String },
     Load { id: u64, started: bool, url: String },
     OpenTab { url: String, background: bool },
+    /// window.open со страницы — в отличие от OpenTab, ограничивается по частоте.
+    Popup { url: String },
     Download { path: String, ok: bool },
+}
+
+/// Команды, которые принимаются из страницы (их присылает tab.js по горячим клавишам).
+/// Страница может отправить такое сообщение и сама, поэтому команд, способных
+/// навредить (закрыть все вкладки, открыть DevTools), здесь нет.
+fn allowed_from_tab(cmd: &str) -> bool {
+    matches!(
+        cmd,
+        "new_tab" | "edit_url" | "close" | "reopen" | "next" | "prev" | "toggle_sidebar" | "pin" | "copied"
+    ) || cmd
+        .strip_prefix("goto:")
+        .is_some_and(|n| n.len() == 1 && matches!(n.as_bytes()[0], b'1'..=b'9'))
 }
 
 pub struct Tab {
@@ -65,6 +88,10 @@ pub struct App {
     palette_open: bool,
     closed: Vec<SavedTab>,
     history: History,
+    /// Когда сбросить сессию и историю на диск (None — изменений нет).
+    save_due: Option<Instant>,
+    next_sleep_check: Instant,
+    page_tabs: RateLimit,
 }
 
 /// Общие настройки для всех WebView. Они обязаны совпадать, иначе WebView2
@@ -151,6 +178,9 @@ impl App {
             palette_open: false,
             closed: session.closed.clone(),
             history,
+            save_due: None,
+            next_sleep_check: Instant::now() + SLEEP_CHECK,
+            page_tabs: RateLimit::new(PAGE_TABS_MAX, PAGE_TABS_WINDOW),
         };
         app.restore(session);
         Ok(app)
@@ -197,7 +227,18 @@ impl App {
         }
     }
 
-    pub fn save(&mut self) {
+    /// Запланировать запись сессии и истории на диск.
+    fn save(&mut self) {
+        if self.save_due.is_none() {
+            self.save_due = Some(Instant::now() + SAVE_DELAY);
+        }
+    }
+
+    fn save_now(&mut self) {
+        self.save_due = None;
+        if self.history.is_dirty() {
+            self.history.save(&self.paths.history);
+        }
         let order = self.display_order();
         let tabs: Vec<SavedTab> = order.iter().filter_map(|id| self.tab(*id)).map(Tab::saved).collect();
         let active = self.active.and_then(|a| order.iter().position(|id| *id == a));
@@ -211,8 +252,26 @@ impl App {
     }
 
     pub fn shutdown(&mut self) {
-        self.save();
-        self.history.save(&self.paths.history);
+        self.save_now();
+    }
+
+    /// Отложенные дела: запись на диск и усыпление вкладок. Вызывается из цикла событий.
+    pub fn tick(&mut self) {
+        let t = Instant::now();
+        if self.save_due.is_some_and(|due| t >= due) {
+            self.save_now();
+        }
+        if t >= self.next_sleep_check {
+            self.next_sleep_check = t + SLEEP_CHECK;
+            if self.sleep_idle_tabs() {
+                self.push_state();
+            }
+        }
+    }
+
+    /// Когда циклу событий проснуться, чтобы вызвать `tick`.
+    pub fn next_wakeup(&self) -> Instant {
+        self.save_due.map_or(self.next_sleep_check, |due| due.min(self.next_sleep_check))
     }
 
     // ---------- Вспомогательное ----------
@@ -349,7 +408,7 @@ impl App {
                 if features.size.is_some() {
                     NewWindowResponse::Allow
                 } else {
-                    let _ = p4.send_event(UserEvent::OpenTab { url, background: false });
+                    let _ = p4.send_event(UserEvent::Popup { url });
                     NewWindowResponse::Deny
                 }
             })
@@ -424,20 +483,34 @@ impl App {
     }
 
     /// Выгрузить из памяти давно не открывавшиеся фоновые вкладки.
-    fn sleep_idle_tabs(&mut self) {
+    /// Возвращает true, если хоть одна вкладка уснула.
+    fn sleep_idle_tabs(&mut self) -> bool {
         if self.cfg.sleep_minutes == 0 {
-            return;
+            return false;
         }
         let limit = self.cfg.sleep_minutes * 60;
         let t = now();
         let active = self.active;
+        let mut any = false;
         for tab in &mut self.tabs {
             if Some(tab.id) != active && !tab.media && tab.webview.is_some()
                 && t.saturating_sub(tab.last_active) > limit
             {
                 tab.webview = None;
                 tab.loading = false;
+                any = true;
             }
+        }
+        any
+    }
+
+    /// Открыть вкладку по просьбе страницы, если она не превысила лимит.
+    fn open_tab_from_page(&mut self, url: String, background: bool) {
+        if self.page_tabs.allow(Instant::now()) {
+            self.open_tab(url, background);
+        } else {
+            log::warn!("страница открывает слишком много вкладок, заблокировано: {url}");
+            self.toast("Заблокировано: страница открывает слишком много вкладок");
         }
     }
 
@@ -699,14 +772,13 @@ impl App {
                     }
                 }
                 if let Some((u, title)) = visited {
-                    if self.history.visit(&u, &title) {
-                        self.history.save(&self.paths.history);
-                    }
+                    self.history.visit(&u, &title);
                     self.save();
                 }
                 self.push_state();
             }
             UserEvent::OpenTab { url, background } => self.open_tab(url, background),
+            UserEvent::Popup { url } => self.open_tab_from_page(url, false),
             UserEvent::Download { path, ok } => {
                 if ok {
                     self.toast(&format!("Загружено: {path}"));
@@ -723,13 +795,16 @@ impl App {
             // Страница может прислать что угодно, поэтому команды из вкладки
             // принимаем только от активной вкладки.
             "key" if self.active == Some(id) => {
-                if let Some(k) = v["k"].as_str() {
-                    self.command(k);
+                match v["k"].as_str() {
+                    Some(k) if allowed_from_tab(k) => self.command(k),
+                    Some(k) => log::warn!("вкладка {id} прислала запрещённую команду {k:?}"),
+                    None => {}
                 }
             }
-            "open_bg" => {
+            // Ctrl/средний клик возможен только во вкладке, которая сейчас на экране.
+            "open_bg" if self.active == Some(id) => {
                 if let Some(u) = v["u"].as_str().filter(|u| u.starts_with("http")) {
-                    self.open_tab(u.to_string(), true);
+                    self.open_tab_from_page(u.to_string(), true);
                 }
             }
             "icon" => {
@@ -806,6 +881,28 @@ impl App {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::allowed_from_tab;
+
+    #[test]
+    fn tab_hotkey_commands_are_allowed() {
+        for cmd in ["new_tab", "edit_url", "close", "reopen", "next", "prev", "toggle_sidebar", "pin", "copied"] {
+            assert!(allowed_from_tab(cmd), "{cmd}");
+        }
+        for n in 1..=9 {
+            assert!(allowed_from_tab(&format!("goto:{n}")));
+        }
+    }
+
+    #[test]
+    fn dangerous_or_unknown_commands_are_rejected() {
+        for cmd in ["clear", "devtools", "back", "forward", "reload", "", "goto:", "goto:0", "goto:10", "goto:x", "NEW_TAB"] {
+            assert!(!allowed_from_tab(cmd), "{cmd}");
         }
     }
 }

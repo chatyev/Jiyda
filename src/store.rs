@@ -49,7 +49,8 @@ pub struct HistEntry {
 
 pub struct History {
     pub entries: Vec<HistEntry>,
-    dirty: u32,
+    /// Есть изменения, ещё не записанные на диск.
+    dirty: bool,
 }
 
 const HISTORY_LIMIT: usize = 5000;
@@ -60,20 +61,24 @@ impl History {
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
-        Self { entries, dirty: 0 }
+        Self { entries, dirty: false }
     }
 
     pub fn save(&mut self, path: &Path) {
         if let Ok(s) = serde_json::to_string(&self.entries) {
             write_atomic(path, &s);
         }
-        self.dirty = 0;
+        self.dirty = false;
     }
 
-    /// Записать посещение. Возвращает true, если пора сбросить историю на диск.
-    pub fn visit(&mut self, url: &str, title: &str) -> bool {
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Записать посещение.
+    pub fn visit(&mut self, url: &str, title: &str) {
         if !url.starts_with("http") {
-            return false;
+            return;
         }
         let ts = now();
         if let Some(e) = self.entries.iter_mut().find(|e| e.url == url) {
@@ -89,13 +94,13 @@ impl History {
                 self.entries.truncate(HISTORY_LIMIT);
             }
         }
-        self.dirty += 1;
-        self.dirty >= 20
+        self.dirty = true;
     }
 
     pub fn set_title(&mut self, url: &str, title: &str) {
-        if let Some(e) = self.entries.iter_mut().find(|e| e.url == url) {
+        if let Some(e) = self.entries.iter_mut().find(|e| e.url == url && e.title != title) {
             e.title = title.to_string();
+            self.dirty = true;
         }
     }
 
@@ -124,7 +129,7 @@ mod tests {
     }
 
     fn history(entries: Vec<HistEntry>) -> History {
-        History { entries, dirty: 0 }
+        History { entries, dirty: false }
     }
 
     #[test]
@@ -140,11 +145,11 @@ mod tests {
     #[test]
     fn visit_ignores_non_http() {
         let mut h = history(vec![]);
-        assert!(!h.visit("about:blank", "x"));
-        assert!(!h.visit("file:///C:/a.html", "x"));
-        assert!(!h.visit("edge://settings", "x"));
+        h.visit("about:blank", "x");
+        h.visit("file:///C:/a.html", "x");
+        h.visit("edge://settings", "x");
         assert!(h.entries.is_empty());
-        assert_eq!(h.dirty, 0);
+        assert!(!h.is_dirty());
     }
 
     #[test]
@@ -167,12 +172,21 @@ mod tests {
     }
 
     #[test]
-    fn visit_asks_to_flush_every_20_visits() {
+    fn visit_marks_history_dirty() {
         let mut h = history(vec![]);
-        for i in 0..19 {
-            assert!(!h.visit(&format!("https://a.test/{i}"), ""), "визит {i}");
-        }
-        assert!(h.visit("https://a.test/19", ""));
+        assert!(!h.is_dirty());
+        h.visit("https://a.test/", "");
+        assert!(h.is_dirty());
+    }
+
+    #[test]
+    fn set_title_marks_dirty_only_on_change() {
+        let mut h = history(vec![entry("https://a.test/", 1)]);
+        h.set_title("https://a.test/", "");
+        h.set_title("https://missing.test/", "X");
+        assert!(!h.is_dirty());
+        h.set_title("https://a.test/", "A");
+        assert!(h.is_dirty());
     }
 
     #[test]
@@ -210,9 +224,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("history.json");
         let mut h = history(vec![entry("https://a.test/", 5)]);
-        h.dirty = 7;
+        h.dirty = true;
         h.save(&path);
-        assert_eq!(h.dirty, 0);
+        assert!(!h.is_dirty());
 
         let loaded = History::load(&path);
         assert_eq!(loaded.entries.len(), 1);

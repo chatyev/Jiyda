@@ -4,6 +4,7 @@
 mod app;
 mod config;
 mod input;
+mod limit;
 mod logging;
 mod store;
 
@@ -24,18 +25,23 @@ fn main() {
     };
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                     app.shutdown();
                     *control_flow = ControlFlow::Exit;
+                    return;
                 }
                 WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => app.layout(),
                 _ => {}
             },
             Event::UserEvent(ev) => app.handle(ev),
+            // Все события пачки обработаны — время для отложенных дел.
+            Event::MainEventsCleared => app.tick(),
             _ => {}
+        }
+        if *control_flow != ControlFlow::Exit {
+            *control_flow = ControlFlow::WaitUntil(app.next_wakeup());
         }
     });
 }
