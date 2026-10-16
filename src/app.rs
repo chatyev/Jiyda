@@ -58,6 +58,22 @@ pub enum UserEvent {
 }
 
 const FIND_JS: &str = include_str!("find.js");
+/// Знак Seyro для пустой страницы интерфейса (передаётся как data: URI).
+const LOGO_PNG: &[u8] = include_bytes!("../assets/seyro-mark-128.png");
+
+/// Base64 для data: URI (своя функция, чтобы не тянуть зависимость ради одной картинки).
+fn base64(data: &[u8]) -> String {
+    const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b = [chunk[0], *chunk.get(1).unwrap_or(&0), *chunk.get(2).unwrap_or(&0)];
+        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
+        for (i, shift) in [18, 12, 6, 0].into_iter().enumerate() {
+            out.push(if i <= chunk.len() { ABC[(n >> shift & 63) as usize] as char } else { '=' });
+        }
+    }
+    out
+}
 
 /// Скрипт поиска по странице (см. find.js): `mode` — "type", "next", "prev" или "clear".
 fn find_script(query: &str, mode: &str) -> String {
@@ -210,10 +226,18 @@ impl App {
             .with_theme(Some(tao::window::Theme::Dark))
             .with_decorations(!cfg.custom_titlebar);
         // Без рамки Windows всё равно рисует тень и скругляет углы, если попросить.
+        // Значок окна и панели задач — тот же, что встроен в seyro.exe (ресурс 1, см. build.rs).
         #[cfg(windows)]
         let builder = {
-            use tao::platform::windows::WindowBuilderExtWindows;
-            builder.with_undecorated_shadow(true)
+            use tao::platform::windows::{IconExtWindows, WindowBuilderExtWindows};
+            use tao::window::Icon;
+            let icon = |size: Option<u32>| {
+                Icon::from_resource(1, size.map(|s| tao::dpi::PhysicalSize::new(s, s))).ok()
+            };
+            builder
+                .with_undecorated_shadow(true)
+                .with_window_icon(icon(None))
+                .with_taskbar_icon(icon(Some(256)))
         };
         let window = builder.build(event_loop).expect("не удалось создать окно");
 
@@ -227,7 +251,12 @@ impl App {
             .with_bounds(rect(0.0, 0.0, size.width, size.height))
             .with_initialization_script(format!(
                 "window.SEYRO_CONFIG = {};",
-                json!({ "sidebarWidth": cfg.sidebar_width, "padding": cfg.frame_padding, "frameless": cfg.custom_titlebar })
+                json!({
+                    "sidebarWidth": cfg.sidebar_width,
+                    "padding": cfg.frame_padding,
+                    "frameless": cfg.custom_titlebar,
+                    "logo": format!("data:image/png;base64,{}", base64(LOGO_PNG)),
+                })
             ))
             .with_ipc_handler(move |req| {
                 let _ = ui_proxy.send_event(UserEvent::FromUi(req.body().clone()));
@@ -1271,7 +1300,17 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::{SPLIT_GAP, find_script, parse_find_result, resize_direction, split_boxes};
+    use super::{SPLIT_GAP, base64, find_script, parse_find_result, resize_direction, split_boxes};
+
+    #[test]
+    fn base64_matches_standard_alphabet_and_padding() {
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"f"), "Zg==");
+        assert_eq!(base64(b"fo"), "Zm8=");
+        assert_eq!(base64(b"foo"), "Zm9v");
+        assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+        assert_eq!(base64(&[0xff, 0xfe, 0x00]), "//4A");
+    }
 
     #[test]
     fn split_boxes_fill_area_around_gap() {

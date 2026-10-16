@@ -164,6 +164,8 @@ body.no-sidebar #toast { left: 50%; transform: translateX(-50%); bottom: 20px; }
   display: grid; place-items: center; text-align: center; color: var(--text-dim);
 }
 body.no-sidebar #content { left: var(--pad); }
+#content .logo { width: 72px; height: 72px; display: block; margin: 0 auto 14px; }
+#content .logo:not([src]) { display: none; }
 #content .big { font-size: 22px; color: var(--text); margin-bottom: 8px; font-weight: 600; }
 #content kbd {
   font: 12px "Cascadia Mono", Consolas, monospace; padding: 2px 6px; border-radius: 5px;
@@ -303,6 +305,7 @@ body.no-sidebar #findbar { left: var(--pad); }
 
 <main id="content">
   <div>
+    <img id="logo" class="logo" alt="">
     <div class="big">Seyro Browser</div>
     <div>Откройте что-нибудь</div>
     <div class="hints">
@@ -344,6 +347,7 @@ body.no-sidebar #findbar { left: var(--pad); }
   document.documentElement.style.setProperty('--sw', cfg.sidebarWidth + 'px');
   document.documentElement.style.setProperty('--pad', cfg.padding + 'px');
   document.body.classList.toggle('frameless', !!cfg.frameless);
+  if (cfg.logo) document.getElementById('logo').src = cfg.logo;
 
   const $ = (s) => document.querySelector(s);
   const post = (m) => window.ipc.postMessage(JSON.stringify(m));
