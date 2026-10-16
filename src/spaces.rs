@@ -19,7 +19,7 @@ const NAME_MAX: usize = 40;
 pub const COLORS: [&str; 7] = ["violet", "blue", "teal", "green", "orange", "rose", "gray"];
 
 pub fn default_name(id: u32) -> String {
-    if id == MAIN_ID { crate::i18n::tr("Основное").into() } else { crate::i18n::trf("Пространство {}", &[&id]) }
+    if id == MAIN_ID { crate::i18n::tr("Основное").into() } else { crate::i18n::trf("Flow {}", &[&id]) }
 }
 
 /// Имя от пользователя: без лишних пробелов и не длиннее NAME_MAX. None — пустое.
@@ -125,7 +125,7 @@ mod tests {
     fn normalize_fills_names_and_colors() {
         let out = normalize(vec![sp(1, "  ", "nope"), sp(5, "", "")]);
         assert_eq!(out[0].name, "Основное");
-        assert_eq!(out[1].name, "Пространство 5");
+        assert_eq!(out[1].name, "Flow 5");
         assert!(out.iter().all(|s| is_color(&s.color)));
     }
 
@@ -146,7 +146,7 @@ mod tests {
     fn new_space_takes_next_id_and_free_color() {
         let s = new_space(&[(1, "violet"), (4, "blue")]).unwrap();
         assert_eq!(s.id, 5);
-        assert_eq!(s.name, "Пространство 5");
+        assert_eq!(s.name, "Flow 5");
         assert_eq!(s.color, "teal");
         assert!(s.tabs.is_empty());
     }

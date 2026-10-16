@@ -85,7 +85,7 @@ fn fill(template: &str, args: &[&dyn std::fmt::Display]) -> String {
 const STRINGS: &[(&str, &str)] = &[
     // Пространства по умолчанию.
     ("Основное", "Main"),
-    ("Пространство {}", "Space {}"),
+    ("Flow {}", "Flow {}"),
     // Обновления.
     ("У вас последняя версия Seyro ({})", "You have the latest version of Seyro ({})"),
     ("Не удалось проверить обновления — нет связи с GitHub?", "Couldn't check for updates. Is GitHub reachable?"),
@@ -94,21 +94,21 @@ const STRINGS: &[(&str, &str)] = &[
     // Вкладки и страницы.
     ("Ошибка WebView2: {}", "WebView2 error: {}"),
     ("Заблокировано: страница открывает слишком много вкладок", "Blocked: the page is opening too many tabs"),
-    ("Новая вкладка в пространстве «{}»", "New tab in the \u{201c}{}\u{201d} space"),
+    ("Новая вкладка во Flow «{}»", "New tab in the \u{201c}{}\u{201d} Flow"),
     ("Нет закрытых вкладок", "No closed tabs"),
     ("Ссылка скопирована", "Link copied"),
     ("Не удалось скопировать ссылку", "Couldn't copy the link"),
     // Пространства.
-    ("Больше {} пространств создать нельзя", "You can't have more than {} spaces"),
-    ("Пространство «Основное» удалить нельзя", "The main space can't be deleted"),
-    ("Пространство «{}» удалено", "Space \u{201c}{}\u{201d} deleted"),
+    ("Больше {} Flows создать нельзя", "You can't have more than {} Flows"),
+    ("Flow «Основное» удалить нельзя", "The main Flow can't be deleted"),
+    ("Flow «{}» удалён", "Flow \u{201c}{}\u{201d} deleted"),
     // Загрузки, история, данные.
     ("Загрузка: {} (Ctrl+J — список)", "Downloading {} (Ctrl+J to see all)"),
     ("Загружено: {}", "Downloaded {}"),
     ("Загрузка не удалась: {}", "Download failed: {}"),
     ("Файл не найден: возможно, его удалили или переместили", "File not found. It may have been moved or deleted"),
     ("История очищена", "History cleared"),
-    ("Откройте любую вкладку в этом пространстве и повторите", "Open any tab in this space and try again"),
+    ("Откройте любую вкладку в этом Flow и повторите", "Open any tab in this Flow and try again"),
     ("Данные сайтов в «{}» очищены", "Site data in \u{201c}{}\u{201d} cleared"),
     ("Не удалось очистить данные сайтов", "Couldn't clear site data"),
     // Тема и система.
@@ -139,7 +139,7 @@ mod tests {
     fn default_language_is_russian_and_keeps_text() {
         assert_eq!(lang(), Lang::Ru);
         assert_eq!(tr("Ссылка скопирована"), "Ссылка скопирована");
-        assert_eq!(trf("Пространство «{}» удалено", &[&"Работа"]), "Пространство «Работа» удалено");
+        assert_eq!(trf("Flow «{}» удалён", &[&"Работа"]), "Flow «Работа» удалён");
     }
 
     #[test]

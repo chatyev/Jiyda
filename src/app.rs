@@ -847,7 +847,7 @@ impl App {
             t.loading = false;
         }
         let name = space.name.clone();
-        self.toast(&i18n::trf("Новая вкладка в пространстве «{}»", &[&name]));
+        self.toast(&i18n::trf("Новая вкладка во Flow «{}»", &[&name]));
         self.push_state();
         self.save();
     }
@@ -987,7 +987,7 @@ impl App {
         // Номера удалённых пространств не берём: их папки, возможно, ещё не стёрты.
         used.extend(self.deleted_spaces.iter().map(|id| (*id, "")));
         let Some(mut meta) = spaces::new_space(&used) else {
-            self.toast(&i18n::trf("Больше {} пространств создать нельзя", &[&spaces::MAX_SPACES]));
+            self.toast(&i18n::trf("Больше {} Flows создать нельзя", &[&spaces::MAX_SPACES]));
             return;
         };
         // На диске может остаться папка от старых данных — новому пространству нужен чистый профиль.
@@ -1031,7 +1031,7 @@ impl App {
         let idx = self.active_space;
         let id = self.spaces[idx].id;
         if id == spaces::MAIN_ID {
-            self.toast(i18n::tr("Пространство «Основное» удалить нельзя"));
+            self.toast(i18n::tr("Flow «Основное» удалить нельзя"));
             return;
         }
         let name = self.spaces[idx].name.clone();
@@ -1044,7 +1044,7 @@ impl App {
         drop(removed);
         self.deleted_spaces.push(id);
         log::info!("удалено пространство {id} «{name}», данные будут стёрты при следующем запуске");
-        self.toast(&i18n::trf("Пространство «{}» удалено", &[&name]));
+        self.toast(&i18n::trf("Flow «{}» удалён", &[&name]));
         self.push_state();
         self.save_now();
     }
@@ -1202,7 +1202,7 @@ impl App {
             self.tabs.iter().find_map(|t| t.view.as_ref())
         };
         let Some(wv) = wv else {
-            self.toast(i18n::tr("Откройте любую вкладку в этом пространстве и повторите"));
+            self.toast(i18n::tr("Откройте любую вкладку в этом Flow и повторите"));
             return;
         };
         match wv.clear_all_browsing_data() {

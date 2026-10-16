@@ -66,7 +66,7 @@ body.no-sidebar #sidebar { display: none; }
 .toolbar { display: flex; align-items: center; gap: 2px; height: 32px; }
 .toolbar .spacer { flex: 1; align-self: stretch; }
 .brand { display: flex; align-items: center; gap: 8px; padding-left: 4px; font-weight: 650; font-size: 14px; letter-spacing: .01em; }
-.brand img { width: 22px; height: 22px; display: block; }
+.brand img { width: 22px; height: 22px; display: block; border-radius: 22%; box-shadow: 0 0 0 1px var(--line); }
 .brand img:not([src]) { display: none; }
 .icon-btn {
   width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
@@ -225,7 +225,7 @@ body.home #content {
 .home-search .ph { flex: 1; }
 .home-search .hint, #palette .hint { font-size: 11px; color: var(--text-faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
 .home-main { flex: 1; width: min(640px, 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 0; }
-#content .logo { width: 56px; height: 56px; display: block; margin: 0 auto 18px; }
+#content .logo { width: 56px; height: 56px; display: block; margin: 0 auto 18px; border-radius: 22%; box-shadow: var(--active-shadow); }
 #content .logo:not([src]) { display: none; }
 #greet { font-size: 34px; font-weight: 650; color: var(--text); letter-spacing: -.01em; }
 .tagline { margin-top: 6px; font-size: 15px; color: var(--text-dim); }
@@ -334,7 +334,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     <button class="icon-btn" data-cmd="toggle_sidebar" title="Скрыть панель (Ctrl+S)">
       <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
     </button>
-    <button class="icon-btn" data-cmd="new_tab" title="Новая вкладка (Ctrl+T)">
+    <button class="icon-btn" data-cmd="new_tab" title="+ Page (Ctrl+T)">
       <svg viewBox="0 0 16 16"><path d="M8.5 2.5H4a1.5 1.5 0 0 0-1.5 1.5v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V7.5"/><path d="m11.5 2.2 2.3 2.3L8.3 10H6V7.7z"/></svg>
     </button>
     <!-- Кнопки окна: только в режиме без рамки (custom_titlebar в config.json). -->
@@ -382,22 +382,22 @@ body.no-sidebar #findbar { left: var(--pad); }
     </div>
 
     <div class="section-label">
-      <span>Пространства</span>
-      <button class="act plus" data-cmd="space_new" title="Новое пространство: свои вкладки, куки и логины">+</button>
+      <span>Flows</span>
+      <button class="act plus" data-cmd="space_new" title="Новый Flow: свои вкладки, куки и логины">+</button>
     </div>
     <div class="list" id="spacesbar"></div>
 
-    <div class="section-label" id="pinned-label"><span>Закреплённые</span></div>
+    <div class="section-label" id="pinned-label"><span>Dock</span></div>
     <div class="list" id="pinned" data-pinned="1"></div>
 
     <div class="section-label">
-      <span>Вкладки</span>
-      <button class="act" data-cmd="clear" title="Закрыть все незакреплённые вкладки (вернуть — Ctrl+Shift+T)">Очистить</button>
+      <span>Stream</span>
+      <button class="act" data-cmd="clear" title="Закрыть все вкладки вне Dock (вернуть — Ctrl+Shift+T)">Очистить</button>
     </div>
     <div class="list" id="today" data-pinned="0"></div>
     <button class="row" id="newtab">
       <span class="ri"><svg class="i" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></span>
-      <span class="rt">Новая вкладка</span>
+      <span class="rt">Page</span>
     </button>
   </div>
 
@@ -478,16 +478,16 @@ body.no-sidebar #findbar { left: var(--pad); }
   // Язык выбирает Rust (как в Windows или "language" в config.json).
   const EN = {
     // Разметка: подписи и подсказки.
-    'Библиотека': 'Library', 'Вкладки': 'Tabs', 'Закреплённые': 'Pinned', 'Новая вкладка': 'New Tab',
+    'Библиотека': 'Library', 'Новая вкладка': 'New Tab',
     'Обновить': 'Update', 'Откройте что-нибудь': 'Open something', 'Очистить': 'Clear', 'Поиск': 'Search',
-    'Пространства': 'Spaces', 'вернуть закрытую': 'reopen closed tab', 'закрепить вкладку': 'pin tab',
-    'изменить адрес': 'edit address', 'новая вкладка': 'new tab', 'скрыть / показать панель': 'hide / show sidebar',
+    'вернуть закрытую': 'reopen closed tab',
+    'изменить адрес': 'edit address', 'скрыть / показать панель': 'hide / show sidebar',
     'Найти на странице…': 'Find in page…', 'Поиск или адрес…': 'Search or enter a URL…',
     'Вперёд (Alt+→)': 'Forward (Alt+→)', 'Назад (Alt+←)': 'Back (Alt+←)', 'Обновить (Ctrl+R)': 'Reload (Ctrl+R)',
     'Загрузки': 'Downloads', 'Закрыть (Esc)': 'Close (Esc)', 'Закрыть': 'Close',
-    'Закрыть все незакреплённые вкладки (вернуть — Ctrl+Shift+T)': 'Close all unpinned tabs (Ctrl+Shift+T brings them back)',
-    'Изменить адрес (Ctrl+L)': 'Edit address (Ctrl+L)', 'Новая вкладка (Ctrl+T)': 'New tab (Ctrl+T)',
-    'Новое пространство: свои вкладки, куки и логины': 'New space with its own tabs, cookies and logins',
+    'Закрыть все вкладки вне Dock (вернуть — Ctrl+Shift+T)': 'Close all tabs outside the Dock (Ctrl+Shift+T brings them back)',
+    'Изменить адрес (Ctrl+L)': 'Edit address (Ctrl+L)',
+    'Новый Flow: свои вкладки, куки и логины': 'New Flow with its own tabs, cookies and logins',
     'Поиск или адрес': 'Search or address', 'Показать панель': 'Show sidebar',
     'Потяните, чтобы изменить ширину половин': 'Drag to resize the halves',
     'Предыдущее (Shift+Enter)': 'Previous (Shift+Enter)', 'Следующее (Enter)': 'Next (Enter)',
@@ -495,15 +495,15 @@ body.no-sidebar #findbar { left: var(--pad); }
     'Скачать и установить новую версию; вкладки сохранятся': 'Download and install the new version; your tabs are kept',
     'Скрыть до следующего запуска': 'Hide until next launch', 'Скрыть панель (Ctrl+S)': 'Hide sidebar (Ctrl+S)',
     // Вкладки и меню.
-    'Вернуться к закреплённому адресу': 'Back to the pinned address', 'Выгрузить (Ctrl+W)': 'Unload (Ctrl+W)',
-    'Закрыть (Ctrl+W)': 'Close (Ctrl+W)', 'Выгрузить': 'Unload', 'Дублировать': 'Duplicate', 'Закрепить': 'Pin',
-    'Открепить': 'Unpin', 'Копировать ссылку': 'Copy link', 'Ссылка скопирована': 'Link copied',
-    'Закрыть разделение': 'Close split view', 'Открыть рядом с текущей': 'Open next to current',
-    // Пространства.
-    'Новое пространство': 'New space', 'Переименовать': 'Rename', 'Удалить…': 'Delete…',
-    'Цвет пространства': 'Space color', 'Пространство: ': 'Space: ', 'пространство ': 'space ',
-    'Новое имя пространства…': 'New space name…', 'Введите новое имя': 'Type a new name',
-    'Назвать пространство «{0}»': 'Rename space to “{0}”', 'Удалить пространство?': 'Delete space?',
+    'Вернуться к адресу из Dock': 'Back to the Dock address', 'Выгрузить (Ctrl+W)': 'Unload (Ctrl+W)',
+    'Закрыть (Ctrl+W)': 'Close (Ctrl+W)', 'Выгрузить': 'Unload', 'Дублировать': 'Duplicate', 'В Dock': 'Add to Dock',
+    'Убрать из Dock': 'Remove from Dock', 'Копировать ссылку': 'Copy link', 'Ссылка скопирована': 'Link copied',
+    'Закрыть Canvas': 'Close Canvas', 'Открыть в Canvas': 'Open in Canvas',
+    // Flows.
+    'Новый Flow': 'New Flow', 'Переименовать': 'Rename', 'Удалить…': 'Delete…',
+    'Цвет Flow': 'Flow color',
+    'Новое имя Flow…': 'New Flow name…', 'Введите новое имя': 'Type a new name',
+    'Назвать Flow «{0}»': 'Rename Flow to “{0}”', 'Удалить Flow?': 'Delete Flow?',
     'Удалить «{0}» вместе с вкладками, куки и логинами?': 'Delete “{0}” with its tabs, cookies and logins?',
     // Палитра.
     'Изменить адрес…': 'Edit address…', 'Поиск по загрузкам…': 'Search downloads…',
@@ -514,12 +514,12 @@ body.no-sidebar #findbar { left: var(--pad); }
     'Загружается': 'Downloading', 'Показать в папке': 'Show in folder', 'Не удалась': 'Failed',
     // Команды палитры.
     'Найти на странице': 'Find in page', 'Вернуть закрытую вкладку': 'Reopen closed tab',
-    'Разделить экран: открыть рядом': 'Split screen: open alongside',
-    'Закрыть все незакреплённые вкладки': 'Close all unpinned tabs', 'Инструменты разработчика': 'Developer tools',
+    'Canvas: открыть рядом': 'Canvas: open alongside',
+    'Закрыть все вкладки вне Dock': 'Close all tabs outside the Dock', 'Инструменты разработчика': 'Developer tools',
     'Очистить историю': 'Clear history', 'Удалить всю историю посещений?': 'Delete your entire browsing history?',
     'Очистить данные сайтов': 'Clear site data',
-    'Удалить куки, кэш и пароли сайтов в этом пространстве?': 'Delete cookies, cache and saved passwords for this space?',
-    'Переименовать пространство': 'Rename space', 'Удалить пространство': 'Delete space',
+    'Удалить куки, кэш и пароли сайтов в этом Flow?': 'Delete cookies, cache and saved passwords for this Flow?',
+    'Переименовать Flow': 'Rename Flow', 'Удалить Flow': 'Delete Flow',
     'Сделать Seyro браузером по умолчанию': 'Make Seyro the default browser', 'Проверить обновления': 'Check for updates',
     'Сменить тему: как в Windows, светлая, тёмная': 'Change theme: system, light, dark',
     // Поиск по странице и обновление.
@@ -593,7 +593,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     if (t.media) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = '🔊'; el.appendChild(b); }
     if (t.drifted) {
       const b = document.createElement('button'); b.className = 'badge'; b.textContent = '↺';
-      b.title = tr('Вернуться к закреплённому адресу');
+      b.title = tr('Вернуться к адресу из Dock');
       b.onclick = (e) => { e.stopPropagation(); post({ type: 'reset_pinned', id: t.id }); };
       el.appendChild(b);
     }
@@ -719,12 +719,12 @@ body.no-sidebar #findbar { left: var(--pad); }
       const b = document.createElement('button');
       b.style.background = SPACE_COLORS[key];
       b.className = key === s.color ? 'cur' : '';
-      b.title = tr('Цвет пространства');
+      b.title = tr('Цвет Flow');
       b.onclick = () => { closeMenu(); post({ type: 'space_color', index: i, color: key }); };
       sw.appendChild(b);
     }
     const sep = () => Object.assign(document.createElement('div'), { className: 'sep' });
-    const items = [[tr('Новое пространство'), () => post({ type: 'key', k: 'space_new' })], [tr('Переименовать'), go('rename_space')], sep(), sw];
+    const items = [[tr('Новый Flow'), () => post({ type: 'key', k: 'space_new' })], [tr('Переименовать'), go('rename_space')], sep(), sw];
     if (!s.main) {
       const del = document.createElement('button');
       del.className = 'danger';
@@ -886,12 +886,12 @@ body.no-sidebar #findbar { left: var(--pad); }
   function openMenu(x, y, t) {
     const m = $('#menu');
     const items = [
-      [t.pinned ? tr('Открепить') : tr('Закрепить'), () => post({ type: t.pinned ? 'unpin' : 'pin', id: t.id })],
+      [t.pinned ? tr('Убрать из Dock') : tr('В Dock'), () => post({ type: t.pinned ? 'unpin' : 'pin', id: t.id })],
       [tr('Копировать ссылку'), () => { copy(t.url); toast(tr('Ссылка скопирована')); }],
       [tr('Дублировать'), () => post({ type: 'navigate', text: t.url, mode: 'new' })],
     ];
-    if (splitOf(t.id)) items.push([tr('Закрыть разделение'), () => post({ type: 'unsplit', id: t.id })]);
-    else if (state.active && t.id !== state.active) items.push([tr('Открыть рядом с текущей'), () => post({ type: 'split', id: t.id })]);
+    if (splitOf(t.id)) items.push([tr('Закрыть Canvas'), () => post({ type: 'unsplit', id: t.id })]);
+    else if (state.active && t.id !== state.active) items.push([tr('Открыть в Canvas'), () => post({ type: 'split', id: t.id })]);
     items.push([t.pinned ? tr('Выгрузить') : tr('Закрыть'), () => post({ type: 'close', id: t.id })]);
     showMenu(x, y, items);
   }
@@ -945,18 +945,18 @@ body.no-sidebar #findbar { left: var(--pad); }
     { k: 'find', t: tr('Найти на странице'), hint: 'Ctrl+F' },
     { k: 'downloads', t: tr('Загрузки'), hint: 'Ctrl+J' },
     { k: 'reopen', t: tr('Вернуть закрытую вкладку'), hint: 'Ctrl+Shift+T' },
-    { k: 'split', t: tr('Разделить экран: открыть рядом') },
-    { k: 'unsplit', t: tr('Закрыть разделение') },
-    { k: 'clear', t: tr('Закрыть все незакреплённые вкладки') },
+    { k: 'split', t: tr('Canvas: открыть рядом') },
+    { k: 'unsplit', t: tr('Закрыть Canvas') },
+    { k: 'clear', t: tr('Закрыть все вкладки вне Dock') },
     { k: 'devtools', t: tr('Инструменты разработчика'), hint: 'F12' },
     { k: 'clear_history', t: tr('Очистить историю'), confirm: tr('Удалить всю историю посещений?') },
-    { k: 'clear_data', t: tr('Очистить данные сайтов'), confirm: tr('Удалить куки, кэш и пароли сайтов в этом пространстве?') },
-    { k: 'space_new', t: tr('Новое пространство') },
+    { k: 'clear_data', t: tr('Очистить данные сайтов'), confirm: tr('Удалить куки, кэш и пароли сайтов в этом Flow?') },
+    { k: 'space_new', t: tr('Новый Flow') },
     { k: 'default_browser', t: tr('Сделать Seyro браузером по умолчанию') },
     { k: 'check_updates', t: tr('Проверить обновления') },
     { k: 'theme', t: tr('Сменить тему: как в Windows, светлая, тёмная') },
-    { k: 'rename_space', t: tr('Переименовать пространство') },
-    { k: 'delete_space_confirm', t: tr('Удалить пространство'), notMain: true },
+    { k: 'rename_space', t: tr('Переименовать Flow') },
+    { k: 'delete_space_confirm', t: tr('Удалить Flow'), notMain: true },
   ];
   const DL_STATE = { running: ['⟳', tr('Загружается')], done: ['✓', tr('Показать в папке')], failed: ['✕', tr('Не удалась')] };
 
@@ -967,7 +967,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     input.value = mode === 'edit' || mode === 'rename_space' ? current : '';
     input.placeholder = {
       edit: tr('Изменить адрес…'), downloads: tr('Поиск по загрузкам…'), split: tr('Что открыть рядом: вкладка, адрес или поиск…'),
-      rename_space: tr('Новое имя пространства…'), delete_space: tr('Удалить пространство?'),
+      rename_space: tr('Новое имя Flow…'), delete_space: tr('Удалить Flow?'),
     }[mode] || tr('Поиск или адрес…');
     $('#palette').classList.add('open');
     closeMenu();
@@ -987,7 +987,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     results = [];
     if (pMode === 'rename_space') {
       results.push(q
-        ? { kind: 'rename', ico: '✎tr(', t: tr('Назвать пространство «{0}»', q), sub: ')Enter', name: q }
+        ? { kind: 'rename', ico: '✎tr(', t: tr('Назвать Flow «{0}»', q), sub: ')Enter', name: q }
         : { kind: 'none', ico: '✎', t: tr('Введите новое имя'), sub: '' });
       sel = 0;
       drawResults();
@@ -1033,8 +1033,8 @@ body.no-sidebar #findbar { left: var(--pad); }
       }
       if (pMode !== 'split') {
         (state.spaces || []).forEach((s, i) => {
-          if (i !== state.activeSpace && (match(s.name) || match(tr('пространство ') + s.name))) {
-            results.push({ kind: 'space', ico: '◆', t: tr('Пространство: ') + s.name, sub: i < 9 ? 'Ctrl+Shift+' + (i + 1) : '', index: i });
+          if (i !== state.activeSpace && (match(s.name) || match('flow ' + s.name))) {
+            results.push({ kind: 'space', ico: '◆', t: 'Flow: ' + s.name, sub: i < 9 ? 'Ctrl+Shift+' + (i + 1) : '', index: i });
           }
         });
       }
