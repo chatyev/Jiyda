@@ -1,0 +1,811 @@
+//! Ядро браузера: окно, вкладки, раскладка, обработка команд.
+
+use crate::config::{Config, Paths};
+use crate::input;
+use crate::store::{History, SavedTab, Session, now};
+use serde_json::{Value, json};
+use tao::event_loop::{EventLoop, EventLoopProxy};
+use tao::window::{Window, WindowBuilder};
+use wry::dpi::{LogicalPosition, LogicalSize};
+use wry::{NewWindowResponse, PageLoadEvent, Rect, WebContext, WebView, WebViewBuilder};
+
+const UI_HTML: &str = include_str!("../ui/index.html");
+const TAB_JS: &str = include_str!("tab.js");
+const CLOSED_LIMIT: usize = 50;
+
+/// События, которые приходят в главный поток из обработчиков WebView.
+#[derive(Debug)]
+pub enum UserEvent {
+    FromUi(String),
+    FromTab { id: u64, msg: String },
+    Title { id: u64, title: String },
+    Load { id: u64, started: bool, url: String },
+    OpenTab { url: String, background: bool },
+    Download { path: String, ok: bool },
+}
+
+pub struct Tab {
+    id: u64,
+    url: String,
+    title: String,
+    favicon: String,
+    pinned: bool,
+    pinned_url: Option<String>,
+    loading: bool,
+    media: bool,
+    last_active: u64,
+    /// None — вкладка спит (не загружена в память).
+    webview: Option<WebView>,
+}
+
+impl Tab {
+    fn saved(&self) -> SavedTab {
+        SavedTab {
+            url: self.url.clone(),
+            title: self.title.clone(),
+            pinned: self.pinned,
+            pinned_url: self.pinned_url.clone(),
+            favicon: self.favicon.clone(),
+            last_active: self.last_active,
+        }
+    }
+}
+
+pub struct App {
+    window: Window,
+    ctx: WebContext,
+    ui: WebView,
+    proxy: EventLoopProxy<UserEvent>,
+    cfg: Config,
+    paths: Paths,
+    tabs: Vec<Tab>,
+    active: Option<u64>,
+    next_id: u64,
+    sidebar_visible: bool,
+    palette_open: bool,
+    closed: Vec<SavedTab>,
+    history: History,
+}
+
+/// Общие настройки для всех WebView. Они обязаны совпадать, иначе WebView2
+/// откажется использовать одну папку данных для разных вкладок.
+fn common<'a>(b: WebViewBuilder<'a>, cfg: &Config, paths: &Paths) -> WebViewBuilder<'a> {
+    let b = b
+        .with_devtools(cfg.devtools)
+        .with_hotkeys_zoom(true)
+        .with_clipboard(true)
+        .with_general_autofill_enabled(true)
+        .with_background_color((24, 24, 32, 255));
+    #[cfg(windows)]
+    let b = {
+        use wry::WebViewBuilderExtWindows;
+        let b = b.with_browser_extensions_enabled(cfg.extensions);
+        if cfg.extensions { b.with_extensions_path(paths.extensions.clone()) } else { b }
+    };
+    #[cfg(not(windows))]
+    let _ = paths;
+    b
+}
+
+fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
+    Rect {
+        position: LogicalPosition::new(x, y).into(),
+        size: LogicalSize::new(w.max(1.0), h.max(1.0)).into(),
+    }
+}
+
+impl App {
+    pub fn new(event_loop: &EventLoop<UserEvent>) -> wry::Result<Self> {
+        let paths = Paths::new();
+        let cfg = Config::load(&paths);
+        let session = Session::load(&paths.session);
+        let history = History::load(&paths.history);
+        let proxy = event_loop.create_proxy();
+
+        let window = WindowBuilder::new()
+            .with_title("Drift")
+            .with_inner_size(tao::dpi::LogicalSize::new(1360.0, 860.0))
+            .with_min_inner_size(tao::dpi::LogicalSize::new(640.0, 400.0))
+            .with_theme(Some(tao::window::Theme::Dark))
+            .build(event_loop)
+            .expect("не удалось создать окно");
+
+        let mut ctx = WebContext::new(Some(paths.webview_data.clone()));
+
+        // Интерфейс (сайдбар, палитра) — отдельный WebView во всё окно, под вкладками.
+        let size = window.inner_size().to_logical::<f64>(window.scale_factor());
+        let ui_proxy = proxy.clone();
+        let nav_proxy = proxy.clone();
+        let ui = common(WebViewBuilder::new_with_web_context(&mut ctx), &cfg, &paths)
+            .with_html(UI_HTML)
+            .with_bounds(rect(0.0, 0.0, size.width, size.height))
+            .with_initialization_script(format!(
+                "window.DRIFT_CONFIG = {};",
+                json!({ "sidebarWidth": cfg.sidebar_width, "padding": cfg.frame_padding })
+            ))
+            .with_ipc_handler(move |req| {
+                let _ = ui_proxy.send_event(UserEvent::FromUi(req.body().clone()));
+            })
+            .with_navigation_handler(move |url| {
+                // Интерфейс никуда не уходит: внешние ссылки открываем во вкладке.
+                if url.starts_with("http://") || url.starts_with("https://") {
+                    let _ = nav_proxy.send_event(UserEvent::OpenTab { url, background: false });
+                    false
+                } else {
+                    true
+                }
+            })
+            .build_as_child(&window)?;
+
+        let mut app = Self {
+            window,
+            ctx,
+            ui,
+            proxy,
+            cfg,
+            paths,
+            tabs: Vec::new(),
+            active: None,
+            next_id: 1,
+            sidebar_visible: session.sidebar_visible.unwrap_or(true),
+            palette_open: false,
+            closed: session.closed.clone(),
+            history,
+        };
+        app.restore(session);
+        Ok(app)
+    }
+
+    // ---------- Сессия ----------
+
+    fn restore(&mut self, session: Session) {
+        let t = now();
+        let archive_after = self.cfg.archive_hours * 3600;
+        let mut active_id = None;
+        for (i, st) in session.tabs.into_iter().enumerate() {
+            let stale = archive_after > 0 && !st.pinned && st.last_active > 0
+                && t.saturating_sub(st.last_active) > archive_after;
+            if stale {
+                self.closed.push(st);
+                continue;
+            }
+            let id = self.alloc_id();
+            if session.active == Some(i) {
+                active_id = Some(id);
+            }
+            self.tabs.push(Tab {
+                id,
+                url: st.url,
+                title: st.title,
+                favicon: st.favicon,
+                pinned: st.pinned,
+                pinned_url: st.pinned_url,
+                loading: false,
+                media: false,
+                last_active: if st.last_active == 0 { t } else { st.last_active },
+                webview: None,
+            });
+        }
+        self.trim_closed();
+        let target = active_id.or_else(|| self.display_order().first().copied());
+        match target {
+            Some(id) => self.activate(id),
+            None => {
+                self.layout();
+                self.push_state();
+            }
+        }
+    }
+
+    pub fn save(&mut self) {
+        let order = self.display_order();
+        let tabs: Vec<SavedTab> = order.iter().filter_map(|id| self.tab(*id)).map(Tab::saved).collect();
+        let active = self.active.and_then(|a| order.iter().position(|id| *id == a));
+        Session {
+            tabs,
+            active,
+            sidebar_visible: Some(self.sidebar_visible),
+            closed: self.closed.clone(),
+        }
+        .save(&self.paths.session);
+    }
+
+    pub fn shutdown(&mut self) {
+        self.save();
+        self.history.save(&self.paths.history);
+    }
+
+    // ---------- Вспомогательное ----------
+
+    fn alloc_id(&mut self) -> u64 {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
+    }
+
+    fn tab(&self, id: u64) -> Option<&Tab> {
+        self.tabs.iter().find(|t| t.id == id)
+    }
+
+    fn tab_mut(&mut self, id: u64) -> Option<&mut Tab> {
+        self.tabs.iter_mut().find(|t| t.id == id)
+    }
+
+    /// Порядок в сайдбаре: сначала закреплённые, потом остальные.
+    fn display_order(&self) -> Vec<u64> {
+        let pinned = self.tabs.iter().filter(|t| t.pinned).map(|t| t.id);
+        let rest = self.tabs.iter().filter(|t| !t.pinned).map(|t| t.id);
+        pinned.chain(rest).collect()
+    }
+
+    fn trim_closed(&mut self) {
+        if self.closed.len() > CLOSED_LIMIT {
+            let extra = self.closed.len() - CLOSED_LIMIT;
+            self.closed.drain(..extra);
+        }
+    }
+
+    fn window_size(&self) -> (f64, f64) {
+        let s = self.window.inner_size().to_logical::<f64>(self.window.scale_factor());
+        (s.width, s.height)
+    }
+
+    fn content_rect(&self) -> Rect {
+        let (w, h) = self.window_size();
+        let p = self.cfg.frame_padding;
+        let left = if self.sidebar_visible { self.cfg.sidebar_width } else { p };
+        rect(left, p, w - left - p, h - 2.0 * p)
+    }
+
+    // ---------- Раскладка и отрисовка ----------
+
+    pub fn layout(&mut self) {
+        let (w, h) = self.window_size();
+        let _ = self.ui.set_bounds(rect(0.0, 0.0, w, h));
+        let r = self.content_rect();
+        let show_id = if self.palette_open { None } else { self.active };
+        for t in &self.tabs {
+            if let Some(wv) = &t.webview {
+                if Some(t.id) == show_id {
+                    let _ = wv.set_bounds(r);
+                    let _ = wv.set_visible(true);
+                } else {
+                    let _ = wv.set_visible(false);
+                }
+            }
+        }
+    }
+
+    fn push_state(&mut self) {
+        let tabs: Vec<Value> = self
+            .display_order()
+            .iter()
+            .filter_map(|id| self.tab(*id))
+            .map(|t| {
+                json!({
+                    "id": t.id,
+                    "title": t.title,
+                    "url": t.url,
+                    "favicon": t.favicon,
+                    "pinned": t.pinned,
+                    "drifted": t.pinned && t.pinned_url.as_deref().is_some_and(|u| u != t.url),
+                    "loading": t.loading,
+                    "media": t.media,
+                    "asleep": t.webview.is_none(),
+                })
+            })
+            .collect();
+        let state = json!({
+            "tabs": tabs,
+            "active": self.active,
+            "sidebar": self.sidebar_visible,
+            "palette": self.palette_open,
+            "closedCount": self.closed.len(),
+        });
+        self.eval_ui(&format!("window.drift && drift.render({state})"));
+
+        let title = self
+            .active
+            .and_then(|id| self.tab(id))
+            .map(|t| if t.title.is_empty() { t.url.clone() } else { t.title.clone() });
+        self.window.set_title(&match title {
+            Some(t) => format!("{t} — Drift"),
+            None => "Drift".into(),
+        });
+    }
+
+    fn eval_ui(&self, js: &str) {
+        let _ = self.ui.evaluate_script(js);
+    }
+
+    fn toast(&self, text: &str) {
+        self.eval_ui(&format!("window.drift && drift.toast({})", json!(text)));
+    }
+
+    // ---------- Вкладки ----------
+
+    fn build_webview(&mut self, id: u64, url: &str, visible: bool) -> Option<WebView> {
+        let p = self.proxy.clone();
+        let (p1, p2, p3, p4, p5) = (p.clone(), p.clone(), p.clone(), p.clone(), p);
+        let bounds = self.content_rect();
+        let builder = common(WebViewBuilder::new_with_web_context(&mut self.ctx), &self.cfg, &self.paths)
+            .with_url(url)
+            .with_bounds(bounds)
+            .with_visible(visible)
+            .with_initialization_script(TAB_JS)
+            .with_ipc_handler(move |req| {
+                let _ = p1.send_event(UserEvent::FromTab { id, msg: req.body().clone() });
+            })
+            .with_document_title_changed_handler(move |title| {
+                let _ = p2.send_event(UserEvent::Title { id, title });
+            })
+            .with_on_page_load_handler(move |ev, url| {
+                let started = matches!(ev, PageLoadEvent::Started);
+                let _ = p3.send_event(UserEvent::Load { id, started, url });
+            })
+            .with_new_window_req_handler(move |url, features| {
+                // Всплывающие окна с заданным размером (вход через Google и т.п.)
+                // оставляем окнами, иначе ломается window.opener. Остальное — во вкладку.
+                if features.size.is_some() {
+                    NewWindowResponse::Allow
+                } else {
+                    let _ = p4.send_event(UserEvent::OpenTab { url, background: false });
+                    NewWindowResponse::Deny
+                }
+            })
+            .with_download_completed_handler(move |_url, path, ok| {
+                let path = path.map(|p| p.display().to_string()).unwrap_or_default();
+                let _ = p5.send_event(UserEvent::Download { path, ok });
+            });
+        match builder.build_as_child(&self.window) {
+            Ok(wv) => Some(wv),
+            Err(e) => {
+                eprintln!("не удалось создать вкладку: {e}");
+                self.toast(&format!("Ошибка WebView2: {e}"));
+                None
+            }
+        }
+    }
+
+    fn open_tab(&mut self, url: String, background: bool) {
+        let id = self.alloc_id();
+        let webview = self.build_webview(id, &url, false);
+        let tab = Tab {
+            id,
+            url,
+            title: String::new(),
+            favicon: String::new(),
+            pinned: false,
+            pinned_url: None,
+            loading: true,
+            media: false,
+            last_active: now(),
+            webview,
+        };
+        // Новая вкладка встаёт сразу после активной (как в Arc), иначе в конец.
+        let pos = self
+            .active
+            .and_then(|a| self.tabs.iter().position(|t| t.id == a && !t.pinned))
+            .map(|i| i + 1)
+            .unwrap_or(self.tabs.len());
+        self.tabs.insert(pos, tab);
+        if background {
+            self.push_state();
+        } else {
+            self.activate(id);
+        }
+        self.save();
+    }
+
+    fn activate(&mut self, id: u64) {
+        if self.tab(id).is_none() {
+            return;
+        }
+        if self.tab(id).is_some_and(|t| t.webview.is_none()) {
+            let url = self.tab(id).map(|t| t.url.clone()).unwrap_or_default();
+            let wv = self.build_webview(id, &url, true);
+            if let Some(t) = self.tab_mut(id) {
+                t.loading = wv.is_some();
+                t.webview = wv;
+            }
+        }
+        self.active = Some(id);
+        if let Some(t) = self.tab_mut(id) {
+            t.last_active = now();
+        }
+        self.palette_open = false;
+        self.layout();
+        if let Some(wv) = self.tab(id).and_then(|t| t.webview.as_ref()) {
+            let _ = wv.focus();
+        }
+        self.sleep_idle_tabs();
+        self.push_state();
+        self.save();
+    }
+
+    /// Выгрузить из памяти давно не открывавшиеся фоновые вкладки.
+    fn sleep_idle_tabs(&mut self) {
+        if self.cfg.sleep_minutes == 0 {
+            return;
+        }
+        let limit = self.cfg.sleep_minutes * 60;
+        let t = now();
+        let active = self.active;
+        for tab in &mut self.tabs {
+            if Some(tab.id) != active && !tab.media && tab.webview.is_some()
+                && t.saturating_sub(tab.last_active) > limit
+            {
+                tab.webview = None;
+                tab.loading = false;
+            }
+        }
+    }
+
+    fn close_tab(&mut self, id: u64) {
+        let Some(idx) = self.tabs.iter().position(|t| t.id == id) else { return };
+        let was_active = self.active == Some(id);
+        let next = if was_active { self.neighbor(id) } else { self.active };
+
+        if self.tabs[idx].pinned {
+            // Закреплённая вкладка не удаляется: выгружается и возвращается к своему адресу.
+            let t = &mut self.tabs[idx];
+            t.webview = None;
+            t.loading = false;
+            t.media = false;
+            if let Some(u) = t.pinned_url.clone() {
+                t.url = u;
+            }
+        } else {
+            let t = self.tabs.remove(idx);
+            if t.url.starts_with("http") {
+                self.closed.push(t.saved());
+                self.trim_closed();
+            }
+        }
+
+        if was_active {
+            self.active = None;
+            match next {
+                Some(n) => self.activate(n),
+                None => {
+                    self.layout();
+                    self.push_state();
+                    self.save();
+                }
+            }
+        } else {
+            self.push_state();
+            self.save();
+        }
+    }
+
+    /// Соседняя вкладка, на которую переходим после закрытия.
+    fn neighbor(&self, id: u64) -> Option<u64> {
+        let order = self.display_order();
+        let i = order.iter().position(|x| *x == id)?;
+        let is_pinned = self.tab(id).is_some_and(|t| t.pinned);
+        let same_group = |x: &u64| self.tab(*x).is_some_and(|t| t.pinned == is_pinned);
+        order[i + 1..].iter().find(|x| same_group(x))
+            .or_else(|| order[..i].iter().rev().find(|x| same_group(x)))
+            .or_else(|| order.iter().find(|x| **x != id))
+            .copied()
+    }
+
+    fn reopen_closed(&mut self) {
+        if let Some(st) = self.closed.pop() {
+            self.open_tab(st.url, false);
+        } else {
+            self.toast("Нет закрытых вкладок");
+        }
+    }
+
+    fn cycle(&mut self, delta: isize) {
+        let order = self.display_order();
+        if order.is_empty() {
+            return;
+        }
+        let cur = self.active.and_then(|a| order.iter().position(|x| *x == a)).unwrap_or(0) as isize;
+        let n = order.len() as isize;
+        let next = ((cur + delta) % n + n) % n;
+        self.activate(order[next as usize]);
+    }
+
+    fn goto_index(&mut self, n: usize) {
+        let order = self.display_order();
+        let target = if n == 9 { order.last() } else { order.get(n.saturating_sub(1)) };
+        if let Some(id) = target.copied() {
+            self.activate(id);
+        }
+    }
+
+    fn set_pinned(&mut self, id: u64, pinned: bool) {
+        if let Some(t) = self.tab_mut(id) {
+            t.pinned = pinned;
+            t.pinned_url = if pinned { Some(t.url.clone()) } else { None };
+        }
+        self.push_state();
+        self.save();
+    }
+
+    fn move_tab(&mut self, id: u64, before: Option<u64>, pinned: bool) {
+        let Some(idx) = self.tabs.iter().position(|t| t.id == id) else { return };
+        let mut t = self.tabs.remove(idx);
+        if t.pinned != pinned {
+            t.pinned = pinned;
+            t.pinned_url = if pinned { Some(t.url.clone()) } else { None };
+        }
+        let pos = before
+            .and_then(|b| self.tabs.iter().position(|x| x.id == b))
+            .unwrap_or(self.tabs.len());
+        self.tabs.insert(pos, t);
+        self.push_state();
+        self.save();
+    }
+
+    fn clear_unpinned(&mut self) {
+        let active_unpinned = self.active.is_some_and(|a| self.tab(a).is_some_and(|t| !t.pinned));
+        let (keep, gone): (Vec<Tab>, Vec<Tab>) = std::mem::take(&mut self.tabs).into_iter().partition(|t| t.pinned);
+        self.tabs = keep;
+        for t in gone {
+            if t.url.starts_with("http") {
+                self.closed.push(t.saved());
+            }
+        }
+        self.trim_closed();
+        if active_unpinned {
+            self.active = None;
+            if let Some(first) = self.display_order().first().copied() {
+                self.activate(first);
+                return;
+            }
+        }
+        self.layout();
+        self.push_state();
+        self.save();
+    }
+
+    fn navigate(&mut self, text: &str, new_tab: bool) {
+        let Some(url) = input::resolve(text, &self.cfg.search_url) else { return };
+        match self.active.filter(|_| !new_tab) {
+            Some(id) => self.load_in(id, &url),
+            None => self.open_tab(url, false),
+        }
+    }
+
+    fn load_in(&mut self, id: u64, url: &str) {
+        let has_wv = self.tab(id).is_some_and(|t| t.webview.is_some());
+        if let Some(t) = self.tab_mut(id) {
+            t.url = url.to_string();
+        }
+        if has_wv
+            && let Some(wv) = self.tab(id).and_then(|t| t.webview.as_ref()) {
+                let _ = wv.load_url(url);
+            }
+        self.activate(id);
+    }
+
+    fn with_active_wv(&self, f: impl FnOnce(&WebView)) {
+        if let Some(wv) = self.active.and_then(|id| self.tab(id)).and_then(|t| t.webview.as_ref()) {
+            f(wv);
+        }
+    }
+
+    fn open_palette(&mut self, mode: &str) {
+        self.palette_open = true;
+        self.layout();
+        let current = self.active.and_then(|id| self.tab(id)).map(|t| t.url.clone()).unwrap_or_default();
+        let hist: Vec<Value> = self
+            .history
+            .recent(800)
+            .into_iter()
+            .map(|e| json!({ "url": e.url, "title": e.title, "visits": e.visits }))
+            .collect();
+        self.push_state();
+        let _ = self.ui.focus();
+        self.eval_ui(&format!(
+            "window.drift && drift.openPalette({}, {}, {})",
+            json!(mode),
+            json!(current),
+            Value::Array(hist)
+        ));
+    }
+
+    fn close_palette(&mut self) {
+        if !self.palette_open {
+            return;
+        }
+        self.palette_open = false;
+        self.layout();
+        self.with_active_wv(|wv| {
+            let _ = wv.focus();
+        });
+        self.push_state();
+    }
+
+    // ---------- Команды ----------
+
+    fn command(&mut self, cmd: &str) {
+        match cmd {
+            "new_tab" => self.open_palette("new"),
+            "edit_url" => {
+                if self.active.is_some() { self.open_palette("edit") } else { self.open_palette("new") }
+            }
+            "close" => {
+                if let Some(id) = self.active {
+                    self.close_tab(id);
+                }
+            }
+            "reopen" => self.reopen_closed(),
+            "next" => self.cycle(1),
+            "prev" => self.cycle(-1),
+            "toggle_sidebar" => {
+                self.sidebar_visible = !self.sidebar_visible;
+                self.layout();
+                self.push_state();
+                self.save();
+            }
+            "pin" => {
+                if let Some(id) = self.active {
+                    let p = self.tab(id).is_some_and(|t| t.pinned);
+                    self.set_pinned(id, !p);
+                }
+            }
+            "back" => self.with_active_wv(|wv| {
+                let _ = wv.evaluate_script("history.back()");
+            }),
+            "forward" => self.with_active_wv(|wv| {
+                let _ = wv.evaluate_script("history.forward()");
+            }),
+            "reload" => self.with_active_wv(|wv| {
+                let _ = wv.reload();
+            }),
+            "devtools" => self.with_active_wv(|wv| wv.open_devtools()),
+            "copied" => self.toast("Ссылка скопирована"),
+            "clear" => self.clear_unpinned(),
+            c if c.starts_with("goto:") => {
+                if let Ok(n) = c[5..].parse() {
+                    self.goto_index(n);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn handle(&mut self, ev: UserEvent) {
+        match ev {
+            UserEvent::FromUi(body) => self.handle_ui(&body),
+            UserEvent::FromTab { id, msg } => self.handle_tab_msg(id, &msg),
+            UserEvent::Title { id, title } => {
+                let url = self.tab(id).and_then(|t| t.webview.as_ref()).and_then(|w| w.url().ok());
+                if let Some(t) = self.tab_mut(id) {
+                    t.title = title.clone();
+                    if let Some(u) = url.filter(|u| !u.is_empty()) {
+                        t.url = u;
+                    }
+                    let u = t.url.clone();
+                    self.history.set_title(&u, &title);
+                }
+                self.push_state();
+            }
+            UserEvent::Load { id, started, url } => {
+                let mut visited = None;
+                if let Some(t) = self.tab_mut(id) {
+                    t.loading = started;
+                    if !url.is_empty() {
+                        t.url = url.clone();
+                    }
+                    if !started {
+                        visited = Some((t.url.clone(), t.title.clone()));
+                    }
+                }
+                if let Some((u, title)) = visited {
+                    if self.history.visit(&u, &title) {
+                        self.history.save(&self.paths.history);
+                    }
+                    self.save();
+                }
+                self.push_state();
+            }
+            UserEvent::OpenTab { url, background } => self.open_tab(url, background),
+            UserEvent::Download { path, ok } => {
+                if ok {
+                    self.toast(&format!("Загружено: {path}"));
+                } else {
+                    self.toast("Загрузка не удалась");
+                }
+            }
+        }
+    }
+
+    fn handle_tab_msg(&mut self, id: u64, msg: &str) {
+        let Ok(v) = serde_json::from_str::<Value>(msg) else { return };
+        match v["t"].as_str().unwrap_or("") {
+            // Страница может прислать что угодно, поэтому команды из вкладки
+            // принимаем только от активной вкладки.
+            "key" if self.active == Some(id) => {
+                if let Some(k) = v["k"].as_str() {
+                    self.command(k);
+                }
+            }
+            "open_bg" => {
+                if let Some(u) = v["u"].as_str().filter(|u| u.starts_with("http")) {
+                    self.open_tab(u.to_string(), true);
+                }
+            }
+            "icon" => {
+                let u = v["u"].as_str().unwrap_or("").to_string();
+                if u.starts_with("http") || u.starts_with("data:image/") {
+                    if let Some(t) = self.tab_mut(id) {
+                        t.favicon = u;
+                    }
+                    self.push_state();
+                }
+            }
+            "media" => {
+                if let Some(t) = self.tab_mut(id) {
+                    t.media = v["on"].as_bool().unwrap_or(false);
+                }
+                self.push_state();
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_ui(&mut self, body: &str) {
+        let Ok(v) = serde_json::from_str::<Value>(body) else { return };
+        let id = v["id"].as_u64();
+        match v["type"].as_str().unwrap_or("") {
+            "ready" => {
+                self.layout();
+                self.push_state();
+            }
+            "activate" => {
+                if let Some(id) = id {
+                    self.activate(id);
+                }
+            }
+            "close" => {
+                if let Some(id) = id {
+                    self.close_tab(id);
+                }
+            }
+            "pin" => {
+                if let Some(id) = id {
+                    self.set_pinned(id, true);
+                }
+            }
+            "unpin" => {
+                if let Some(id) = id {
+                    self.set_pinned(id, false);
+                }
+            }
+            "reset_pinned" => {
+                if let Some(id) = id
+                    && let Some(u) = self.tab(id).and_then(|t| t.pinned_url.clone()) {
+                        self.load_in(id, &u);
+                    }
+            }
+            "move" => {
+                if let Some(id) = id {
+                    let pinned = v["pinned"].as_bool().unwrap_or(false);
+                    self.move_tab(id, v["before"].as_u64(), pinned);
+                }
+            }
+            "navigate" => {
+                let text = v["text"].as_str().unwrap_or("").to_string();
+                let new_tab = v["mode"].as_str() == Some("new");
+                self.palette_open = false;
+                self.navigate(&text, new_tab);
+                self.layout();
+                self.push_state();
+            }
+            "palette_close" => self.close_palette(),
+            "key" => {
+                if let Some(k) = v["k"].as_str() {
+                    self.command(k);
+                }
+            }
+            _ => {}
+        }
+    }
+}

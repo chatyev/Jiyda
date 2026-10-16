@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Drift</title>
+<style>
+/* ===== Тема: меняй эти переменные, чтобы перекрасить браузер ===== */
+:root {
+  --bg-a: #2a2f5c;
+  --bg-b: #4a3470;
+  --bg-c: #6b3557;
+  --text: #f4f2fa;
+  --text-dim: rgba(244, 242, 250, .62);
+  --hover: rgba(255, 255, 255, .09);
+  --active: rgba(255, 255, 255, .20);
+  --line: rgba(255, 255, 255, .12);
+  --accent: #ffb86b;
+  --panel: rgba(22, 20, 36, .92);
+  --radius: 10px;
+  --sw: 260px;   /* ширина сайдбара — задаётся из config.json */
+  --pad: 8px;    /* рамка вокруг страницы */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; overflow: hidden; user-select: none;
+  font: 13px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  color: var(--text);
+  background: linear-gradient(160deg, var(--bg-a) 0%, var(--bg-b) 55%, var(--bg-c) 100%);
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ===== Сайдбар ===== */
+#sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--sw);
+  display: flex; flex-direction: column; padding: 10px 8px 8px 10px; gap: 6px;
+}
+body.no-sidebar #sidebar { display: none; }
+
+.toolbar { display: flex; align-items: center; gap: 2px; height: 30px; }
+.toolbar .spacer { flex: 1; }
+.icon-btn {
+  width: 30px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  color: var(--text-dim); font-size: 15px;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+#urlbar {
+  height: 34px; border-radius: var(--radius); background: rgba(255,255,255,.10);
+  display: flex; align-items: center; padding: 0 12px; gap: 8px; cursor: text;
+  color: var(--text-dim); white-space: nowrap; overflow: hidden;
+}
+#urlbar:hover { background: rgba(255,255,255,.15); }
+#urlbar .host { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+#urlbar .lock { opacity: .6; font-size: 11px; }
+
+.section-label {
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim);
+  padding: 8px 8px 2px;
+}
+.list { display: flex; flex-direction: column; gap: 1px; min-height: 6px; }
+#scroll { flex: 1; overflow-y: auto; overflow-x: hidden; margin-right: -4px; padding-right: 4px; }
+#scroll::-webkit-scrollbar { width: 6px; }
+#scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+.divider { height: 1px; background: var(--line); margin: 8px 6px; }
+
+.tab {
+  position: relative; height: 34px; border-radius: 8px; padding: 0 6px 0 9px;
+  display: flex; align-items: center; gap: 9px; cursor: default;
+}
+.tab:hover { background: var(--hover); }
+.tab.active { background: var(--active); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+.tab.asleep .title { color: var(--text-dim); }
+.tab .fav {
+  width: 16px; height: 16px; border-radius: 4px; flex: none; display: grid; place-items: center;
+  font-size: 10px; font-weight: 700; background: rgba(255,255,255,.18); overflow: hidden;
+}
+.tab .fav img { width: 16px; height: 16px; display: block; }
+.tab .title { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tab .badge { font-size: 11px; color: var(--text-dim); }
+.tab .x {
+  width: 22px; height: 22px; border-radius: 6px; display: none; place-items: center;
+  color: var(--text-dim); font-size: 15px; line-height: 1;
+}
+.tab:hover .x, .tab.active .x { display: grid; }
+.tab .x:hover { background: var(--hover); color: var(--text); }
+.tab.loading .fav { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.tab.drop-before::before, .tab.drop-after::after {
+  content: ""; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent);
+}
+.tab.drop-before::before { top: -1px; }
+.tab.drop-after::after { bottom: -1px; }
+.list.drop-end { box-shadow: inset 0 -2px 0 var(--accent); }
+
+#newtab {
+  height: 34px; border-radius: 8px; display: flex; align-items: center; gap: 9px; padding: 0 9px;
+  color: var(--text-dim); width: 100%; text-align: left;
+}
+#newtab:hover { background: var(--hover); color: var(--text); }
+#newtab .plus { width: 16px; text-align: center; font-size: 17px; }
+
+.footer { display: flex; align-items: center; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.footer .link { color: var(--text-dim); font-size: 12px; padding: 5px 8px; border-radius: 6px; }
+.footer .link:hover { background: var(--hover); color: var(--text); }
+
+#toast {
+  position: fixed; left: 12px; bottom: 46px; max-width: calc(var(--sw) - 24px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; font-size: 12px; opacity: 0; transform: translateY(6px);
+  transition: .18s ease; pointer-events: none; word-break: break-all;
+}
+#toast.show { opacity: 1; transform: none; }
+body.no-sidebar #toast { left: 50%; transform: translateX(-50%); bottom: 20px; }
+
+/* ===== Область страницы (видна, когда вкладка скрыта) ===== */
+#content {
+  position: fixed; top: var(--pad); right: var(--pad); bottom: var(--pad); left: var(--sw);
+  border-radius: 6px; background: rgba(15, 14, 26, .55);
+  display: grid; place-items: center; text-align: center; color: var(--text-dim);
+}
+body.no-sidebar #content { left: var(--pad); }
+#content .big { font-size: 22px; color: var(--text); margin-bottom: 8px; font-weight: 600; }
+#content kbd {
+  font: 12px "Cascadia Mono", Consolas, monospace; padding: 2px 6px; border-radius: 5px;
+  border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text);
+}
+#content .hints { display: grid; grid-template-columns: auto auto; gap: 6px 14px; margin-top: 16px; text-align: left; }
+#edge { position: fixed; left: 0; top: 0; bottom: 0; width: var(--pad); cursor: e-resize; display: none; }
+body.no-sidebar #edge { display: block; }
+
+/* ===== Командная палитра ===== */
+#palette {
+  position: fixed; inset: 0; display: none; background: rgba(8, 6, 18, .35);
+  backdrop-filter: blur(2px);
+}
+#palette.open { display: block; }
+#palette .box {
+  position: absolute; left: 50%; top: 14vh; transform: translateX(-50%);
+  width: min(640px, calc(100vw - 40px)); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.5); overflow: hidden;
+}
+#palette input {
+  width: 100%; height: 54px; padding: 0 18px; border: 0; outline: 0; background: transparent;
+  color: var(--text); font: 17px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: text;
+}
+#palette input::placeholder { color: var(--text-dim); }
+#results { border-top: 1px solid var(--line); padding: 6px; max-height: 60vh; overflow-y: auto; }
+#results:empty { display: none; }
+.res {
+  display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px; border-radius: 8px;
+  cursor: default;
+}
+.res.sel { background: rgba(255,255,255,.12); }
+.res .ico { width: 18px; text-align: center; color: var(--text-dim); flex: none; }
+.res .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.res .u { color: var(--text-dim); font-size: 12px; margin-left: 8px; }
+.res .kind { color: var(--text-dim); font-size: 11px; flex: none; }
+
+/* ===== Контекстное меню ===== */
+#menu {
+  position: fixed; display: none; min-width: 190px; padding: 4px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.45); z-index: 10;
+}
+#menu.open { display: block; }
+#menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; }
+#menu button:hover { background: rgba(255,255,255,.1); }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="toolbar">
+    <button class="icon-btn" data-cmd="toggle_sidebar" title="Скрыть панель (Ctrl+S)">
+      <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+    </button>
+    <div class="spacer"></div>
+    <button class="icon-btn" data-cmd="back" title="Назад (Alt+←)">
+      <svg viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <button class="icon-btn" data-cmd="forward" title="Вперёд (Alt+→)">
+      <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
+    </button>
+    <button class="icon-btn" data-cmd="reload" title="Обновить (Ctrl+R)">
+      <svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.8h-2.8"/></svg>
+    </button>
+  </div>
+
+  <div id="urlbar" title="Изменить адрес (Ctrl+L)"><span class="host">Новая вкладка</span></div>
+
+  <div id="scroll">
+    <div class="section-label" id="pinned-label">Закреплённые</div>
+    <div class="list" id="pinned" data-pinned="1"></div>
+    <div class="divider"></div>
+    <button id="newtab"><span class="plus">+</span>Новая вкладка</button>
+    <div class="list" id="today" data-pinned="0"></div>
+  </div>
+
+  <div class="footer">
+    <button class="link" data-cmd="reopen" title="Ctrl+Shift+T">Вернуть закрытую</button>
+    <div class="spacer" style="flex:1"></div>
+    <button class="link" data-cmd="clear" title="Закрыть все незакреплённые вкладки">Очистить ↓</button>
+  </div>
+</aside>
+
+<div id="edge" title="Показать панель"></div>
+
+<main id="content">
+  <div>
+    <div class="big">Drift</div>
+    <div>Откройте что-нибудь</div>
+    <div class="hints">
+      <kbd>Ctrl+T</kbd><span>новая вкладка</span>
+      <kbd>Ctrl+L</kbd><span>изменить адрес</span>
+      <kbd>Ctrl+S</kbd><span>скрыть / показать панель</span>
+      <kbd>Ctrl+D</kbd><span>закрепить вкладку</span>
+      <kbd>Ctrl+Shift+T</kbd><span>вернуть закрытую</span>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<div id="palette">
+  <div class="box">
+    <input id="pinput" spellcheck="false" autocomplete="off" placeholder="Поиск или адрес…">
+    <div id="results"></div>
+  </div>
+</div>
+
+<div id="menu"></div>
+
+<script>
+(() => {
+  const cfg = window.DRIFT_CONFIG || { sidebarWidth: 260, padding: 8 };
+  document.documentElement.style.setProperty('--sw', cfg.sidebarWidth + 'px');
+  document.documentElement.style.setProperty('--pad', cfg.padding + 'px');
+
+  const $ = (s) => document.querySelector(s);
+  const post = (m) => window.ipc.postMessage(JSON.stringify(m));
+  let state = { tabs: [], active: null, sidebar: true, palette: false };
+
+  // ---------- Отрисовка вкладок ----------
+  function hostOf(url) {
+    try { const u = new URL(url); return u.host || url; } catch (_) { return url || ''; }
+  }
+
+  function favEl(t) {
+    const box = document.createElement('div');
+    box.className = 'fav';
+    const letter = () => { box.textContent = (t.title || hostOf(t.url) || '?').trim().charAt(0).toUpperCase(); };
+    if (t.favicon && /^(https?:|data:image\/)/.test(t.favicon)) {
+      const img = document.createElement('img');
+      img.src = t.favicon;
+      img.onerror = () => { img.remove(); letter(); };
+      box.appendChild(img);
+      box.style.background = 'transparent';
+    } else letter();
+    return box;
+  }
+
+  function tabEl(t) {
+    const el = document.createElement('div');
+    el.className = 'tab' + (t.id === state.active ? ' active' : '') + (t.asleep ? ' asleep' : '') + (t.loading ? ' loading' : '');
+    el.draggable = true;
+    el.dataset.id = t.id;
+    el.title = (t.title ? t.title + '\n' : '') + t.url;
+    el.appendChild(favEl(t));
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = t.title || hostOf(t.url) || 'Новая вкладка';
+    el.appendChild(title);
+    if (t.media) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = '🔊'; el.appendChild(b); }
+    if (t.drifted) {
+      const b = document.createElement('button'); b.className = 'badge'; b.textContent = '↺';
+      b.title = 'Вернуться к закреплённому адресу';
+      b.onclick = (e) => { e.stopPropagation(); post({ type: 'reset_pinned', id: t.id }); };
+      el.appendChild(b);
+    }
+    const x = document.createElement('button');
+    x.className = 'x'; x.textContent = '×';
+    x.title = t.pinned ? 'Выгрузить (Ctrl+W)' : 'Закрыть (Ctrl+W)';
+    x.onclick = (e) => { e.stopPropagation(); post({ type: 'close', id: t.id }); };
+    el.appendChild(x);
+
+    el.onmousedown = (e) => { if (e.button === 1) e.preventDefault(); };
+    el.onmouseup = (e) => { if (e.button === 1) post({ type: 'close', id: t.id }); };
+    el.onclick = () => post({ type: 'activate', id: t.id });
+    el.oncontextmenu = (e) => { e.preventDefault(); openMenu(e.clientX, e.clientY, t); };
+    el.ondragstart = (e) => { e.dataTransfer.setData('text/drift-tab', String(t.id)); e.dataTransfer.effectAllowed = 'move'; };
+    return el;
+  }
+
+  function render(s) {
+    state = s;
+    document.body.classList.toggle('no-sidebar', !s.sidebar);
+    const pinned = $('#pinned'), today = $('#today');
+    pinned.replaceChildren(...s.tabs.filter((t) => t.pinned).map(tabEl));
+    today.replaceChildren(...s.tabs.filter((t) => !t.pinned).map(tabEl));
+    $('#pinned-label').style.display = 'block';
+
+    const act = s.tabs.find((t) => t.id === s.active);
+    const host = $('#urlbar .host');
+    host.textContent = act ? hostOf(act.url) : 'Новая вкладка';
+    $('#urlbar').title = act ? act.url : 'Ctrl+L';
+    $('#content').style.visibility = act && !s.palette ? 'hidden' : 'visible';
+    $('#content > div').style.visibility = act ? 'hidden' : 'visible';
+    if (!s.palette) $('#palette').classList.remove('open');
+  }
+
+  // ---------- Перетаскивание ----------
+  function clearDrop() {
+    document.querySelectorAll('.drop-before,.drop-after,.drop-end').forEach((n) => n.classList.remove('drop-before', 'drop-after', 'drop-end'));
+  }
+  for (const list of [$('#pinned'), $('#today')]) {
+    list.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer.types.includes('text/drift-tab')) return;
+      e.preventDefault();
+      clearDrop();
+      const row = e.target.closest('.tab');
+      if (row) {
+        const r = row.getBoundingClientRect();
+        row.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+      } else list.classList.add('drop-end');
+    });
+    list.addEventListener('dragleave', (e) => { if (!list.contains(e.relatedTarget)) clearDrop(); });
+    list.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const id = Number(e.dataTransfer.getData('text/drift-tab'));
+      const row = e.target.closest('.tab');
+      let before = null;
+      if (row) {
+        const r = row.getBoundingClientRect();
+        const target = e.clientY < r.top + r.height / 2 ? row : row.nextElementSibling;
+        before = target ? Number(target.dataset.id) : null;
+      }
+      if (before === id) before = null;
+      clearDrop();
+      post({ type: 'move', id, before, pinned: list.dataset.pinned === '1' });
+    });
+  }
+  // Пустой блок «Закреплённые» тоже принимает перетаскивание.
+  $('#pinned-label').addEventListener('dragover', (e) => e.preventDefault());
+  $('#pinned-label').addEventListener('drop', (e) => {
+    e.preventDefault();
+    const id = Number(e.dataTransfer.getData('text/drift-tab'));
+    if (id) post({ type: 'move', id, before: null, pinned: true });
+  });
+
+  // ---------- Контекстное меню ----------
+  function openMenu(x, y, t) {
+    const m = $('#menu');
+    const items = [
+      [t.pinned ? 'Открепить' : 'Закрепить', () => post({ type: t.pinned ? 'unpin' : 'pin', id: t.id })],
+      ['Копировать ссылку', () => { copy(t.url); toast('Ссылка скопирована'); }],
+      ['Дублировать', () => post({ type: 'navigate', text: t.url, mode: 'new' })],
+      [t.pinned ? 'Выгрузить' : 'Закрыть', () => post({ type: 'close', id: t.id })],
+    ];
+    m.replaceChildren(...items.map(([label, fn]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.onclick = () => { closeMenu(); fn(); };
+      return b;
+    }));
+    m.classList.add('open');
+    const r = m.getBoundingClientRect();
+    m.style.left = Math.min(x, innerWidth - r.width - 6) + 'px';
+    m.style.top = Math.min(y, innerHeight - r.height - 6) + 'px';
+  }
+  const closeMenu = () => $('#menu').classList.remove('open');
+  addEventListener('mousedown', (e) => { if (!e.target.closest('#menu')) closeMenu(); });
+
+  function copy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    ta.remove();
+  }
+
+  // ---------- Тосты ----------
+  let toastTimer;
+  function toast(text) {
+    const el = $('#toast');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  // ---------- Командная палитра ----------
+  let pMode = 'new', history = [], results = [], sel = 0;
+
+  function openPalette(mode, current, hist) {
+    pMode = mode;
+    history = hist || [];
+    const input = $('#pinput');
+    input.value = mode === 'edit' ? current : '';
+    input.placeholder = mode === 'edit' ? 'Изменить адрес…' : 'Поиск или адрес…';
+    $('#palette').classList.add('open');
+    closeMenu();
+    update();
+    input.focus();
+    input.select();
+  }
+
+  function looksLikeUrl(q) {
+    return /^[a-z]+:\/\//i.test(q) || (!/\s/.test(q) && /^[^\s.]+(\.[^\s.]+)+(:\d+)?(\/.*)?$/.test(q) && /\.[a-zа-я-]{2,}(:\d+)?(\/|$)/i.test(q)) || /^localhost(:\d+)?/i.test(q);
+  }
+
+  function update() {
+    const q = $('#pinput').value.trim();
+    const ql = q.toLowerCase();
+    results = [];
+    if (q) {
+      results.push(looksLikeUrl(q)
+        ? { kind: 'go', ico: '↗', t: q, sub: 'Открыть', text: q }
+        : { kind: 'go', ico: '⌕', t: q, sub: 'Искать', text: q });
+    }
+    const match = (s) => (s || '').toLowerCase().includes(ql);
+    const tabs = state.tabs.filter((t) => t.id !== state.active && (!ql || match(t.title) || match(t.url)));
+    for (const t of tabs.slice(0, ql ? 4 : 6)) {
+      results.push({ kind: 'tab', ico: '⇥', t: t.title || hostOf(t.url), u: hostOf(t.url), sub: 'Перейти', id: t.id });
+    }
+    if (ql) {
+      const openUrls = new Set(state.tabs.map((t) => t.url));
+      const hits = history.filter((h) => !openUrls.has(h.url) && (match(h.title) || match(h.url)));
+      // Сначала совпадения по началу домена, потом по частоте посещений.
+      hits.sort((a, b) => (hostOf(b.url).startsWith(ql) - hostOf(a.url).startsWith(ql)) || (b.visits - a.visits));
+      for (const h of hits.slice(0, 6)) {
+        results.push({ kind: 'hist', ico: '◷', t: h.title || h.url, u: hostOf(h.url), sub: 'История', text: h.url });
+      }
+    }
+    sel = 0;
+    drawResults();
+  }
+
+  function drawResults() {
+    $('#results').replaceChildren(...results.map((r, i) => {
+      const el = document.createElement('div');
+      el.className = 'res' + (i === sel ? ' sel' : '');
+      const ico = document.createElement('span'); ico.className = 'ico'; ico.textContent = r.ico;
+      const t = document.createElement('span'); t.className = 't'; t.textContent = r.t;
+      if (r.u) { const u = document.createElement('span'); u.className = 'u'; u.textContent = r.u; t.appendChild(u); }
+      const k = document.createElement('span'); k.className = 'kind'; k.textContent = r.sub;
+      el.append(ico, t, k);
+      el.onmousemove = () => { if (sel !== i) { sel = i; drawResults(); } };
+      el.onclick = () => choose(i);
+      return el;
+    }));
+  }
+
+  function choose(i) {
+    const r = results[i];
+    if (!r) return;
+    $('#palette').classList.remove('open');
+    if (r.kind === 'tab') post({ type: 'activate', id: r.id });
+    else post({ type: 'navigate', text: r.text, mode: pMode });
+  }
+
+  $('#pinput').addEventListener('input', update);
+  $('#pinput').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(sel + 1, results.length - 1); drawResults(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); drawResults(); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(sel); }
+    else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+  });
+  function closePalette() { $('#palette').classList.remove('open'); post({ type: 'palette_close' }); }
+  $('#palette').addEventListener('mousedown', (e) => { if (e.target.id === 'palette') closePalette(); });
+
+  // ---------- Кнопки и горячие клавиши ----------
+  document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => post({ type: 'key', k: b.dataset.cmd })));
+  $('#urlbar').onclick = () => post({ type: 'key', k: 'edit_url' });
+  $('#newtab').onclick = () => post({ type: 'key', k: 'new_tab' });
+  $('#edge').onclick = () => post({ type: 'key', k: 'toggle_sidebar' });
+
+  addEventListener('keydown', (e) => {
+    const c = e.ctrlKey || e.metaKey, s = e.shiftKey, code = e.code;
+    let k = null;
+    if (c && !e.altKey) {
+      if (code === 'KeyT') k = s ? 'reopen' : 'new_tab';
+      else if (code === 'KeyL') k = 'edit_url';
+      else if (code === 'KeyW') k = 'close';
+      else if (e.key === 'Tab') k = s ? 'prev' : 'next';
+      else if (code === 'KeyS' && !s) k = 'toggle_sidebar';
+      else if (code === 'KeyD' && !s) k = 'pin';
+      else if (code === 'KeyR') k = 'reload';
+      else if (/^Digit[1-9]$/.test(code) && !s) k = 'goto:' + code.slice(5);
+    } else if (e.altKey && !c && e.key === 'ArrowLeft') k = 'back';
+    else if (e.altKey && !c && e.key === 'ArrowRight') k = 'forward';
+    else if (e.key === 'F5') k = 'reload';
+    else if (e.key === 'Escape' && $('#palette').classList.contains('open')) { closePalette(); return; }
+    if (!k) return;
+    // Пока открыта палитра, не даём переключать вкладки клавишами.
+    if ($('#palette').classList.contains('open') && !['new_tab', 'edit_url'].includes(k)) return;
+    e.preventDefault();
+    post({ type: 'key', k });
+  }, true);
+  addEventListener('contextmenu', (e) => { if (!e.target.closest('input')) e.preventDefault(); });
+
+  window.drift = { render, toast, openPalette };
+  post({ type: 'ready' });
+})();
+</script>
+</body>
+</html>
