@@ -220,7 +220,7 @@ impl App {
         let proxy = event_loop.create_proxy();
 
         let builder = WindowBuilder::new()
-            .with_title("Seyro Browser")
+            .with_title("Seyro")
             .with_inner_size(tao::dpi::LogicalSize::new(1360.0, 860.0))
             .with_min_inner_size(tao::dpi::LogicalSize::new(640.0, 400.0))
             .with_theme(Some(tao::window::Theme::Dark))
@@ -499,8 +499,8 @@ impl App {
             .active_tab()
             .map(|t| if t.title.is_empty() { t.url.clone() } else { t.title.clone() });
         self.window.set_title(&match title {
-            Some(t) => format!("{t} — Seyro Browser"),
-            None => "Seyro Browser".into(),
+            Some(t) => format!("{t} — Seyro"),
+            None => "Seyro".into(),
         });
     }
 
