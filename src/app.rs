@@ -795,11 +795,8 @@ impl App {
                 }
             }
             "clear" => self.clear_unpinned(),
-            "split" => {
-                if self.tabs.active().is_some() {
-                    self.open_palette("split");
-                }
-            }
+            // Разделить можно только при открытой вкладке: она станет левой половиной.
+            "split" if self.tabs.active().is_some() => self.open_palette("split"),
             "unsplit" => {
                 if let Some(id) = self.tabs.active() {
                     self.unsplit(id);
