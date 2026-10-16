@@ -110,6 +110,12 @@ body.frameless.no-sidebar #topdrag { display: block; }
 .tab .x:hover { background: var(--hover); color: var(--text); }
 .tab.loading .fav { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
+/* Пара Split View — одна строка с двумя половинами. */
+.tab.split { padding: 0 3px; gap: 3px; }
+.tab.split.shown { background: var(--hover); }
+.tab.split > .tab { flex: 1 1 0; min-width: 0; height: 28px; padding: 0 3px 0 6px; gap: 6px; border-radius: 6px; }
+.tab.split > .tab .x { width: 18px; height: 18px; }
+.tab.split:hover > .tab:not(:hover):not(.active) .x { display: none; }
 .tab.drop-before::before, .tab.drop-after::after {
   content: ""; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 1px; background: var(--accent);
 }
@@ -150,6 +156,13 @@ body.no-sidebar #content { left: var(--pad); }
   border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text);
 }
 #content .hints { display: grid; grid-template-columns: auto auto; gap: 6px 14px; margin-top: 16px; text-align: left; }
+/* Split View: разделитель между страницами и рамка вокруг активной половины.
+   Страницы лежат поверх интерфейса, поэтому видны только края этих элементов. */
+#splitdiv { position: fixed; z-index: 60; cursor: col-resize; display: grid; place-items: center; }
+#splitdiv::after { content: ""; width: 4px; height: 44px; border-radius: 2px; background: rgba(255,255,255,.28); }
+#splitdiv[hidden] { display: none; }
+#splitdiv:hover::after, #splitdiv.drag::after { background: var(--accent); }
+#splitframe { position: fixed; border: 2px solid var(--accent); border-radius: 8px; pointer-events: none; opacity: .75; }
 #edge { position: fixed; left: 0; top: 0; bottom: 0; width: var(--pad); cursor: e-resize; display: none; }
 body.no-sidebar #edge { display: block; }
 
@@ -263,6 +276,8 @@ body.no-sidebar #findbar { left: var(--pad); }
 <div id="edge" title="Показать панель"></div>
 
 <div id="topdrag"></div>
+<div id="splitframe" hidden></div>
+<div id="splitdiv" hidden title="Потяните, чтобы изменить ширину половин"></div>
 
 <!-- Края окна без рамки: потянуть, чтобы изменить размер. -->
 <div id="resize">
@@ -369,14 +384,87 @@ body.no-sidebar #findbar { left: var(--pad); }
     return el;
   }
 
+  // ---------- Split View ----------
+  const splitOf = (id) => (state.splits || []).find((p) => p.left === id || p.right === id);
+
+  // Пара — одна строка; data-id у неё — левая половина (за неё пару и перетаскивают).
+  function splitEl(p) {
+    const left = state.tabs.find((t) => t.id === p.left), right = state.tabs.find((t) => t.id === p.right);
+    const el = document.createElement('div');
+    el.className = 'tab split' + (splitOf(state.active) === p ? ' shown' : '');
+    el.dataset.id = p.left;
+    el.append(tabEl(left), tabEl(right));
+    return el;
+  }
+
+  // Вкладки раздела: правая половина пары рисуется внутри строки левой.
+  function rows(list) {
+    return list.flatMap((t) => {
+      const p = splitOf(t.id);
+      if (!p) return [tabEl(t)];
+      if (p.right === t.id || !state.tabs.some((x) => x.id === p.right)) return [];
+      return [splitEl(p)];
+    });
+  }
+
+  // Разделитель и рамка — та же геометрия, что split_boxes в app.rs.
+  function placeSplit() {
+    const p = splitOf(state.active), show = !!p && !state.palette;
+    $('#splitdiv').hidden = $('#splitframe').hidden = !show;
+    if (!show) return;
+    const pad = cfg.padding, gap = state.splitGap || 8;
+    const x = state.sidebar ? cfg.sidebarWidth : pad, y = pad + (state.find ? 40 : 0);
+    const w = innerWidth - x - pad, h = innerHeight - y - pad;
+    const inner = Math.max(0, w - gap), lw = Math.round(inner * p.ratio);
+    Object.assign($('#splitdiv').style, { left: x + lw + 'px', top: y + 'px', width: gap + 'px', height: h + 'px' });
+    const [bx, bw] = state.active === p.left ? [x, lw] : [x + lw + gap, inner - lw];
+    Object.assign($('#splitframe').style, { left: bx - 3 + 'px', top: y - 3 + 'px', width: bw + 6 + 'px', height: h + 6 + 'px' });
+  }
+  addEventListener('resize', placeSplit);
+
+  // Перетаскивание разделителя: половины двигаются сразу, сохранение — когда отпустили.
+  let splitDrag = null;
+  $('#splitdiv').addEventListener('pointerdown', (e) => {
+    const p = splitOf(state.active);
+    if (!p || e.button !== 0) return;
+    e.preventDefault();
+    $('#splitdiv').setPointerCapture(e.pointerId);
+    $('#splitdiv').classList.add('drag');
+    splitDrag = { p, pending: false };
+  });
+  $('#splitdiv').addEventListener('pointermove', (e) => {
+    if (!splitDrag) return;
+    const pad = cfg.padding, gap = state.splitGap || 8, x = state.sidebar ? cfg.sidebarWidth : pad;
+    const inner = Math.max(1, innerWidth - x - pad - gap);
+    splitDrag.p.ratio = Math.min(0.8, Math.max(0.2, (e.clientX - x - gap / 2) / inner));
+    placeSplit();
+    if (!splitDrag.pending) {
+      splitDrag.pending = true;
+      requestAnimationFrame(() => {
+        if (!splitDrag) return;
+        splitDrag.pending = false;
+        post({ type: 'split_ratio', ratio: splitDrag.p.ratio });
+      });
+    }
+  });
+  const splitDragEnd = () => {
+    if (!splitDrag) return;
+    post({ type: 'split_ratio', ratio: splitDrag.p.ratio, done: true });
+    splitDrag = null;
+    $('#splitdiv').classList.remove('drag');
+  };
+  $('#splitdiv').addEventListener('pointerup', splitDragEnd);
+  $('#splitdiv').addEventListener('lostpointercapture', splitDragEnd);
+
   function render(s) {
     state = s;
     document.body.classList.toggle('no-sidebar', !s.sidebar);
     document.body.classList.toggle('maximized', !!s.maximized);
     $('#win-max').title = s.maximized ? 'Восстановить' : 'Развернуть';
     const pinned = $('#pinned'), today = $('#today');
-    pinned.replaceChildren(...s.tabs.filter((t) => t.pinned).map(tabEl));
-    today.replaceChildren(...s.tabs.filter((t) => !t.pinned).map(tabEl));
+    pinned.replaceChildren(...rows(s.tabs.filter((t) => t.pinned)));
+    today.replaceChildren(...rows(s.tabs.filter((t) => !t.pinned)));
+    placeSplit();
     $('#pinned-label').style.display = 'block';
 
     const act = s.tabs.find((t) => t.id === s.active);
@@ -398,7 +486,7 @@ body.no-sidebar #findbar { left: var(--pad); }
       if (!e.dataTransfer.types.includes('text/drift-tab')) return;
       e.preventDefault();
       clearDrop();
-      const row = e.target.closest('.tab');
+      const row = e.target.closest('.list > .tab');
       if (row) {
         const r = row.getBoundingClientRect();
         row.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
@@ -408,7 +496,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     list.addEventListener('drop', (e) => {
       e.preventDefault();
       const id = Number(e.dataTransfer.getData('text/drift-tab'));
-      const row = e.target.closest('.tab');
+      const row = e.target.closest('.list > .tab');
       let before = null;
       if (row) {
         const r = row.getBoundingClientRect();
@@ -435,8 +523,10 @@ body.no-sidebar #findbar { left: var(--pad); }
       [t.pinned ? 'Открепить' : 'Закрепить', () => post({ type: t.pinned ? 'unpin' : 'pin', id: t.id })],
       ['Копировать ссылку', () => { copy(t.url); toast('Ссылка скопирована'); }],
       ['Дублировать', () => post({ type: 'navigate', text: t.url, mode: 'new' })],
-      [t.pinned ? 'Выгрузить' : 'Закрыть', () => post({ type: 'close', id: t.id })],
     ];
+    if (splitOf(t.id)) items.push(['Закрыть разделение', () => post({ type: 'unsplit', id: t.id })]);
+    else if (state.active && t.id !== state.active) items.push(['Открыть рядом с текущей', () => post({ type: 'split', id: t.id })]);
+    items.push([t.pinned ? 'Выгрузить' : 'Закрыть', () => post({ type: 'close', id: t.id })]);
     m.replaceChildren(...items.map(([label, fn]) => {
       const b = document.createElement('button');
       b.textContent = label;
@@ -477,6 +567,8 @@ body.no-sidebar #findbar { left: var(--pad); }
     { k: 'find', t: 'Найти на странице', hint: 'Ctrl+F' },
     { k: 'downloads', t: 'Загрузки', hint: 'Ctrl+J' },
     { k: 'reopen', t: 'Вернуть закрытую вкладку', hint: 'Ctrl+Shift+T' },
+    { k: 'split', t: 'Разделить экран: открыть рядом' },
+    { k: 'unsplit', t: 'Закрыть разделение' },
     { k: 'clear', t: 'Закрыть все незакреплённые вкладки' },
     { k: 'devtools', t: 'Инструменты разработчика', hint: 'F12' },
     { k: 'clear_history', t: 'Очистить историю', confirm: 'Удалить всю историю посещений?' },
@@ -489,7 +581,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     items = list || [];
     const input = $('#pinput');
     input.value = mode === 'edit' ? current : '';
-    input.placeholder = { edit: 'Изменить адрес…', downloads: 'Поиск по загрузкам…' }[mode] || 'Поиск или адрес…';
+    input.placeholder = { edit: 'Изменить адрес…', downloads: 'Поиск по загрузкам…', split: 'Что открыть рядом: вкладка, адрес или поиск…' }[mode] || 'Поиск или адрес…';
     $('#palette').classList.add('open');
     closeMenu();
     update();
@@ -524,7 +616,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     }
     const tabs = state.tabs.filter((t) => t.id !== state.active && (!ql || match(t.title) || match(t.url)));
     for (const t of tabs.slice(0, ql ? 4 : 6)) {
-      results.push({ kind: 'tab', ico: '⇥', t: t.title || hostOf(t.url), u: hostOf(t.url), sub: 'Перейти', id: t.id });
+      results.push({ kind: 'tab', ico: '⇥', t: t.title || hostOf(t.url), u: hostOf(t.url), sub: pMode === 'split' ? 'Открыть рядом' : 'Перейти', id: t.id });
     }
     if (ql) {
       const openUrls = new Set(state.tabs.map((t) => t.url));
@@ -534,7 +626,7 @@ body.no-sidebar #findbar { left: var(--pad); }
       for (const h of hits.slice(0, 6)) {
         results.push({ kind: 'hist', ico: '◷', t: h.title || h.url, u: hostOf(h.url), sub: 'История', text: h.url });
       }
-      for (const c of COMMANDS.filter((c) => match(c.t)).slice(0, 4)) {
+      for (const c of COMMANDS.filter((c) => pMode !== 'split' && match(c.t)).slice(0, 4)) {
         results.push({ kind: 'cmd', ico: '›', t: c.t, sub: c.hint || 'Команда', k: c.k, confirm: c.confirm });
       }
     }
@@ -573,7 +665,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     if (r.kind === 'cancel') { closePalette(); return; }
     if (r.kind === 'cmd' && r.confirm) { askConfirm(r); return; }
     $('#palette').classList.remove('open');
-    if (r.kind === 'tab') post({ type: 'activate', id: r.id });
+    if (r.kind === 'tab') post({ type: pMode === 'split' ? 'split' : 'activate', id: r.id });
     else if (r.kind === 'cmd') { post({ type: 'palette_close' }); post({ type: 'key', k: r.k }); }
     else if (r.kind === 'dl') { post({ type: 'palette_close' }); post({ type: 'open_download', id: r.id }); }
     else post({ type: 'navigate', text: r.text, mode: pMode });

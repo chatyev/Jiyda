@@ -24,6 +24,18 @@ const PAGE_TABS_MAX: usize = 10;
 const PAGE_TABS_WINDOW: Duration = Duration::from_secs(5);
 /// Высота панели поиска по странице над вкладкой (та же, что `--find-h` в ui/index.html).
 const FIND_BAR_H: f64 = 40.0;
+/// Промежуток между половинами Split View, в нём разделитель (`--split-gap` в ui/index.html).
+const SPLIT_GAP: f64 = 8.0;
+
+type Box4 = (f64, f64, f64, f64);
+
+/// Разделить область страницы (x, y, ширина, высота) на две половины: левая
+/// занимает долю `ratio` ширины без промежутка. Та же формула — в index.html.
+fn split_boxes((x, y, w, h): Box4, ratio: f64) -> [Box4; 2] {
+    let inner = (w - SPLIT_GAP).max(0.0);
+    let lw = (inner * ratio).round();
+    [(x, y, lw, h), (x + lw + SPLIT_GAP, y, inner - lw, h)]
+}
 
 /// События, которые приходят в главный поток из обработчиков WebView.
 #[derive(Debug)]
@@ -204,7 +216,8 @@ impl App {
     // ---------- Сессия ----------
 
     fn restore(&mut self, session: Session) {
-        let target = self.tabs.restore(session.tabs, session.active, now(), self.cfg.archive_hours * 3600);
+        let target =
+            self.tabs.restore(session.tabs, session.active, &session.splits, now(), self.cfg.archive_hours * 3600);
         match target {
             Some(id) => self.activate(id),
             None => {
@@ -226,12 +239,13 @@ impl App {
         if self.history.is_dirty() {
             self.history.save(&self.paths.history);
         }
-        let (tabs, active) = self.tabs.to_saved();
+        let (tabs, active, splits) = self.tabs.to_saved();
         Session {
             tabs,
             active,
             sidebar_visible: Some(self.sidebar_visible),
             closed: self.tabs.closed().to_vec(),
+            splits,
         }
         .save(&self.paths.session);
     }
@@ -266,13 +280,19 @@ impl App {
         (s.width, s.height)
     }
 
-    fn content_rect(&self) -> Rect {
+    /// Область страницы: (x, y, ширина, высота) в логических пикселях.
+    fn content_box(&self) -> (f64, f64, f64, f64) {
         let (w, h) = self.window_size();
         let p = self.cfg.frame_padding;
         let left = if self.sidebar_visible { self.cfg.sidebar_width } else { p };
         // Панель поиска занимает полосу над страницей.
         let top = if self.find_open { p + FIND_BAR_H } else { p };
-        rect(left, top, w - left - p, h - top - p)
+        (left, top, w - left - p, h - top - p)
+    }
+
+    fn content_rect(&self) -> Rect {
+        let (x, y, w, h) = self.content_box();
+        rect(x, y, w, h)
     }
 
     // ---------- Раскладка и отрисовка ----------
@@ -294,15 +314,31 @@ impl App {
     pub fn layout(&mut self) {
         let (w, h) = self.window_size();
         let _ = self.ui.set_bounds(rect(0.0, 0.0, w, h));
-        let r = self.content_rect();
-        let show_id = if self.palette_open { None } else { self.tabs.active() };
+        // На экране активная вкладка или обе половины её пары; под палитрой — ничего.
+        let content = self.content_box();
+        let mut shown: Vec<(u64, Rect)> = Vec::new();
+        if !self.palette_open
+            && let Some(active) = self.tabs.active()
+        {
+            match self.tabs.split_of(active) {
+                Some(s) => {
+                    let [l, r] = split_boxes(content, s.ratio);
+                    shown.push((s.left, rect(l.0, l.1, l.2, l.3)));
+                    shown.push((s.right, rect(r.0, r.1, r.2, r.3)));
+                }
+                None => shown.push((active, self.content_rect())),
+            }
+        }
         for t in self.tabs.iter() {
             if let Some(wv) = &t.view {
-                if Some(t.id) == show_id {
-                    let _ = wv.set_bounds(r);
-                    let _ = wv.set_visible(true);
-                } else {
-                    let _ = wv.set_visible(false);
+                match shown.iter().find(|(id, _)| *id == t.id) {
+                    Some((_, r)) => {
+                        let _ = wv.set_bounds(*r);
+                        let _ = wv.set_visible(true);
+                    }
+                    None => {
+                        let _ = wv.set_visible(false);
+                    }
                 }
             }
         }
@@ -335,6 +371,10 @@ impl App {
             "palette": self.palette_open,
             "find": self.find_open,
             "closedCount": self.tabs.closed().len(),
+            "splits": self.tabs.splits().iter()
+                .map(|s| json!({ "left": s.left, "right": s.right, "ratio": s.ratio }))
+                .collect::<Vec<_>>(),
+            "splitGap": SPLIT_GAP,
         });
         self.eval_ui(&format!("window.drift && drift.render({state})"));
 
@@ -412,7 +452,7 @@ impl App {
         }
     }
 
-    fn open_tab(&mut self, url: String, background: bool) {
+    fn open_tab(&mut self, url: String, background: bool) -> u64 {
         let id = self.tabs.alloc_id();
         let webview = self.build_webview(id, &url, false);
         self.tabs.insert(id, url, now(), webview);
@@ -422,6 +462,18 @@ impl App {
             self.activate(id);
         }
         self.save();
+        id
+    }
+
+    /// Загрузить спящую вкладку.
+    fn wake(&mut self, id: u64) {
+        if let Some(url) = self.tabs.get(id).filter(|t| t.view.is_none()).map(|t| t.url.clone()) {
+            let wv = self.build_webview(id, &url, true);
+            if let Some(t) = self.tabs.get_mut(id) {
+                t.loading = wv.is_some();
+                t.view = wv;
+            }
+        }
     }
 
     fn activate(&mut self, id: u64) {
@@ -430,16 +482,12 @@ impl App {
             self.find_open = false;
             self.run_find("", "clear");
         }
-        // Спящую вкладку сначала загружаем.
-        if let Some(url) = self.tabs.get(id).filter(|t| t.view.is_none()).map(|t| t.url.clone()) {
-            let wv = self.build_webview(id, &url, true);
-            if let Some(t) = self.tabs.get_mut(id) {
-                t.loading = wv.is_some();
-                t.view = wv;
-            }
-        }
         if !self.tabs.activate(id, now()) {
             return;
+        }
+        // Спящие вкладки на экране (в том числе вторую половину пары) загружаем.
+        for v in self.tabs.visible() {
+            self.wake(v);
         }
         self.palette_open = false;
         self.layout();
@@ -517,11 +565,36 @@ impl App {
         self.save();
     }
 
-    fn navigate(&mut self, text: &str, new_tab: bool) {
+    /// Перейти по тексту из палитры. `mode`: "new" — в новой вкладке, "split" —
+    /// в новой вкладке рядом с текущей, иначе — в текущей.
+    fn navigate(&mut self, text: &str, mode: &str) {
         let Some(url) = input::resolve(text, &self.cfg.search_url) else { return };
-        match self.tabs.active().filter(|_| !new_tab) {
-            Some(id) => self.load_in(id, &url),
-            None => self.open_tab(url, false),
+        match (self.tabs.active(), mode) {
+            (Some(active), "split") => {
+                let id = self.open_tab(url, true);
+                self.split_with(active, id);
+            }
+            (Some(id), m) if m != "new" => self.load_in(id, &url),
+            _ => {
+                self.open_tab(url, false);
+            }
+        }
+    }
+
+    // ---------- Split View ----------
+
+    /// Показать `right` рядом с `left` и перейти в правую половину.
+    fn split_with(&mut self, left: u64, right: u64) {
+        if self.tabs.make_split(left, right) {
+            self.activate(right);
+        }
+    }
+
+    fn unsplit(&mut self, id: u64) {
+        if self.tabs.unsplit(id) {
+            self.layout();
+            self.push_state();
+            self.save();
         }
     }
 
@@ -722,6 +795,16 @@ impl App {
                 }
             }
             "clear" => self.clear_unpinned(),
+            "split" => {
+                if self.tabs.active().is_some() {
+                    self.open_palette("split");
+                }
+            }
+            "unsplit" => {
+                if let Some(id) = self.tabs.active() {
+                    self.unsplit(id);
+                }
+            }
             "find" => self.open_find(),
             "downloads" => self.open_palette("downloads"),
             "open_downloads_folder" => self.open_downloads_folder(),
@@ -769,7 +852,9 @@ impl App {
                 }
                 self.push_state();
             }
-            UserEvent::OpenTab { url, background } => self.open_tab(url, background),
+            UserEvent::OpenTab { url, background } => {
+                self.open_tab(url, background);
+            }
             UserEvent::Popup { url } => self.open_tab_from_page(url, false),
             UserEvent::DownloadStarted { url, path } => {
                 self.downloads.started(&url, &path, now());
@@ -880,11 +965,35 @@ impl App {
             }
             "navigate" => {
                 let text = v["text"].as_str().unwrap_or("").to_string();
-                let new_tab = v["mode"].as_str() == Some("new");
                 self.palette_open = false;
-                self.navigate(&text, new_tab);
+                self.navigate(&text, v["mode"].as_str().unwrap_or(""));
                 self.layout();
                 self.push_state();
+            }
+            // «Открыть рядом»: вкладка `id` встаёт справа от текущей.
+            "split" => {
+                if let Some(id) = id {
+                    match self.tabs.active() {
+                        Some(active) if active != id => self.split_with(active, id),
+                        _ => self.activate(id),
+                    }
+                }
+            }
+            "unsplit" => {
+                if let Some(id) = id.or(self.tabs.active()) {
+                    self.unsplit(id);
+                }
+            }
+            // Разделитель тянут: двигаем половины сразу, а сохраняем, когда отпустили.
+            "split_ratio" => {
+                if let (Some(active), Some(r)) = (self.tabs.active(), v["ratio"].as_f64()) {
+                    self.tabs.set_split_ratio(active, r);
+                    self.layout();
+                    if v["done"].as_bool() == Some(true) {
+                        self.push_state();
+                        self.save();
+                    }
+                }
             }
             "palette_close" => self.close_palette(),
             // Перетаскивание и изменение размера отдаём Windows: так работают
@@ -919,7 +1028,24 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_script, parse_find_result, resize_direction};
+    use super::{SPLIT_GAP, find_script, parse_find_result, resize_direction, split_boxes};
+
+    #[test]
+    fn split_boxes_fill_area_around_gap() {
+        let [l, r] = split_boxes((100.0, 8.0, 808.0, 500.0), 0.5);
+        assert_eq!(l, (100.0, 8.0, 400.0, 500.0));
+        assert_eq!(r, (100.0 + 400.0 + SPLIT_GAP, 8.0, 400.0, 500.0));
+        // Половины и промежуток занимают ровно всю ширину.
+        let [l, r] = split_boxes((0.0, 0.0, 1001.0, 10.0), 0.3);
+        assert_eq!(l.2 + SPLIT_GAP + r.2, 1001.0);
+        assert_eq!(r.0, l.2 + SPLIT_GAP);
+    }
+
+    #[test]
+    fn split_boxes_never_negative() {
+        let [l, r] = split_boxes((0.0, 0.0, 4.0, 10.0), 0.5);
+        assert!(l.2 >= 0.0 && r.2 >= 0.0);
+    }
     use tao::window::ResizeDirection;
 
     #[test]

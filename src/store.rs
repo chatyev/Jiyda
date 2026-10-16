@@ -23,6 +23,15 @@ pub struct Session {
     pub sidebar_visible: Option<bool>,
     /// Недавно закрытые и архивированные вкладки (для Ctrl+Shift+T).
     pub closed: Vec<SavedTab>,
+    /// Пары Split View: индексы в `tabs`.
+    pub splits: Vec<SavedSplit>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SavedSplit {
+    pub left: usize,
+    pub right: usize,
+    pub ratio: f64,
 }
 
 impl Session {
@@ -367,6 +376,7 @@ mod tests {
             active: Some(0),
             sidebar_visible: Some(false),
             closed: vec![SavedTab { pinned: false, pinned_url: None, ..tab }],
+            splits: vec![SavedSplit { left: 0, right: 0, ratio: 0.3 }],
         };
         s.save(&path);
 
@@ -381,6 +391,7 @@ mod tests {
         assert_eq!(loaded.sidebar_visible, Some(false));
         assert_eq!(loaded.closed.len(), 1);
         assert!(!loaded.closed[0].pinned);
+        assert_eq!(loaded.splits, [SavedSplit { left: 0, right: 0, ratio: 0.3 }]);
     }
 
     #[test]
