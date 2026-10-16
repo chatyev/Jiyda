@@ -94,3 +94,73 @@ pub fn write_atomic(path: &std::path::Path, data: &str) {
         log::warn!("не удалось сохранить {}: {e}", path.display());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn paths(dir: &std::path::Path) -> Paths {
+        Paths {
+            config: dir.join("config.json"),
+            session: dir.join("session.json"),
+            history: dir.join("history.json"),
+            webview_data: dir.join("webview"),
+            extensions: dir.join("extensions"),
+            log: dir.join("drift.log"),
+        }
+    }
+
+    #[test]
+    fn missing_config_creates_default_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = paths(dir.path());
+        let cfg = Config::load(&p);
+        assert_eq!(cfg.search_url, Config::default().search_url);
+
+        let written: Config = serde_json::from_str(&std::fs::read_to_string(&p.config).unwrap()).unwrap();
+        assert_eq!(written.sidebar_width, 260.0);
+        assert_eq!(written.archive_hours, 12);
+    }
+
+    #[test]
+    fn partial_config_fills_in_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = paths(dir.path());
+        std::fs::write(&p.config, r#"{"search_url":"https://s.test/?q=%s","devtools":false}"#).unwrap();
+        let cfg = Config::load(&p);
+        assert_eq!(cfg.search_url, "https://s.test/?q=%s");
+        assert!(!cfg.devtools);
+        assert_eq!(cfg.sleep_minutes, 60);
+        assert_eq!(cfg.frame_padding, 8.0);
+    }
+
+    #[test]
+    fn corrupt_config_falls_back_to_default_and_keeps_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = paths(dir.path());
+        std::fs::write(&p.config, "{oops").unwrap();
+        let cfg = Config::load(&p);
+        assert_eq!(cfg.search_url, Config::default().search_url);
+        // Повреждённый файл не перезаписывается — его можно поправить руками.
+        assert_eq!(std::fs::read_to_string(&p.config).unwrap(), "{oops");
+    }
+
+    #[test]
+    fn write_atomic_creates_and_overwrites() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("data.json");
+        write_atomic(&path, "one");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one");
+        write_atomic(&path, "two");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "two");
+        assert!(!path.with_extension("tmp").exists());
+    }
+
+    #[test]
+    fn write_atomic_into_missing_dir_does_not_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("no/such/dir/data.json");
+        write_atomic(&path, "x");
+        assert!(!path.exists());
+    }
+}
