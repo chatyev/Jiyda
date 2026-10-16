@@ -19,6 +19,7 @@
   --radius: 10px;
   --sw: 260px;   /* ширина сайдбара — задаётся из config.json */
   --pad: 8px;    /* рамка вокруг страницы */
+  --find-h: 40px; /* высота панели поиска — та же, что FIND_BAR_H в app.rs */
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
@@ -160,6 +161,24 @@ body.no-sidebar #edge { display: block; }
 .res .u { color: var(--text-dim); font-size: 12px; margin-left: 8px; }
 .res .kind { color: var(--text-dim); font-size: 11px; flex: none; }
 
+.res.danger .t { color: #ff9b8f; }
+
+/* ===== Поиск по странице (полоса над вкладкой) ===== */
+#findbar {
+  position: fixed; top: var(--pad); left: var(--sw); right: var(--pad); height: calc(var(--find-h) - 4px);
+  display: flex; align-items: center; gap: 4px; padding: 0 6px 0 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+}
+#findbar[hidden] { display: none; }
+body.no-sidebar #findbar { left: var(--pad); }
+#findbar input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 14px; user-select: text;
+}
+#findbar input::placeholder { color: var(--text-dim); }
+#findbar.miss input { color: #ff9b8f; }
+#findcount { color: var(--text-dim); font-size: 12px; padding: 0 6px; white-space: nowrap; }
+
 /* ===== Контекстное меню ===== */
 #menu {
   position: fixed; display: none; min-width: 190px; padding: 4px; background: var(--panel);
@@ -223,6 +242,18 @@ body.no-sidebar #edge { display: block; }
 </main>
 
 <div id="toast"></div>
+
+<div id="findbar" hidden>
+  <input id="findinput" spellcheck="false" autocomplete="off" placeholder="Найти на странице…">
+  <span id="findcount"></span>
+  <button class="icon-btn" id="findprev" title="Предыдущее (Shift+Enter)">
+    <svg viewBox="0 0 16 16"><path d="m4 10 4-4 4 4"/></svg>
+  </button>
+  <button class="icon-btn" id="findnext" title="Следующее (Enter)">
+    <svg viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg>
+  </button>
+  <button class="icon-btn" id="findclose" title="Закрыть (Esc)">×</button>
+</div>
 
 <div id="palette">
   <div class="box">
@@ -309,6 +340,7 @@ body.no-sidebar #edge { display: block; }
     $('#content').style.visibility = act && !s.palette ? 'hidden' : 'visible';
     $('#content > div').style.visibility = act ? 'hidden' : 'visible';
     if (!s.palette) $('#palette').classList.remove('open');
+    $('#findbar').hidden = !s.find || s.palette;
   }
 
   // ---------- Перетаскивание ----------
@@ -391,14 +423,27 @@ body.no-sidebar #edge { display: block; }
   }
 
   // ---------- Командная палитра ----------
-  let pMode = 'new', history = [], results = [], sel = 0;
+  // pMode: 'new' | 'edit' | 'downloads'. items — история (или загрузки в режиме 'downloads').
+  let pMode = 'new', items = [], results = [], sel = 0;
 
-  function openPalette(mode, current, hist) {
+  // Команды палитры: находятся по названию. confirm — текст подтверждения для необратимых.
+  const COMMANDS = [
+    { k: 'find', t: 'Найти на странице', hint: 'Ctrl+F' },
+    { k: 'downloads', t: 'Загрузки', hint: 'Ctrl+J' },
+    { k: 'reopen', t: 'Вернуть закрытую вкладку', hint: 'Ctrl+Shift+T' },
+    { k: 'clear', t: 'Закрыть все незакреплённые вкладки' },
+    { k: 'devtools', t: 'Инструменты разработчика', hint: 'F12' },
+    { k: 'clear_history', t: 'Очистить историю', confirm: 'Удалить всю историю посещений?' },
+    { k: 'clear_data', t: 'Очистить данные сайтов', confirm: 'Удалить куки, кэш и пароли всех сайтов?' },
+  ];
+  const DL_STATE = { running: ['⟳', 'Загружается'], done: ['✓', 'Показать в папке'], failed: ['✕', 'Не удалась'] };
+
+  function openPalette(mode, current, list) {
     pMode = mode;
-    history = hist || [];
+    items = list || [];
     const input = $('#pinput');
     input.value = mode === 'edit' ? current : '';
-    input.placeholder = mode === 'edit' ? 'Изменить адрес…' : 'Поиск или адрес…';
+    input.placeholder = { edit: 'Изменить адрес…', downloads: 'Поиск по загрузкам…' }[mode] || 'Поиск или адрес…';
     $('#palette').classList.add('open');
     closeMenu();
     update();
@@ -413,26 +458,50 @@ body.no-sidebar #edge { display: block; }
   function update() {
     const q = $('#pinput').value.trim();
     const ql = q.toLowerCase();
+    const match = (s) => (s || '').toLowerCase().includes(ql);
     results = [];
+    if (pMode === 'downloads') {
+      results.push({ kind: 'cmd', ico: '📁', t: 'Открыть папку «Загрузки»', sub: '', k: 'open_downloads_folder' });
+      for (const d of items.filter((d) => !ql || match(d.name) || match(d.url)).slice(0, 50)) {
+        const [ico, sub] = DL_STATE[d.state] || DL_STATE.failed;
+        results.push({ kind: 'dl', ico, t: d.name, u: hostOf(d.url), sub, id: d.id });
+      }
+      if (!items.length) results.push({ kind: 'none', ico: '', t: 'Загрузок пока нет', sub: '' });
+      sel = 0;
+      drawResults();
+      return;
+    }
     if (q) {
       results.push(looksLikeUrl(q)
         ? { kind: 'go', ico: '↗', t: q, sub: 'Открыть', text: q }
         : { kind: 'go', ico: '⌕', t: q, sub: 'Искать', text: q });
     }
-    const match = (s) => (s || '').toLowerCase().includes(ql);
     const tabs = state.tabs.filter((t) => t.id !== state.active && (!ql || match(t.title) || match(t.url)));
     for (const t of tabs.slice(0, ql ? 4 : 6)) {
       results.push({ kind: 'tab', ico: '⇥', t: t.title || hostOf(t.url), u: hostOf(t.url), sub: 'Перейти', id: t.id });
     }
     if (ql) {
       const openUrls = new Set(state.tabs.map((t) => t.url));
-      const hits = history.filter((h) => !openUrls.has(h.url) && (match(h.title) || match(h.url)));
+      const hits = items.filter((h) => !openUrls.has(h.url) && (match(h.title) || match(h.url)));
       // Сначала совпадения по началу домена, потом по частоте посещений.
       hits.sort((a, b) => (hostOf(b.url).startsWith(ql) - hostOf(a.url).startsWith(ql)) || (b.visits - a.visits));
       for (const h of hits.slice(0, 6)) {
         results.push({ kind: 'hist', ico: '◷', t: h.title || h.url, u: hostOf(h.url), sub: 'История', text: h.url });
       }
+      for (const c of COMMANDS.filter((c) => match(c.t)).slice(0, 4)) {
+        results.push({ kind: 'cmd', ico: '›', t: c.t, sub: c.hint || 'Команда', k: c.k, confirm: c.confirm });
+      }
     }
+    sel = 0;
+    drawResults();
+  }
+
+  // Для необратимой команды вместо выполнения показываем вопрос с подтверждением.
+  function askConfirm(r) {
+    results = [
+      { kind: 'cmd', ico: '!', t: r.confirm, sub: 'Enter — да', k: r.k, danger: true },
+      { kind: 'cancel', ico: '×', t: 'Отмена', sub: 'Esc' },
+    ];
     sel = 0;
     drawResults();
   }
@@ -440,7 +509,7 @@ body.no-sidebar #edge { display: block; }
   function drawResults() {
     $('#results').replaceChildren(...results.map((r, i) => {
       const el = document.createElement('div');
-      el.className = 'res' + (i === sel ? ' sel' : '');
+      el.className = 'res' + (i === sel ? ' sel' : '') + (r.danger ? ' danger' : '');
       const ico = document.createElement('span'); ico.className = 'ico'; ico.textContent = r.ico;
       const t = document.createElement('span'); t.className = 't'; t.textContent = r.t;
       if (r.u) { const u = document.createElement('span'); u.className = 'u'; u.textContent = r.u; t.appendChild(u); }
@@ -454,9 +523,13 @@ body.no-sidebar #edge { display: block; }
 
   function choose(i) {
     const r = results[i];
-    if (!r) return;
+    if (!r || r.kind === 'none') return;
+    if (r.kind === 'cancel') { closePalette(); return; }
+    if (r.kind === 'cmd' && r.confirm) { askConfirm(r); return; }
     $('#palette').classList.remove('open');
     if (r.kind === 'tab') post({ type: 'activate', id: r.id });
+    else if (r.kind === 'cmd') { post({ type: 'palette_close' }); post({ type: 'key', k: r.k }); }
+    else if (r.kind === 'dl') { post({ type: 'palette_close' }); post({ type: 'open_download', id: r.id }); }
     else post({ type: 'navigate', text: r.text, mode: pMode });
   }
 
@@ -469,6 +542,30 @@ body.no-sidebar #edge { display: block; }
   });
   function closePalette() { $('#palette').classList.remove('open'); post({ type: 'palette_close' }); }
   $('#palette').addEventListener('mousedown', (e) => { if (e.target.id === 'palette') closePalette(); });
+
+  // ---------- Поиск по странице ----------
+  // Ищет скрипт во вкладке (find_script в app.rs), сюда приходит только число совпадений.
+  const findInput = $('#findinput');
+  function openFind() {
+    $('#findbar').hidden = false;
+    findInput.focus();
+    findInput.select();
+    if (findInput.value) runFind('type');
+  }
+  const runFind = (mode) => post({ type: 'find', text: findInput.value, mode });
+  function findResult(r) {
+    const q = findInput.value;
+    $('#findcount').textContent = !q ? '' : r.n > 0 ? r.n + ' совп.' : r.ok ? 'найдено' : 'не найдено';
+    $('#findbar').classList.toggle('miss', !!q && !r.ok);
+  }
+  findInput.addEventListener('input', () => runFind('type'));
+  findInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); runFind(e.shiftKey ? 'prev' : 'next'); }
+    else if (e.key === 'Escape') { e.preventDefault(); post({ type: 'find_close' }); }
+  });
+  $('#findnext').onclick = () => runFind('next');
+  $('#findprev').onclick = () => runFind('prev');
+  $('#findclose').onclick = () => post({ type: 'find_close' });
 
   // ---------- Кнопки и горячие клавиши ----------
   document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => post({ type: 'key', k: b.dataset.cmd })));
@@ -487,6 +584,8 @@ body.no-sidebar #edge { display: block; }
       else if (code === 'KeyS' && !s) k = 'toggle_sidebar';
       else if (code === 'KeyD' && !s) k = 'pin';
       else if (code === 'KeyR') k = 'reload';
+      else if (code === 'KeyF' && !s) k = 'find';
+      else if (code === 'KeyJ' && !s) k = 'downloads';
       else if (/^Digit[1-9]$/.test(code) && !s) k = 'goto:' + code.slice(5);
     } else if (e.altKey && !c && e.key === 'ArrowLeft') k = 'back';
     else if (e.altKey && !c && e.key === 'ArrowRight') k = 'forward';
@@ -500,7 +599,7 @@ body.no-sidebar #edge { display: block; }
   }, true);
   addEventListener('contextmenu', (e) => { if (!e.target.closest('input')) e.preventDefault(); });
 
-  window.drift = { render, toast, openPalette };
+  window.drift = { render, toast, openPalette, openFind, findResult };
   post({ type: 'ready' });
 })();
 </script>

@@ -3,7 +3,7 @@
 use crate::config::{Config, Paths};
 use crate::input;
 use crate::limit::RateLimit;
-use crate::store::{History, Session, now};
+use crate::store::{DownloadState, Downloads, History, Session, now};
 use crate::tabs::{AfterClose, TabList};
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
@@ -21,6 +21,8 @@ const SLEEP_CHECK: Duration = Duration::from_secs(60);
 /// Сколько вкладок страницы могут открыть (window.open, Ctrl/средний клик) за окно времени.
 const PAGE_TABS_MAX: usize = 10;
 const PAGE_TABS_WINDOW: Duration = Duration::from_secs(5);
+/// Высота панели поиска по странице над вкладкой (та же, что `--find-h` в ui/index.html).
+const FIND_BAR_H: f64 = 40.0;
 
 /// События, которые приходят в главный поток из обработчиков WebView.
 #[derive(Debug)]
@@ -32,7 +34,37 @@ pub enum UserEvent {
     OpenTab { url: String, background: bool },
     /// window.open со страницы — в отличие от OpenTab, ограничивается по частоте.
     Popup { url: String },
-    Download { path: String, ok: bool },
+    DownloadStarted { url: String, path: String },
+    /// Загрузка закончилась; `id` — вкладка, которая её начала.
+    Download { id: u64, url: String, path: Option<String>, ok: bool },
+    /// Результат поиска по странице (JSON от скрипта во вкладке).
+    FindResult { id: u64, json: String },
+}
+
+/// Скрипт поиска по странице. `mode`: "type" — текст поменялся, искать с начала
+/// текущего совпадения; "next" / "prev" — следующее / предыдущее.
+fn find_script(query: &str, mode: &str) -> String {
+    format!(
+        r#"(() => {{
+  const q = {q}, mode = {mode}, sel = getSelection();
+  if (mode === 'type' && sel.rangeCount) sel.collapseToStart();
+  if (!q) {{ sel.removeAllRanges(); return {{ ok: false, n: 0 }}; }}
+  const ok = window.find(q, false, mode === 'prev', true, false, false, false);
+  const text = (document.body ? document.body.innerText : '').toLowerCase(), s = q.toLowerCase();
+  let n = 0;
+  for (let i = text.indexOf(s); i !== -1 && n < 1000; i = text.indexOf(s, i + s.length)) n++;
+  return {{ ok, n }};
+}})()"#,
+        q = json!(query),
+        mode = json!(mode)
+    )
+}
+
+/// Разобрать ответ скрипта поиска. Страница может подменить что угодно,
+/// поэтому берём только два поля нужных типов.
+fn parse_find_result(json: &str) -> Option<(bool, u64)> {
+    let v: Value = serde_json::from_str(json).ok()?;
+    Some((v["ok"].as_bool()?, v["n"].as_u64()?))
 }
 
 /// Команды, которые принимаются из страницы (их присылает tab.js по горячим клавишам).
@@ -42,6 +74,7 @@ fn allowed_from_tab(cmd: &str) -> bool {
     matches!(
         cmd,
         "new_tab" | "edit_url" | "close" | "reopen" | "next" | "prev" | "toggle_sidebar" | "pin" | "copied"
+            | "find" | "downloads"
     ) || cmd
         .strip_prefix("goto:")
         .is_some_and(|n| n.len() == 1 && matches!(n.as_bytes()[0], b'1'..=b'9'))
@@ -57,7 +90,9 @@ pub struct App {
     tabs: TabList<WebView>,
     sidebar_visible: bool,
     palette_open: bool,
+    find_open: bool,
     history: History,
+    downloads: Downloads,
     /// Когда сбросить сессию и историю на диск (None — изменений нет).
     save_due: Option<Instant>,
     next_sleep_check: Instant,
@@ -97,6 +132,7 @@ impl App {
         let cfg = Config::load(&paths);
         let session = Session::load(&paths.session);
         let history = History::load(&paths.history);
+        let downloads = Downloads::load(&paths.downloads);
         let proxy = event_loop.create_proxy();
 
         let window = WindowBuilder::new()
@@ -144,7 +180,9 @@ impl App {
             tabs: TabList::new(session.closed.clone()),
             sidebar_visible: session.sidebar_visible.unwrap_or(true),
             palette_open: false,
+            find_open: false,
             history,
+            downloads,
             save_due: None,
             next_sleep_check: Instant::now() + SLEEP_CHECK,
             page_tabs: RateLimit::new(PAGE_TABS_MAX, PAGE_TABS_WINDOW),
@@ -222,7 +260,9 @@ impl App {
         let (w, h) = self.window_size();
         let p = self.cfg.frame_padding;
         let left = if self.sidebar_visible { self.cfg.sidebar_width } else { p };
-        rect(left, p, w - left - p, h - 2.0 * p)
+        // Панель поиска занимает полосу над страницей.
+        let top = if self.find_open { p + FIND_BAR_H } else { p };
+        rect(left, top, w - left - p, h - top - p)
     }
 
     // ---------- Раскладка и отрисовка ----------
@@ -268,6 +308,7 @@ impl App {
             "active": self.tabs.active(),
             "sidebar": self.sidebar_visible,
             "palette": self.palette_open,
+            "find": self.find_open,
             "closedCount": self.tabs.closed().len(),
         });
         self.eval_ui(&format!("window.drift && drift.render({state})"));
@@ -294,7 +335,7 @@ impl App {
 
     fn build_webview(&mut self, id: u64, url: &str, visible: bool) -> Option<WebView> {
         let p = self.proxy.clone();
-        let (p1, p2, p3, p4, p5) = (p.clone(), p.clone(), p.clone(), p.clone(), p);
+        let (p1, p2, p3, p4, p5, p6) = (p.clone(), p.clone(), p.clone(), p.clone(), p.clone(), p);
         let bounds = self.content_rect();
         let builder = common(WebViewBuilder::new_with_web_context(&mut self.ctx), &self.cfg, &self.paths)
             .with_url(url)
@@ -321,9 +362,14 @@ impl App {
                     NewWindowResponse::Deny
                 }
             })
-            .with_download_completed_handler(move |_url, path, ok| {
-                let path = path.map(|p| p.display().to_string()).unwrap_or_default();
-                let _ = p5.send_event(UserEvent::Download { path, ok });
+            .with_download_started_handler(move |url, path| {
+                let path = path.display().to_string();
+                let _ = p5.send_event(UserEvent::DownloadStarted { url, path });
+                true
+            })
+            .with_download_completed_handler(move |url, path, ok| {
+                let path = path.map(|p| p.display().to_string());
+                let _ = p6.send_event(UserEvent::Download { id, url, path, ok });
             });
         match builder.build_as_child(&self.window) {
             Ok(wv) => Some(wv),
@@ -348,6 +394,10 @@ impl App {
     }
 
     fn activate(&mut self, id: u64) {
+        // Поиск относится к странице, при переходе на другую вкладку он закрывается.
+        if self.tabs.active() != Some(id) {
+            self.find_open = false;
+        }
         // Спящую вкладку сначала загружаем.
         if let Some(url) = self.tabs.get(id).filter(|t| t.view.is_none()).map(|t| t.url.clone()) {
             let wv = self.build_webview(id, &url, true);
@@ -464,21 +514,116 @@ impl App {
     fn open_palette(&mut self, mode: &str) {
         self.palette_open = true;
         self.layout();
-        let current = self.tabs.active().and_then(|id| self.tabs.get(id)).map(|t| t.url.clone()).unwrap_or_default();
-        let hist: Vec<Value> = self
-            .history
-            .recent(800)
-            .into_iter()
-            .map(|e| json!({ "url": e.url, "title": e.title, "visits": e.visits }))
-            .collect();
+        let current = self.tabs.active_tab().map(|t| t.url.clone()).unwrap_or_default();
+        // Третий аргумент — список для поиска: загрузки в режиме "downloads", иначе история.
+        let items: Vec<Value> = if mode == "downloads" {
+            self.downloads
+                .recent()
+                .map(|d| {
+                    json!({ "id": d.id, "name": d.name(), "path": d.path, "url": d.url, "state": d.state })
+                })
+                .collect()
+        } else {
+            self.history
+                .recent(800)
+                .into_iter()
+                .map(|e| json!({ "url": e.url, "title": e.title, "visits": e.visits }))
+                .collect()
+        };
         self.push_state();
         let _ = self.ui.focus();
         self.eval_ui(&format!(
             "window.drift && drift.openPalette({}, {}, {})",
             json!(mode),
             json!(current),
-            Value::Array(hist)
+            Value::Array(items)
         ));
+    }
+
+    // ---------- Поиск по странице ----------
+
+    fn open_find(&mut self) {
+        if self.tabs.active_tab().is_none_or(|t| t.view.is_none()) {
+            return;
+        }
+        self.palette_open = false;
+        self.find_open = true;
+        self.layout();
+        self.push_state();
+        let _ = self.ui.focus();
+        self.eval_ui("window.drift && drift.openFind()");
+    }
+
+    fn close_find(&mut self) {
+        if !self.find_open {
+            return;
+        }
+        self.find_open = false;
+        self.layout();
+        self.with_active_wv(|wv| {
+            let _ = wv.focus();
+        });
+        self.push_state();
+    }
+
+    fn run_find(&self, query: &str, mode: &str) {
+        let Some(id) = self.tabs.active() else { return };
+        let proxy = self.proxy.clone();
+        self.with_active_wv(|wv| {
+            let _ = wv.evaluate_script_with_callback(&find_script(query, mode), move |json| {
+                let _ = proxy.send_event(UserEvent::FindResult { id, json });
+            });
+        });
+    }
+
+    // ---------- Загрузки и очистка ----------
+
+    /// Показать файл в Проводнике (или папку загрузок, если файла уже нет).
+    fn reveal_download(&self, id: u64) {
+        let Some(d) = self.downloads.get(id) else { return };
+        let path = std::path::Path::new(&d.path);
+        if d.path.is_empty() || !path.exists() {
+            self.toast("Файл не найден: возможно, его удалили или переместили");
+            return;
+        }
+        let mut cmd = std::process::Command::new("explorer");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // explorer разбирает /select сам, поэтому путь передаём одной строкой в кавычках.
+            cmd.raw_arg(format!("/select,\"{}\"", d.path));
+        }
+        if let Err(e) = cmd.spawn() {
+            log::error!("не удалось открыть Проводник: {e}");
+        }
+    }
+
+    fn open_downloads_folder(&self) {
+        let Some(dir) = dirs::download_dir() else { return };
+        if let Err(e) = std::process::Command::new("explorer").arg(dir).spawn() {
+            log::error!("не удалось открыть папку загрузок: {e}");
+        }
+    }
+
+    fn clear_history(&mut self) {
+        self.history.clear();
+        self.save_now();
+        log::info!("история очищена");
+        self.toast("История очищена");
+    }
+
+    /// Куки, кэш, хранилища и сохранённые пароли всех сайтов: профиль общий для всех WebView.
+    fn clear_site_data(&self) {
+        match self.ui.clear_all_browsing_data() {
+            Ok(()) => {
+                log::info!("данные сайтов очищены");
+                self.toast("Данные сайтов очищены");
+            }
+            Err(e) => {
+                log::error!("не удалось очистить данные сайтов: {e}");
+                self.toast("Не удалось очистить данные сайтов");
+            }
+        }
     }
 
     fn close_palette(&mut self) {
@@ -533,6 +678,11 @@ impl App {
             "devtools" => self.with_active_wv(|wv| wv.open_devtools()),
             "copied" => self.toast("Ссылка скопирована"),
             "clear" => self.clear_unpinned(),
+            "find" => self.open_find(),
+            "downloads" => self.open_palette("downloads"),
+            "open_downloads_folder" => self.open_downloads_folder(),
+            "clear_history" => self.clear_history(),
+            "clear_data" => self.clear_site_data(),
             c if c.starts_with("goto:") => {
                 if let Ok(n) = c[5..].parse() {
                     self.activate_opt(self.tabs.goto_target(n));
@@ -577,11 +727,31 @@ impl App {
             }
             UserEvent::OpenTab { url, background } => self.open_tab(url, background),
             UserEvent::Popup { url } => self.open_tab_from_page(url, false),
-            UserEvent::Download { path, ok } => {
-                if ok {
-                    self.toast(&format!("Загружено: {path}"));
-                } else {
-                    self.toast("Загрузка не удалась");
+            UserEvent::DownloadStarted { url, path } => {
+                self.downloads.started(&url, &path, now());
+                self.downloads.save(&self.paths.downloads);
+                if let Some(d) = self.downloads.recent().next() {
+                    self.toast(&format!("Загрузка: {} (Ctrl+J — список)", d.name()));
+                }
+            }
+            UserEvent::Download { id, url, path, ok } => {
+                let d = self.downloads.finished(&url, path.as_deref(), ok, now());
+                let text = match d.state {
+                    DownloadState::Done => format!("Загружено: {}", d.name()),
+                    _ => format!("Загрузка не удалась: {}", d.name()),
+                };
+                self.downloads.save(&self.paths.downloads);
+                // Вкладка, открытая только ради загрузки, остаётся пустой — закрываем её, как Chrome.
+                if self.tabs.get(id).is_some_and(|t| !t.pinned && t.url == "about:blank") {
+                    self.close_tab(id);
+                }
+                self.toast(&text);
+            }
+            UserEvent::FindResult { id, json } => {
+                if self.find_open && self.tabs.active() == Some(id)
+                    && let Some((ok, n)) = parse_find_result(&json)
+                {
+                    self.eval_ui(&format!("window.drift && drift.findResult({})", json!({ "ok": ok, "n": n })));
                 }
             }
         }
@@ -673,6 +843,19 @@ impl App {
                 self.push_state();
             }
             "palette_close" => self.close_palette(),
+            "find" => {
+                let mode = match v["mode"].as_str() {
+                    Some(m @ ("next" | "prev")) => m,
+                    _ => "type",
+                };
+                self.run_find(v["text"].as_str().unwrap_or(""), mode);
+            }
+            "find_close" => self.close_find(),
+            "open_download" => {
+                if let Some(id) = id {
+                    self.reveal_download(id);
+                }
+            }
             "key" => {
                 if let Some(k) = v["k"].as_str() {
                     self.command(k);
@@ -685,11 +868,28 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::allowed_from_tab;
+    use super::{allowed_from_tab, find_script, parse_find_result};
+
+    #[test]
+    fn find_result_takes_only_typed_fields() {
+        assert_eq!(parse_find_result(r#"{"ok":true,"n":3}"#), Some((true, 3)));
+        assert_eq!(parse_find_result(r#"{"ok":false,"n":0,"extra":"<script>"}"#), Some((false, 0)));
+        assert_eq!(parse_find_result(r#"{"ok":"yes","n":3}"#), None);
+        assert_eq!(parse_find_result(r#"{"ok":true,"n":-1}"#), None);
+        assert_eq!(parse_find_result(r#""{\"ok\":true,\"n\":1}""#), None);
+        assert_eq!(parse_find_result("null"), None);
+        assert_eq!(parse_find_result("not json"), None);
+    }
+
+    #[test]
+    fn find_script_embeds_query_as_js_string() {
+        let js = find_script("a\"b'</script>\n", "next");
+        assert!(js.contains(r#"const q = "a\"b'</script>\n", mode = "next""#), "{js}");
+    }
 
     #[test]
     fn tab_hotkey_commands_are_allowed() {
-        for cmd in ["new_tab", "edit_url", "close", "reopen", "next", "prev", "toggle_sidebar", "pin", "copied"] {
+        for cmd in ["new_tab", "edit_url", "close", "reopen", "next", "prev", "toggle_sidebar", "pin", "copied", "find", "downloads"] {
             assert!(allowed_from_tab(cmd), "{cmd}");
         }
         for n in 1..=9 {
@@ -699,7 +899,7 @@ mod tests {
 
     #[test]
     fn dangerous_or_unknown_commands_are_rejected() {
-        for cmd in ["clear", "devtools", "back", "forward", "reload", "", "goto:", "goto:0", "goto:10", "goto:x", "NEW_TAB"] {
+        for cmd in ["clear", "devtools", "back", "forward", "reload", "clear_history", "clear_data", "open_downloads_folder", "", "goto:", "goto:0", "goto:10", "goto:x", "NEW_TAB"] {
             assert!(!allowed_from_tab(cmd), "{cmd}");
         }
     }

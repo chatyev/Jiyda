@@ -22,6 +22,8 @@
     else if ((kl === 's' || code === 'KeyS') && !s) cmd = 'toggle_sidebar';
     else if ((kl === 'd' || code === 'KeyD') && !s) cmd = 'pin';
     else if ((kl === 'u' || code === 'KeyU') && s) cmd = 'copy_url';
+    else if ((kl === 'f' || code === 'KeyF') && !s) cmd = 'find';
+    else if ((kl === 'j' || code === 'KeyJ') && !s) cmd = 'downloads';
     else if (/^Digit[1-9]$/.test(code) && !s) cmd = 'goto:' + code.slice(5);
     if (!cmd) return;
     e.preventDefault();

@@ -111,6 +111,112 @@ impl History {
         v.truncate(n);
         v
     }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.dirty = true;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DownloadState {
+    Running,
+    Done,
+    Failed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Download {
+    pub id: u64,
+    pub url: String,
+    /// Куда сохраняется файл (может быть пустым, если WebView2 не сообщил).
+    pub path: String,
+    pub state: DownloadState,
+    pub ts: u64,
+}
+
+impl Download {
+    /// Имя файла для списка: из пути, иначе из адреса.
+    pub fn name(&self) -> String {
+        let from_path = Path::new(&self.path).file_name().map(|n| n.to_string_lossy().into_owned());
+        from_path
+            .filter(|n| !n.is_empty())
+            .or_else(|| {
+                let no_query = self.url.split(['?', '#']).next().unwrap_or("");
+                no_query.rsplit('/').find(|s| !s.is_empty()).map(str::to_string)
+            })
+            .unwrap_or_else(|| self.url.clone())
+    }
+}
+
+/// Список загрузок для палитры (Ctrl+J).
+pub struct Downloads {
+    pub items: Vec<Download>,
+    next_id: u64,
+}
+
+const DOWNLOADS_LIMIT: usize = 200;
+
+impl Downloads {
+    pub fn load(path: &Path) -> Self {
+        let mut items: Vec<Download> = std::fs::read_to_string(path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        // Браузер закрыли посреди загрузки — она уже не завершится.
+        for d in &mut items {
+            if d.state == DownloadState::Running {
+                d.state = DownloadState::Failed;
+            }
+        }
+        let next_id = items.iter().map(|d| d.id).max().unwrap_or(0) + 1;
+        Self { items, next_id }
+    }
+
+    pub fn save(&self, path: &Path) {
+        if let Ok(s) = serde_json::to_string(&self.items) {
+            write_atomic(path, &s);
+        }
+    }
+
+    pub fn started(&mut self, url: &str, path: &str, ts: u64) {
+        let id = self.next_id;
+        self.next_id += 1;
+        self.items.push(Download { id, url: url.into(), path: path.into(), state: DownloadState::Running, ts });
+        if self.items.len() > DOWNLOADS_LIMIT {
+            let extra = self.items.len() - DOWNLOADS_LIMIT;
+            self.items.drain(..extra);
+        }
+    }
+
+    /// Отметить окончание загрузки с этого адреса (последней незавершённой).
+    /// Если начало не было замечено, загрузка добавляется сразу завершённой.
+    pub fn finished(&mut self, url: &str, path: Option<&str>, ok: bool, ts: u64) -> &Download {
+        let state = if ok { DownloadState::Done } else { DownloadState::Failed };
+        let idx = match self.items.iter().rposition(|d| d.url == url && d.state == DownloadState::Running) {
+            Some(i) => i,
+            None => {
+                self.started(url, "", ts);
+                self.items.len() - 1
+            }
+        };
+        let d = &mut self.items[idx];
+        d.state = state;
+        if let Some(p) = path.filter(|p| !p.is_empty()) {
+            d.path = p.into();
+        }
+        d
+    }
+
+    pub fn get(&self, id: u64) -> Option<&Download> {
+        self.items.iter().find(|d| d.id == id)
+    }
+
+    /// Новые сверху.
+    pub fn recent(&self) -> impl Iterator<Item = &Download> {
+        self.items.iter().rev()
+    }
 }
 
 pub fn now() -> u64 {
@@ -303,5 +409,121 @@ mod tests {
     #[test]
     fn now_is_after_2020() {
         assert!(now() > 1_577_836_800);
+    }
+
+    #[test]
+    fn clear_history_empties_and_marks_dirty() {
+        let mut h = history(vec![entry("https://a/", 1), entry("https://b/", 2)]);
+        h.clear();
+        assert!(h.entries.is_empty());
+        assert!(h.is_dirty());
+    }
+
+    // ---------- Загрузки ----------
+
+    fn downloads() -> Downloads {
+        Downloads { items: vec![], next_id: 1 }
+    }
+
+    #[test]
+    fn download_lifecycle() {
+        let mut d = downloads();
+        d.started("https://x/file.zip", r"C:\Dl\file.zip", 10);
+        assert_eq!(d.items[0].state, DownloadState::Running);
+
+        let done = d.finished("https://x/file.zip", Some(r"C:\Dl\file (1).zip"), true, 20);
+        assert_eq!(done.state, DownloadState::Done);
+        assert_eq!(done.path, r"C:\Dl\file (1).zip");
+        assert_eq!(d.items.len(), 1);
+    }
+
+    #[test]
+    fn finished_without_path_keeps_started_path() {
+        let mut d = downloads();
+        d.started("https://x/a.pdf", r"C:\Dl\a.pdf", 10);
+        let f = d.finished("https://x/a.pdf", None, false, 20);
+        assert_eq!(f.state, DownloadState::Failed);
+        assert_eq!(f.path, r"C:\Dl\a.pdf");
+    }
+
+    #[test]
+    fn finished_matches_latest_running_download_of_same_url() {
+        let mut d = downloads();
+        d.started("https://x/a", "first", 1);
+        d.finished("https://x/a", None, true, 2);
+        d.started("https://x/a", "second", 3);
+        d.started("https://x/a", "third", 4);
+        d.finished("https://x/a", None, true, 5);
+        let states: Vec<_> = d.items.iter().map(|i| (i.path.as_str(), i.state)).collect();
+        assert_eq!(
+            states,
+            [("first", DownloadState::Done), ("second", DownloadState::Running), ("third", DownloadState::Done)]
+        );
+    }
+
+    #[test]
+    fn finished_without_start_adds_entry() {
+        let mut d = downloads();
+        let f = d.finished("https://x/b.bin", Some(r"C:\Dl\b.bin"), true, 7);
+        assert_eq!((f.path.as_str(), f.state, f.ts), (r"C:\Dl\b.bin", DownloadState::Done, 7));
+        assert_eq!(d.items.len(), 1);
+    }
+
+    #[test]
+    fn downloads_have_unique_ids_and_recent_is_newest_first() {
+        let mut d = downloads();
+        d.started("https://x/1", "", 1);
+        d.started("https://x/2", "", 2);
+        let ids: Vec<_> = d.recent().map(|i| i.id).collect();
+        assert_eq!(ids.len(), 2);
+        assert_ne!(ids[0], ids[1]);
+        assert_eq!(d.recent().next().unwrap().url, "https://x/2");
+        assert_eq!(d.get(ids[1]).unwrap().url, "https://x/1");
+        assert!(d.get(999).is_none());
+    }
+
+    #[test]
+    fn downloads_list_is_capped() {
+        let mut d = downloads();
+        for i in 0..DOWNLOADS_LIMIT + 5 {
+            d.started(&format!("https://x/{i}"), "", i as u64);
+        }
+        assert_eq!(d.items.len(), DOWNLOADS_LIMIT);
+        assert_eq!(d.items[0].url, "https://x/5");
+    }
+
+    #[test]
+    fn downloads_roundtrip_marks_interrupted_as_failed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("downloads.json");
+        let mut d = downloads();
+        d.started("https://x/done", "a", 1);
+        d.finished("https://x/done", None, true, 2);
+        d.started("https://x/running", "b", 3);
+        d.save(&path);
+
+        let mut loaded = Downloads::load(&path);
+        let states: Vec<_> = loaded.items.iter().map(|i| i.state).collect();
+        assert_eq!(states, [DownloadState::Done, DownloadState::Failed]);
+        // Новые id не пересекаются со старыми.
+        loaded.started("https://x/new", "", 4);
+        let max_old = loaded.items[..2].iter().map(|i| i.id).max().unwrap();
+        assert!(loaded.items[2].id > max_old);
+    }
+
+    #[test]
+    fn downloads_load_missing_file_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(Downloads::load(&dir.path().join("nope.json")).items.is_empty());
+    }
+
+    #[test]
+    fn download_name_from_path_or_url() {
+        let mut d = downloads();
+        d.started("https://x/dir/report.pdf?token=1", r"C:\Dl\report.pdf", 1);
+        d.started("https://x/dir/archive.zip?token=1#frag", "", 2);
+        d.started("https://x/", "", 3);
+        let names: Vec<_> = d.items.iter().map(Download::name).collect();
+        assert_eq!(names, ["report.pdf", "archive.zip", "x"]);
     }
 }
