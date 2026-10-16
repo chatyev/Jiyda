@@ -47,7 +47,7 @@ pub enum UserEvent {
     Load { id: u64, started: bool, url: String },
     OpenTab { url: String, background: bool },
     /// window.open со страницы — в отличие от OpenTab, ограничивается по частоте.
-    Popup { url: String },
+    Popup { id: u64, url: String },
     DownloadStarted { url: String, path: String },
     /// Загрузка закончилась; `id` — вкладка, которая её начала.
     Download { id: u64, url: String, path: Option<String>, ok: bool },
@@ -539,7 +539,7 @@ impl App {
                 if features.size.is_some() {
                     NewWindowResponse::Allow
                 } else {
-                    let _ = p4.send_event(UserEvent::Popup { url });
+                    let _ = p4.send_event(UserEvent::Popup { id, url });
                     NewWindowResponse::Deny
                 }
             })
@@ -640,6 +640,30 @@ impl App {
             log::warn!("страница открывает слишком много вкладок, заблокировано: {url}");
             self.toast("Заблокировано: страница открывает слишком много вкладок");
         }
+    }
+
+    /// window.open со страницы `opener`. Вкладка открывается в пространстве этой
+    /// страницы: иначе ссылка из «Работы» загрузилась бы с куки «Личного».
+    fn popup(&mut self, opener: u64, url: String) {
+        if self.tabs.get(opener).is_some() {
+            self.open_tab_from_page(url, false);
+            return;
+        }
+        let Some(space) = self.spaces.iter_mut().find(|s| s.tabs.get(opener).is_some()) else { return };
+        if !self.page_tabs.allow(Instant::now()) {
+            log::warn!("страница открывает слишком много вкладок, заблокировано: {url}");
+            return;
+        }
+        // Пространство не на экране: вкладка спит и загрузится, когда в него перейдут.
+        let id = space.tabs.alloc_id();
+        space.tabs.insert(id, url, now(), None);
+        if let Some(t) = space.tabs.get_mut(id) {
+            t.loading = false;
+        }
+        let name = space.name.clone();
+        self.toast(&format!("Новая вкладка в пространстве «{name}»"));
+        self.push_state();
+        self.save();
     }
 
     fn close_tab(&mut self, id: u64) {
@@ -1111,7 +1135,7 @@ impl App {
             UserEvent::OpenTab { url, background } => {
                 self.open_tab(url, background);
             }
-            UserEvent::Popup { url } => self.open_tab_from_page(url, false),
+            UserEvent::Popup { id, url } => self.popup(id, url),
             UserEvent::DownloadStarted { url, path } => {
                 self.downloads.started(&url, &path, now());
                 self.downloads.save(&self.paths.downloads);
