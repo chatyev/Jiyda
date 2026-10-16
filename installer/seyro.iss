@@ -84,6 +84,8 @@ Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueNa
 Filename: "{app}\seyro.exe"; Description: "{cm:LaunchProgram,Seyro}"; Flags: nowait postinstall skipifsilent
 ; Назначить браузер по умолчанию молча Windows не даёт — открываем страницу Seyro в «Параметрах».
 Filename: "ms-settings:defaultapps?registeredAppUser=Seyro"; Description: "Сделать Seyro браузером по умолчанию"; Flags: shellexec nowait postinstall skipifsilent unchecked
+; Обновление из самого Seyro (update.rs запускает установщик с /update=1): открыть его снова.
+Filename: "{app}\seyro.exe"; Flags: nowait; Check: IsUpdate
 
 ; Данные браузера (%LOCALAPPDATA%\Seyro: вкладки, пространства, логины) при удалении
 ; остаются — как у других браузеров; при повторной установке всё вернётся.
@@ -103,6 +105,12 @@ begin
      RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + WebView2Id, 'pv', Version) or
      RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\' + WebView2Id, 'pv', Version))
     and (Version <> '') and (Version <> '0.0.0.0');
+end;
+
+// Установщик запущен из Seyro для обновления.
+function IsUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:update|0}') = '1';
 end;
 
 function InitializeSetup: Boolean;

@@ -11,6 +11,7 @@ mod logging;
 mod spaces;
 mod store;
 mod tabs;
+mod update;
 
 use app::{App, UserEvent};
 use tao::event::{Event, WindowEvent};

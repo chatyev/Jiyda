@@ -61,6 +61,8 @@ pub struct Config {
     /// Своя полоса заголовка вместо рамки Windows: кнопки окна в сайдбаре, как в Arc.
     /// false — обычное окно с системной рамкой.
     pub custom_titlebar: bool,
+    /// Проверять новые версии на GitHub (при запуске и раз в 12 часов) и предлагать обновиться.
+    pub check_updates: bool,
 }
 
 impl Default for Config {
@@ -74,6 +76,7 @@ impl Default for Config {
             extensions: true,
             devtools: true,
             custom_titlebar: true,
+            check_updates: true,
         }
     }
 }

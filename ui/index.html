@@ -130,6 +130,15 @@ body.frameless.no-sidebar #topdrag { display: block; }
 #newtab:hover { background: var(--hover); color: var(--text); }
 #newtab .plus { width: 16px; text-align: center; font-size: 17px; }
 
+/* Плашка «доступна новая версия». */
+#update { display: flex; align-items: center; gap: 6px; padding: 7px 6px 7px 10px; border-radius: 8px; background: rgba(255,255,255,.10); font-size: 12px; }
+#update[hidden] { display: none; }
+#update-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#update .update-go { padding: 3px 9px; border-radius: 6px; background: var(--accent); color: #1b1b24; font-weight: 600; }
+#update .update-go:disabled { opacity: .5; cursor: default; }
+#update .update-x { width: 20px; height: 20px; border-radius: 5px; color: var(--text-dim); }
+#update .update-x:hover { background: var(--hover); color: var(--text); }
+
 /* Пространства: значки внизу сайдбара. */
 #spacesbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 2px 2px; }
 .space-btn {
@@ -282,6 +291,13 @@ body.no-sidebar #findbar { left: var(--pad); }
     <div class="list" id="today" data-pinned="0"></div>
   </div>
 
+  <!-- Новая версия: показывается, когда GitHub сообщил о ней (update.rs). -->
+  <div id="update" hidden>
+    <span id="update-text"></span>
+    <button class="update-go" data-cmd="update_now" title="Скачать и установить новую версию; вкладки сохранятся">Обновить</button>
+    <button class="update-x" data-cmd="update_dismiss" title="Скрыть до следующего запуска">×</button>
+  </div>
+
   <div id="spacesbar"></div>
 
   <div class="footer">
@@ -402,6 +418,16 @@ body.no-sidebar #findbar { left: var(--pad); }
     el.oncontextmenu = (e) => { e.preventDefault(); openMenu(e.clientX, e.clientY, t); };
     el.ondragstart = (e) => { e.dataTransfer.setData('text/seyro-tab', String(t.id)); e.dataTransfer.effectAllowed = 'move'; };
     return el;
+  }
+
+  // ---------- Обновление ----------
+  function renderUpdate() {
+    const u = state.update, bar = $('#update');
+    bar.hidden = !u && !state.updating;
+    if (bar.hidden) return;
+    $('#update-text').textContent = state.updating ? 'Скачиваю…' : 'Seyro ' + u.version;
+    $('.update-go').disabled = !!state.updating;
+    $('.update-x').hidden = !!state.updating;
   }
 
   // ---------- Пространства ----------
@@ -542,6 +568,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     today.replaceChildren(...rows(s.tabs.filter((t) => !t.pinned)));
     placeSplit();
     renderSpaces();
+    renderUpdate();
     $('#pinned-label').style.display = 'block';
 
     const act = s.tabs.find((t) => t.id === s.active);
@@ -664,6 +691,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     { k: 'clear_data', t: 'Очистить данные сайтов', confirm: 'Удалить куки, кэш и пароли сайтов в этом пространстве?' },
     { k: 'space_new', t: 'Новое пространство' },
     { k: 'default_browser', t: 'Сделать Seyro браузером по умолчанию' },
+    { k: 'check_updates', t: 'Проверить обновления' },
     { k: 'rename_space', t: 'Переименовать пространство' },
     { k: 'delete_space_confirm', t: 'Удалить пространство', notMain: true },
   ];

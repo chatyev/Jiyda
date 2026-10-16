@@ -8,6 +8,7 @@ use crate::limit::RateLimit;
 use crate::spaces;
 use crate::store::{DownloadState, Downloads, History, SavedSpace, Session, now};
 use crate::tabs::{AfterClose, Tab, TabList};
+use crate::update;
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
 use tao::event_loop::{EventLoop, EventLoopProxy};
@@ -28,6 +29,9 @@ const PAGE_TABS_WINDOW: Duration = Duration::from_secs(5);
 const FIND_BAR_H: f64 = 40.0;
 /// Промежуток между половинами Split View, в нём разделитель (`--split-gap` в ui/index.html).
 const SPLIT_GAP: f64 = 8.0;
+/// Первая проверка обновлений — чуть позже запуска, чтобы не мешать загрузке вкладок.
+const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(10);
+const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(12 * 3600);
 
 type Box4 = (f64, f64, f64, f64);
 
@@ -58,6 +62,10 @@ pub enum UserEvent {
     Hotkey { id: u64, cmd: String },
     /// Адреса из командной строки или от нового запуска seyro.exe (см. instance.rs).
     External { urls: Vec<String> },
+    /// Ответ GitHub о новой версии (см. update.rs).
+    UpdateChecked { result: Result<Option<update::Release>, String>, manual: bool },
+    /// Установщик обновления скачан.
+    UpdateDownloaded { result: Result<std::path::PathBuf, String> },
 }
 
 const FIND_JS: &str = include_str!("find.js");
@@ -131,6 +139,16 @@ pub struct App {
     exit_requested: bool,
     /// Окно развёрнуто — интерфейс прячет зоны изменения размера и меняет значок кнопки.
     maximized: bool,
+    /// Когда снова спросить GitHub о новой версии.
+    next_update_check: Instant,
+    /// Найденная новая версия (плашка в сайдбаре).
+    update: Option<update::Release>,
+    /// Версия, которую пользователь скрыл крестиком, — до следующего запуска не показываем.
+    update_dismissed: Option<String>,
+    /// Идёт проверка или скачивание — второй раз не начинаем.
+    update_busy: bool,
+    /// Скачивается установщик — плашка показывает это.
+    updating: bool,
 }
 
 /// Направление изменения размера окна из сообщения интерфейса (края рамки в index.html).
@@ -296,6 +314,11 @@ impl App {
             page_tabs: RateLimit::new(PAGE_TABS_MAX, PAGE_TABS_WINDOW),
             exit_requested: false,
             maximized: false,
+            next_update_check: Instant::now() + UPDATE_FIRST_CHECK,
+            update: None,
+            update_dismissed: None,
+            update_busy: false,
+            updating: false,
         };
         app.restore(saved_spaces);
         Ok(app)
@@ -379,11 +402,105 @@ impl App {
                 self.push_state();
             }
         }
+        if self.cfg.check_updates && t >= self.next_update_check {
+            self.next_update_check = t + UPDATE_CHECK_EVERY;
+            self.check_updates(false);
+        }
     }
 
     /// Когда циклу событий проснуться, чтобы вызвать `tick`.
     pub fn next_wakeup(&self) -> Instant {
-        self.save_due.map_or(self.next_sleep_check, |due| due.min(self.next_sleep_check))
+        let mut at = self.next_sleep_check;
+        if let Some(due) = self.save_due {
+            at = at.min(due);
+        }
+        if self.cfg.check_updates {
+            at = at.min(self.next_update_check);
+        }
+        at
+    }
+
+    // ---------- Обновления ----------
+
+    /// Спросить GitHub о новой версии (в фоне). `manual` — по команде пользователя:
+    /// тогда сообщаем и «у вас последняя версия», и ошибки.
+    fn check_updates(&mut self, manual: bool) {
+        if self.update_busy {
+            return;
+        }
+        self.update_busy = true;
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            let _ = proxy.send_event(UserEvent::UpdateChecked { result: update::check(), manual });
+        });
+    }
+
+    fn on_update_checked(&mut self, result: Result<Option<update::Release>, String>, manual: bool) {
+        self.update_busy = false;
+        match result {
+            Ok(Some(release)) => {
+                log::info!("доступна версия {}", release.version);
+                if manual {
+                    self.update_dismissed = None;
+                }
+                self.update = Some(release);
+                self.push_state();
+            }
+            Ok(None) => {
+                if manual {
+                    self.toast(&format!("У вас последняя версия Seyro ({})", update::CURRENT));
+                }
+            }
+            Err(e) => {
+                log::warn!("не удалось проверить обновления: {e}");
+                if manual {
+                    self.toast("Не удалось проверить обновления — нет связи с GitHub?");
+                }
+            }
+        }
+    }
+
+    /// Скачать установщик (в фоне), а когда скачается — закрыться и запустить его.
+    fn install_update(&mut self) {
+        let Some(release) = self.update.clone() else { return };
+        if self.update_busy {
+            return;
+        }
+        self.update_busy = true;
+        self.updating = true;
+        self.push_state();
+        let dir = std::env::temp_dir().join("Seyro");
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            let _ = proxy.send_event(UserEvent::UpdateDownloaded { result: update::download(&release, &dir) });
+        });
+    }
+
+    fn on_update_downloaded(&mut self, result: Result<std::path::PathBuf, String>) {
+        self.update_busy = false;
+        self.updating = false;
+        let path = match result {
+            Ok(p) => p,
+            Err(e) => {
+                log::error!("не удалось скачать обновление: {e}");
+                self.toast("Не удалось скачать обновление");
+                self.push_state();
+                return;
+            }
+        };
+        // Всё сохраняем до запуска установщика: он заменит seyro.exe и откроет Seyro заново.
+        self.save_now();
+        match std::process::Command::new(&path).args(update::INSTALLER_ARGS).spawn() {
+            Ok(_) => {
+                log::info!("запущен установщик обновления {}", path.display());
+                self.exit_requested = true;
+            }
+            Err(e) => {
+                log::error!("не удалось запустить установщик {}: {e}", path.display());
+                self.toast("Не удалось запустить установщик обновления");
+                self.push_state();
+            }
+        }
     }
 
     // ---------- Вспомогательное ----------
@@ -495,6 +612,10 @@ impl App {
                 })
                 .collect::<Vec<_>>(),
             "activeSpace": self.active_space,
+            "update": self.update.as_ref()
+                .filter(|u| self.update_dismissed.as_deref() != Some(u.version.as_str()))
+                .map(|u| json!({ "version": u.version })),
+            "updating": self.updating,
         });
         self.eval_ui(&format!("window.seyro && seyro.render({state})"));
 
@@ -1123,6 +1244,12 @@ impl App {
             "clear_history" => self.clear_history(),
             "clear_data" => self.clear_site_data(),
             "default_browser" => self.make_default_browser(),
+            "check_updates" => self.check_updates(true),
+            "update_now" => self.install_update(),
+            "update_dismiss" => {
+                self.update_dismissed = self.update.as_ref().map(|u| u.version.clone());
+                self.push_state();
+            }
             c if c.starts_with("goto:") => {
                 if let Ok(n) = c[5..].parse() {
                     self.activate_opt(self.tabs.goto_target(n));
@@ -1203,6 +1330,8 @@ impl App {
                 }
             }
             UserEvent::External { urls } => self.open_external(urls),
+            UserEvent::UpdateChecked { result, manual } => self.on_update_checked(result, manual),
+            UserEvent::UpdateDownloaded { result } => self.on_update_downloaded(result),
         }
     }
 
