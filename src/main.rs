@@ -4,6 +4,7 @@
 mod app;
 mod config;
 mod input;
+mod logging;
 mod store;
 
 use app::{App, UserEvent};
@@ -11,12 +12,13 @@ use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 fn main() {
+    logging::init(&config::Paths::new().log);
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let mut app = match App::new(&event_loop) {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("Не удалось запустить WebView2: {e}");
-            eprintln!("Проверьте, что установлен WebView2 Runtime: https://developer.microsoft.com/microsoft-edge/webview2/");
+            log::error!("Не удалось запустить WebView2: {e}");
+            log::error!("Проверьте, что установлен WebView2 Runtime: https://developer.microsoft.com/microsoft-edge/webview2/");
             std::process::exit(1);
         }
     };

@@ -360,7 +360,7 @@ impl App {
         match builder.build_as_child(&self.window) {
             Ok(wv) => Some(wv),
             Err(e) => {
-                eprintln!("не удалось создать вкладку: {e}");
+                log::error!("не удалось создать вкладку: {e}");
                 self.toast(&format!("Ошибка WebView2: {e}"));
                 None
             }

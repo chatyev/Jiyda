@@ -46,6 +46,7 @@ pub struct Paths {
     pub history: PathBuf,
     pub webview_data: PathBuf,
     pub extensions: PathBuf,
+    pub log: PathBuf,
 }
 
 impl Paths {
@@ -59,6 +60,7 @@ impl Paths {
             history: base.join("history.json"),
             webview_data: base.join("webview"),
             extensions: base.join("extensions"),
+            log: base.join("drift.log"),
         };
         let _ = std::fs::create_dir_all(&p.webview_data);
         let _ = std::fs::create_dir_all(&p.extensions);
@@ -70,7 +72,7 @@ impl Config {
     pub fn load(paths: &Paths) -> Self {
         match std::fs::read_to_string(&paths.config) {
             Ok(s) => serde_json::from_str(&s).unwrap_or_else(|e| {
-                eprintln!("config.json повреждён ({e}), использую настройки по умолчанию");
+                log::warn!("config.json повреждён ({e}), использую настройки по умолчанию");
                 Self::default()
             }),
             Err(_) => {
@@ -87,7 +89,8 @@ impl Config {
 /// Атомарная запись файла: сначала во временный, потом переименование.
 pub fn write_atomic(path: &std::path::Path, data: &str) {
     let tmp = path.with_extension("tmp");
-    if std::fs::write(&tmp, data).is_ok() {
-        let _ = std::fs::rename(&tmp, path);
+    let res = std::fs::write(&tmp, data).and_then(|_| std::fs::rename(&tmp, path));
+    if let Err(e) = res {
+        log::warn!("не удалось сохранить {}: {e}", path.display());
     }
 }
