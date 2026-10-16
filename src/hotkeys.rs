@@ -25,6 +25,9 @@ pub fn command(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<String> {
         "close"
     } else if key(b'U') && shift {
         "copy_url"
+    } else if shift && (u32::from(b'1')..=u32::from(b'9')).contains(&vk) {
+        // Ctrl+Shift+1…9 — пространство по номеру.
+        return Some(format!("space:{}", vk - u32::from(b'0')));
     } else if shift {
         return None;
     } else if key(b'S') {
@@ -163,9 +166,16 @@ mod tests {
 
     #[test]
     fn shift_disables_other_shortcuts() {
-        for c in ['S', 'D', 'F', 'J', '1', '9'] {
+        for c in ['S', 'D', 'F', 'J', '0'] {
             assert_eq!(cmd(vk(c), true, true, false), None, "Ctrl+Shift+{c}");
         }
+    }
+
+    #[test]
+    fn ctrl_shift_digits_switch_spaces() {
+        assert_eq!(cmd(vk('1'), true, true, false).as_deref(), Some("space:1"));
+        assert_eq!(cmd(vk('9'), true, true, false).as_deref(), Some("space:9"));
+        assert_eq!(cmd(vk('0'), true, true, false), None);
     }
 
     #[test]

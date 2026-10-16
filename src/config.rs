@@ -49,7 +49,10 @@ pub struct Paths {
     pub session: PathBuf,
     pub history: PathBuf,
     pub downloads: PathBuf,
+    /// Профиль WebView2 пространства «Основное» (куки, кэш, логины).
     pub webview_data: PathBuf,
+    /// Папки остальных пространств: spaces/<id>/webview.
+    pub spaces: PathBuf,
     pub extensions: PathBuf,
     pub log: PathBuf,
 }
@@ -65,6 +68,7 @@ impl Paths {
             history: base.join("history.json"),
             downloads: base.join("downloads.json"),
             webview_data: base.join("webview"),
+            spaces: base.join("spaces"),
             extensions: base.join("extensions"),
             log: base.join("drift.log"),
         };
@@ -112,6 +116,7 @@ mod tests {
             history: dir.join("history.json"),
             downloads: dir.join("downloads.json"),
             webview_data: dir.join("webview"),
+            spaces: dir.join("spaces"),
             extensions: dir.join("extensions"),
             log: dir.join("drift.log"),
         }

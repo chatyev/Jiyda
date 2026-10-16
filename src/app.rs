@@ -4,8 +4,9 @@ use crate::config::{Config, Paths};
 use crate::hotkeys;
 use crate::input;
 use crate::limit::RateLimit;
-use crate::store::{DownloadState, Downloads, History, Session, now};
-use crate::tabs::{AfterClose, TabList};
+use crate::spaces;
+use crate::store::{DownloadState, Downloads, History, SavedSpace, Session, now};
+use crate::tabs::{AfterClose, Tab, TabList};
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
 use tao::event_loop::{EventLoop, EventLoopProxy};
@@ -75,14 +76,29 @@ fn parse_find_result(json: &str) -> Option<(u64, Option<u64>)> {
     }
 }
 
+/// Пространство: свой профиль WebView2 (куки, логины, кэш) и свои вкладки.
+struct Space {
+    id: u32,
+    name: String,
+    color: String,
+    /// Вкладки. У активного пространства здесь пустой список: его вкладки — в `App::tabs`.
+    /// Стоит раньше `ctx`, чтобы при удалении пространства WebView закрылись до профиля.
+    tabs: TabList<WebView>,
+    ctx: WebContext,
+}
+
 pub struct App {
     window: Window,
-    ctx: WebContext,
     ui: WebView,
     proxy: EventLoopProxy<UserEvent>,
     cfg: Config,
     paths: Paths,
+    /// Вкладки активного пространства.
     tabs: TabList<WebView>,
+    spaces: Vec<Space>,
+    active_space: usize,
+    /// Удалённые пространства, чьи папки данных ещё не стёрты (см. Session::deleted_spaces).
+    deleted_spaces: Vec<u32>,
     sidebar_visible: bool,
     palette_open: bool,
     find_open: bool,
@@ -140,11 +156,49 @@ fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
     }
 }
 
+/// Стереть папки пространств, удалённых в прошлый раз. Возвращает те, что стереть
+/// не удалось (попробуем при следующем запуске). «Основное» не трогается никогда,
+/// а стирается только папка spaces\<id> — путь строится из номера, не из сессии.
+fn remove_deleted_spaces(paths: &Paths, ids: Vec<u32>) -> Vec<u32> {
+    ids.into_iter()
+        .filter(|&id| id != spaces::MAIN_ID)
+        .filter(|&id| {
+            let dir = spaces::space_dir(paths, id);
+            match std::fs::remove_dir_all(&dir) {
+                Ok(()) => {
+                    log::info!("данные удалённого пространства {id} стёрты");
+                    false
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+                Err(e) => {
+                    log::warn!("не удалось стереть {}: {e}", dir.display());
+                    true
+                }
+            }
+        })
+        .collect()
+}
+
 impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>) -> wry::Result<Self> {
         let paths = Paths::new();
         let cfg = Config::load(&paths);
-        let session = Session::load(&paths.session);
+        let mut session = Session::load(&paths.session);
+        let deleted_spaces = remove_deleted_spaces(&paths, std::mem::take(&mut session.deleted_spaces));
+        let saved_spaces: Vec<SavedSpace> = spaces::normalize(session.take_spaces())
+            .into_iter()
+            .filter(|s| !deleted_spaces.contains(&s.id))
+            .collect();
+        let mut space_slots: Vec<Space> = saved_spaces
+            .iter()
+            .map(|s| Space {
+                id: s.id,
+                name: s.name.clone(),
+                color: s.color.clone(),
+                ctx: WebContext::new(Some(spaces::profile_dir(&paths, s.id))),
+                tabs: TabList::with_id_base(s.closed.clone(), spaces::tab_id_base(s.id)),
+            })
+            .collect();
         let history = History::load(&paths.history);
         let downloads = Downloads::load(&paths.downloads);
         let proxy = event_loop.create_proxy();
@@ -163,13 +217,12 @@ impl App {
         };
         let window = builder.build(event_loop).expect("не удалось создать окно");
 
-        let mut ctx = WebContext::new(Some(paths.webview_data.clone()));
-
         // Интерфейс (сайдбар, палитра) — отдельный WebView во всё окно, под вкладками.
+        // Он живёт в профиле «Основного» (normalize ставит его первым).
         let size = window.inner_size().to_logical::<f64>(window.scale_factor());
         let ui_proxy = proxy.clone();
         let nav_proxy = proxy.clone();
-        let ui = common(WebViewBuilder::new_with_web_context(&mut ctx), &cfg, &paths)
+        let ui = common(WebViewBuilder::new_with_web_context(&mut space_slots[0].ctx), &cfg, &paths)
             .with_html(UI_HTML)
             .with_bounds(rect(0.0, 0.0, size.width, size.height))
             .with_initialization_script(format!(
@@ -190,14 +243,17 @@ impl App {
             })
             .build_as_child(&window)?;
 
+        let active_space = session.active_space.min(space_slots.len() - 1);
         let mut app = Self {
             window,
-            ctx,
             ui,
             proxy,
             cfg,
             paths,
-            tabs: TabList::new(session.closed.clone()),
+            tabs: TabList::new(vec![]),
+            spaces: space_slots,
+            active_space,
+            deleted_spaces,
             sidebar_visible: session.sidebar_visible.unwrap_or(true),
             palette_open: false,
             find_open: false,
@@ -209,15 +265,22 @@ impl App {
             exit_requested: false,
             maximized: false,
         };
-        app.restore(session);
+        app.restore(saved_spaces);
         Ok(app)
     }
 
     // ---------- Сессия ----------
 
-    fn restore(&mut self, session: Session) {
-        let target =
-            self.tabs.restore(session.tabs, session.active, &session.splits, now(), self.cfg.archive_hours * 3600);
+    fn restore(&mut self, saved: Vec<SavedSpace>) {
+        let archive_after = self.cfg.archive_hours * 3600;
+        let mut target = None;
+        for (i, s) in saved.into_iter().enumerate() {
+            let t = self.spaces[i].tabs.restore(s.tabs, s.active, &s.splits, now(), archive_after);
+            if i == self.active_space {
+                target = t;
+            }
+        }
+        std::mem::swap(&mut self.tabs, &mut self.spaces[self.active_space].tabs);
         match target {
             Some(id) => self.activate(id),
             None => {
@@ -239,13 +302,30 @@ impl App {
         if self.history.is_dirty() {
             self.history.save(&self.paths.history);
         }
-        let (tabs, active, splits) = self.tabs.to_saved();
+        let spaces = self
+            .spaces
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let list = if i == self.active_space { &self.tabs } else { &s.tabs };
+                let (tabs, active, splits) = list.to_saved();
+                SavedSpace {
+                    id: s.id,
+                    name: s.name.clone(),
+                    color: s.color.clone(),
+                    tabs,
+                    active,
+                    closed: list.closed().to_vec(),
+                    splits,
+                }
+            })
+            .collect();
         Session {
-            tabs,
-            active,
+            spaces,
+            active_space: self.active_space,
             sidebar_visible: Some(self.sidebar_visible),
-            closed: self.tabs.closed().to_vec(),
-            splits,
+            deleted_spaces: self.deleted_spaces.clone(),
+            ..Default::default()
         }
         .save(&self.paths.session);
     }
@@ -375,6 +455,13 @@ impl App {
                 .map(|s| json!({ "left": s.left, "right": s.right, "ratio": s.ratio }))
                 .collect::<Vec<_>>(),
             "splitGap": SPLIT_GAP,
+            "spaces": self.spaces.iter().enumerate()
+                .map(|(i, s)| {
+                    let n = if i == self.active_space { self.tabs.iter().count() } else { s.tabs.iter().count() };
+                    json!({ "id": s.id, "name": s.name, "color": s.color, "tabs": n, "main": s.id == spaces::MAIN_ID })
+                })
+                .collect::<Vec<_>>(),
+            "activeSpace": self.active_space,
         });
         self.eval_ui(&format!("window.drift && drift.render({state})"));
 
@@ -402,7 +489,7 @@ impl App {
         let p = self.proxy.clone();
         let (p1, p2, p3, p4, p5, p6) = (p.clone(), p.clone(), p.clone(), p.clone(), p.clone(), p);
         let bounds = self.content_rect();
-        let builder = common(WebViewBuilder::new_with_web_context(&mut self.ctx), &self.cfg, &self.paths)
+        let builder = common(WebViewBuilder::new_with_web_context(&mut self.spaces[self.active_space].ctx), &self.cfg, &self.paths)
             .with_url(url)
             .with_bounds(bounds)
             .with_visible(visible)
@@ -508,7 +595,12 @@ impl App {
     /// Выгрузить из памяти давно не открывавшиеся фоновые вкладки.
     /// Возвращает true, если хоть одна вкладка уснула.
     fn sleep_idle_tabs(&mut self) -> bool {
-        self.tabs.sleep_idle(now(), self.cfg.sleep_minutes * 60)
+        let (t, limit) = (now(), self.cfg.sleep_minutes * 60);
+        // В других пространствах на экране ничего нет — усыпить можно любую вкладку.
+        for s in &mut self.spaces {
+            s.tabs.sleep_idle_offscreen(t, limit);
+        }
+        self.tabs.sleep_idle(t, limit)
     }
 
     /// Открыть вкладку по просьбе страницы, если она не превысила лимит.
@@ -581,6 +673,116 @@ impl App {
         }
     }
 
+    // ---------- Пространства ----------
+
+    /// Вкладка в любом пространстве: события приходят и от вкладок, которых сейчас не видно.
+    fn tab_any(&self, id: u64) -> Option<&Tab<WebView>> {
+        self.tabs.get(id).or_else(|| self.spaces.iter().find_map(|s| s.tabs.get(id)))
+    }
+
+    fn tab_mut_any(&mut self, id: u64) -> Option<&mut Tab<WebView>> {
+        if self.tabs.get(id).is_some() {
+            return self.tabs.get_mut(id);
+        }
+        self.spaces.iter_mut().find_map(|s| s.tabs.get_mut(id))
+    }
+
+    fn switch_space(&mut self, idx: usize) {
+        if idx == self.active_space || idx >= self.spaces.len() {
+            return;
+        }
+        if self.find_open {
+            self.find_open = false;
+            self.run_find("", "clear");
+        }
+        self.palette_open = false;
+        for t in self.tabs.iter() {
+            if let Some(wv) = &t.view {
+                let _ = wv.set_visible(false);
+            }
+        }
+        // Вкладки активного пространства живут в self.tabs, остальные — в своих слотах.
+        std::mem::swap(&mut self.tabs, &mut self.spaces[self.active_space].tabs);
+        self.active_space = idx;
+        std::mem::swap(&mut self.tabs, &mut self.spaces[idx].tabs);
+        match self.tabs.active().or_else(|| self.tabs.order().first().copied()) {
+            Some(id) => self.activate(id),
+            None => {
+                self.layout();
+                self.push_state();
+                self.save();
+            }
+        }
+    }
+
+    /// Новое пространство: свой профиль (пустые куки), сразу переходим в него.
+    fn new_space(&mut self) {
+        let mut used: Vec<(u32, &str)> = self.spaces.iter().map(|s| (s.id, s.color.as_str())).collect();
+        // Номера удалённых пространств не берём: их папки, возможно, ещё не стёрты.
+        used.extend(self.deleted_spaces.iter().map(|id| (*id, "")));
+        let Some(mut meta) = spaces::new_space(&used) else {
+            self.toast(&format!("Больше {} пространств создать нельзя", spaces::MAX_SPACES));
+            return;
+        };
+        // На диске может остаться папка от старых данных — новому пространству нужен чистый профиль.
+        while spaces::space_dir(&self.paths, meta.id).exists() {
+            meta.id += 1;
+            meta.name = spaces::default_name(meta.id);
+        }
+        log::info!("создано пространство {} «{}»", meta.id, meta.name);
+        self.spaces.push(Space {
+            id: meta.id,
+            name: meta.name,
+            color: meta.color,
+            ctx: WebContext::new(Some(spaces::profile_dir(&self.paths, meta.id))),
+            tabs: TabList::with_id_base(vec![], spaces::tab_id_base(meta.id)),
+        });
+        self.switch_space(self.spaces.len() - 1);
+        self.open_palette("new");
+    }
+
+    fn rename_space(&mut self, name: &str) {
+        if let Some(name) = spaces::clean_name(name) {
+            self.spaces[self.active_space].name = name;
+            self.push_state();
+            self.save();
+        }
+    }
+
+    fn set_space_color(&mut self, idx: usize, color: &str) {
+        if spaces::is_color(color)
+            && let Some(s) = self.spaces.get_mut(idx)
+        {
+            s.color = color.to_string();
+            self.push_state();
+            self.save();
+        }
+    }
+
+    /// Удалить активное пространство: вкладки закрываются, папка профиля
+    /// стирается при следующем запуске. «Основное» удалить нельзя.
+    fn delete_space(&mut self) {
+        let idx = self.active_space;
+        let id = self.spaces[idx].id;
+        if id == spaces::MAIN_ID {
+            self.toast("Пространство «Основное» удалить нельзя");
+            return;
+        }
+        let name = self.spaces[idx].name.clone();
+        let target = if idx > 0 { idx - 1 } else { 1 };
+        self.switch_space(target);
+        let removed = self.spaces.remove(idx);
+        if self.active_space > idx {
+            self.active_space -= 1;
+        }
+        drop(removed);
+        self.deleted_spaces.push(id);
+        log::info!("удалено пространство {id} «{name}», данные будут стёрты при следующем запуске");
+        self.toast(&format!("Пространство «{name}» удалено"));
+        self.push_state();
+        self.save_now();
+    }
+
     // ---------- Split View ----------
 
     /// Показать `right` рядом с `left` и перейти в правую половину.
@@ -619,7 +821,12 @@ impl App {
     fn open_palette(&mut self, mode: &str) {
         self.palette_open = true;
         self.layout();
-        let current = self.tabs.active_tab().map(|t| t.url.clone()).unwrap_or_default();
+        // В поле ввода: адрес текущей вкладки, а при переименовании — имя пространства.
+        let current = if mode == "rename_space" {
+            self.spaces[self.active_space].name.clone()
+        } else {
+            self.tabs.active_tab().map(|t| t.url.clone()).unwrap_or_default()
+        };
         // Третий аргумент — список для поиска: загрузки в режиме "downloads", иначе история.
         let items: Vec<Value> = if mode == "downloads" {
             self.downloads
@@ -719,11 +926,23 @@ impl App {
     }
 
     /// Куки, кэш, хранилища и сохранённые пароли всех сайтов: профиль общий для всех WebView.
+    /// Очистка идёт через любой WebView этого профиля: у «Основного» это интерфейс,
+    /// у остальных — открытая вкладка пространства.
     fn clear_site_data(&self) {
-        match self.ui.clear_all_browsing_data() {
+        let space = &self.spaces[self.active_space];
+        let wv = if space.id == spaces::MAIN_ID {
+            Some(&self.ui)
+        } else {
+            self.tabs.iter().find_map(|t| t.view.as_ref())
+        };
+        let Some(wv) = wv else {
+            self.toast("Откройте любую вкладку в этом пространстве и повторите");
+            return;
+        };
+        match wv.clear_all_browsing_data() {
             Ok(()) => {
-                log::info!("данные сайтов очищены");
-                self.toast("Данные сайтов очищены");
+                log::info!("данные сайтов пространства «{}» очищены", space.name);
+                self.toast(&format!("Данные сайтов в «{}» очищены", space.name));
             }
             Err(e) => {
                 log::error!("не удалось очистить данные сайтов: {e}");
@@ -795,6 +1014,18 @@ impl App {
                 }
             }
             "clear" => self.clear_unpinned(),
+            "space_new" => self.new_space(),
+            "rename_space" => self.open_palette("rename_space"),
+            // Удаление необратимо: палитра сначала спрашивает подтверждение.
+            "delete_space_confirm" => self.open_palette("delete_space"),
+            "delete_space" => self.delete_space(),
+            c if c.starts_with("space:") => {
+                if let Ok(n) = c[6..].parse::<usize>()
+                    && n >= 1
+                {
+                    self.switch_space(n - 1);
+                }
+            }
             // Разделить можно только при открытой вкладке: она станет левой половиной.
             "split" if self.tabs.active().is_some() => self.open_palette("split"),
             "unsplit" => {
@@ -821,28 +1052,27 @@ impl App {
             UserEvent::FromUi(body) => self.handle_ui(&body),
             UserEvent::FromTab { id, msg } => self.handle_tab_msg(id, &msg),
             UserEvent::Title { id, title } => {
-                let url = self.tabs.get(id).and_then(|t| t.view.as_ref()).and_then(|w| w.url().ok());
-                if let Some(t) = self.tabs.get_mut(id) {
+                let url = self.tab_any(id).and_then(|t| t.view.as_ref()).and_then(|w| w.url().ok());
+                let tab_url = self.tab_mut_any(id).map(|t| {
                     t.title = title.clone();
                     if let Some(u) = url.filter(|u| !u.is_empty()) {
                         t.url = u;
                     }
-                    let u = t.url.clone();
+                    t.url.clone()
+                });
+                if let Some(u) = tab_url {
                     self.history.set_title(&u, &title);
                 }
                 self.push_state();
             }
             UserEvent::Load { id, started, url } => {
-                let mut visited = None;
-                if let Some(t) = self.tabs.get_mut(id) {
+                let visited = self.tab_mut_any(id).and_then(|t| {
                     t.loading = started;
                     if !url.is_empty() {
                         t.url = url.clone();
                     }
-                    if !started {
-                        visited = Some((t.url.clone(), t.title.clone()));
-                    }
-                }
+                    (!started).then(|| (t.url.clone(), t.title.clone()))
+                });
                 if let Some((u, title)) = visited {
                     self.history.visit(&u, &title);
                     self.save();
@@ -904,14 +1134,14 @@ impl App {
             "icon" => {
                 let u = v["u"].as_str().unwrap_or("").to_string();
                 if u.starts_with("http") || u.starts_with("data:image/") {
-                    if let Some(t) = self.tabs.get_mut(id) {
+                    if let Some(t) = self.tab_mut_any(id) {
                         t.favicon = u;
                     }
                     self.push_state();
                 }
             }
             "media" => {
-                if let Some(t) = self.tabs.get_mut(id) {
+                if let Some(t) = self.tab_mut_any(id) {
                     t.media = v["on"].as_bool().unwrap_or(false);
                 }
                 self.push_state();
@@ -993,6 +1223,22 @@ impl App {
                 }
             }
             "palette_close" => self.close_palette(),
+            "space" => {
+                if let Some(i) = v["index"].as_u64() {
+                    self.switch_space(i as usize);
+                }
+            }
+            "space_rename" => {
+                self.palette_open = false;
+                self.rename_space(v["name"].as_str().unwrap_or(""));
+                self.layout();
+                self.push_state();
+            }
+            "space_color" => {
+                if let (Some(i), Some(c)) = (v["index"].as_u64(), v["color"].as_str()) {
+                    self.set_space_color(i as usize, c);
+                }
+            }
             // Перетаскивание и изменение размера отдаём Windows: так работают
             // прилипание к краям экрана и разворот при перетаскивании к верху.
             "drag" => {

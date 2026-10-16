@@ -130,6 +130,20 @@ body.frameless.no-sidebar #topdrag { display: block; }
 #newtab:hover { background: var(--hover); color: var(--text); }
 #newtab .plus { width: 16px; text-align: center; font-size: 17px; }
 
+/* Пространства: значки внизу сайдбара. */
+#spacesbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 2px 2px; }
+.space-btn {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: #fff; opacity: .55;
+}
+.space-btn:hover { opacity: .85; }
+.space-btn.active { opacity: 1; box-shadow: 0 0 0 2px var(--text); }
+.space-btn.add { color: var(--text-dim); background: rgba(255,255,255,.08); font-size: 16px; font-weight: 400; opacity: 1; }
+.space-btn.add:hover { background: var(--hover); color: var(--text); }
+#menu .swatches { display: flex; gap: 6px; padding: 6px 10px; }
+#menu .swatches button { width: 18px; height: 18px; padding: 0; border-radius: 50%; }
+#menu .swatches button.cur { box-shadow: 0 0 0 2px var(--text); }
+
 .footer { display: flex; align-items: center; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
 .footer .link { color: var(--text-dim); font-size: 12px; padding: 5px 8px; border-radius: 6px; }
 .footer .link:hover { background: var(--hover); color: var(--text); }
@@ -266,6 +280,8 @@ body.no-sidebar #findbar { left: var(--pad); }
     <div class="list" id="today" data-pinned="0"></div>
   </div>
 
+  <div id="spacesbar"></div>
+
   <div class="footer">
     <button class="link" data-cmd="reopen" title="Ctrl+Shift+T">Вернуть закрытую</button>
     <div class="spacer" style="flex:1"></div>
@@ -384,6 +400,62 @@ body.no-sidebar #findbar { left: var(--pad); }
     return el;
   }
 
+  // ---------- Пространства ----------
+  // Ключи — те же, что spaces::COLORS в Rust: три цвета фона сайдбара и цвет значка.
+  const SPACE_COLORS = {
+    violet: ['#2a2f5c', '#4a3470', '#6b3557', '#8b6fd6'],
+    blue: ['#1d2f55', '#21477a', '#2a5f8f', '#4f8fe0'],
+    teal: ['#123a3c', '#185553', '#226861', '#3fb0a0'],
+    green: ['#1d3a26', '#2a5233', '#45662d', '#6cbf5a'],
+    orange: ['#4d2a16', '#6e3d1d', '#83392a', '#e98a3c'],
+    rose: ['#4a1d36', '#6c2848', '#843446', '#e0628f'],
+    gray: ['#24262c', '#33363e', '#41434b', '#9aa0aa'],
+  };
+  const paletteOf = (key) => SPACE_COLORS[key] || SPACE_COLORS.violet;
+  const curSpace = () => (state.spaces || [])[state.activeSpace] || { name: '', color: 'violet', main: true };
+
+  function renderSpaces() {
+    const sp = curSpace(), [a, b, c] = paletteOf(sp.color), root = document.documentElement.style;
+    root.setProperty('--bg-a', a); root.setProperty('--bg-b', b); root.setProperty('--bg-c', c);
+    const bar = $('#spacesbar');
+    bar.replaceChildren(...(state.spaces || []).map((s, i) => {
+      const el = document.createElement('button');
+      el.className = 'space-btn' + (i === state.activeSpace ? ' active' : '');
+      el.style.background = paletteOf(s.color)[3];
+      el.textContent = (s.name.trim()[0] || '?').toUpperCase();
+      el.title = `${s.name} — вкладок: ${s.tabs}` + (i < 9 ? ` (Ctrl+Shift+${i + 1})` : '');
+      el.onclick = () => post({ type: 'space', index: i });
+      el.oncontextmenu = (e) => { e.preventDefault(); openSpaceMenu(e.clientX, e.clientY, i); };
+      return el;
+    }));
+    const add = document.createElement('button');
+    add.className = 'space-btn add';
+    add.textContent = '+';
+    add.title = 'Новое пространство: свои вкладки, куки и логины';
+    add.onclick = () => post({ type: 'key', k: 'space_new' });
+    bar.appendChild(add);
+  }
+
+  // Меню значка. Переименование и удаление работают с активным пространством,
+  // поэтому сначала переходим в выбранное.
+  function openSpaceMenu(x, y, i) {
+    const s = state.spaces[i];
+    const go = (k) => () => { post({ type: 'space', index: i }); post({ type: 'key', k }); };
+    const sw = document.createElement('div');
+    sw.className = 'swatches';
+    for (const key of Object.keys(SPACE_COLORS)) {
+      const b = document.createElement('button');
+      b.style.background = SPACE_COLORS[key][3];
+      b.className = key === s.color ? 'cur' : '';
+      b.title = 'Цвет пространства';
+      b.onclick = () => { closeMenu(); post({ type: 'space_color', index: i, color: key }); };
+      sw.appendChild(b);
+    }
+    const items = [['Переименовать', go('rename_space')], sw];
+    if (!s.main) items.push(['Удалить пространство…', go('delete_space_confirm')]);
+    showMenu(x, y, items);
+  }
+
   // ---------- Split View ----------
   const splitOf = (id) => (state.splits || []).find((p) => p.left === id || p.right === id);
 
@@ -465,6 +537,7 @@ body.no-sidebar #findbar { left: var(--pad); }
     pinned.replaceChildren(...rows(s.tabs.filter((t) => t.pinned)));
     today.replaceChildren(...rows(s.tabs.filter((t) => !t.pinned)));
     placeSplit();
+    renderSpaces();
     $('#pinned-label').style.display = 'block';
 
     const act = s.tabs.find((t) => t.id === s.active);
@@ -527,7 +600,15 @@ body.no-sidebar #findbar { left: var(--pad); }
     if (splitOf(t.id)) items.push(['Закрыть разделение', () => post({ type: 'unsplit', id: t.id })]);
     else if (state.active && t.id !== state.active) items.push(['Открыть рядом с текущей', () => post({ type: 'split', id: t.id })]);
     items.push([t.pinned ? 'Выгрузить' : 'Закрыть', () => post({ type: 'close', id: t.id })]);
-    m.replaceChildren(...items.map(([label, fn]) => {
+    showMenu(x, y, items);
+  }
+
+  // Пункты меню: [подпись, действие] или готовый элемент.
+  function showMenu(x, y, items) {
+    const m = $('#menu');
+    m.replaceChildren(...items.map((it) => {
+      if (it instanceof Node) return it;
+      const [label, fn] = it;
       const b = document.createElement('button');
       b.textContent = label;
       b.onclick = () => { closeMenu(); fn(); };
@@ -572,7 +653,10 @@ body.no-sidebar #findbar { left: var(--pad); }
     { k: 'clear', t: 'Закрыть все незакреплённые вкладки' },
     { k: 'devtools', t: 'Инструменты разработчика', hint: 'F12' },
     { k: 'clear_history', t: 'Очистить историю', confirm: 'Удалить всю историю посещений?' },
-    { k: 'clear_data', t: 'Очистить данные сайтов', confirm: 'Удалить куки, кэш и пароли всех сайтов?' },
+    { k: 'clear_data', t: 'Очистить данные сайтов', confirm: 'Удалить куки, кэш и пароли сайтов в этом пространстве?' },
+    { k: 'space_new', t: 'Новое пространство' },
+    { k: 'rename_space', t: 'Переименовать пространство' },
+    { k: 'delete_space_confirm', t: 'Удалить пространство', notMain: true },
   ];
   const DL_STATE = { running: ['⟳', 'Загружается'], done: ['✓', 'Показать в папке'], failed: ['✕', 'Не удалась'] };
 
@@ -580,8 +664,11 @@ body.no-sidebar #findbar { left: var(--pad); }
     pMode = mode;
     items = list || [];
     const input = $('#pinput');
-    input.value = mode === 'edit' ? current : '';
-    input.placeholder = { edit: 'Изменить адрес…', downloads: 'Поиск по загрузкам…', split: 'Что открыть рядом: вкладка, адрес или поиск…' }[mode] || 'Поиск или адрес…';
+    input.value = mode === 'edit' || mode === 'rename_space' ? current : '';
+    input.placeholder = {
+      edit: 'Изменить адрес…', downloads: 'Поиск по загрузкам…', split: 'Что открыть рядом: вкладка, адрес или поиск…',
+      rename_space: 'Новое имя пространства…', delete_space: 'Удалить пространство?',
+    }[mode] || 'Поиск или адрес…';
     $('#palette').classList.add('open');
     closeMenu();
     update();
@@ -598,6 +685,24 @@ body.no-sidebar #findbar { left: var(--pad); }
     const ql = q.toLowerCase();
     const match = (s) => (s || '').toLowerCase().includes(ql);
     results = [];
+    if (pMode === 'rename_space') {
+      results.push(q
+        ? { kind: 'rename', ico: '✎', t: `Назвать пространство «${q}»`, sub: 'Enter', name: q }
+        : { kind: 'none', ico: '✎', t: 'Введите новое имя', sub: '' });
+      sel = 0;
+      drawResults();
+      return;
+    }
+    if (pMode === 'delete_space') {
+      results = [
+        { kind: 'cmd', ico: '!', danger: true, k: 'delete_space', sub: 'Enter — да',
+          t: `Удалить «${curSpace().name}» вместе с вкладками, куки и логинами?` },
+        { kind: 'cancel', ico: '×', t: 'Отмена', sub: 'Esc' },
+      ];
+      sel = 0;
+      drawResults();
+      return;
+    }
     if (pMode === 'downloads') {
       results.push({ kind: 'cmd', ico: '📁', t: 'Открыть папку «Загрузки»', sub: '', k: 'open_downloads_folder' });
       for (const d of items.filter((d) => !ql || match(d.name) || match(d.url)).slice(0, 50)) {
@@ -626,7 +731,15 @@ body.no-sidebar #findbar { left: var(--pad); }
       for (const h of hits.slice(0, 6)) {
         results.push({ kind: 'hist', ico: '◷', t: h.title || h.url, u: hostOf(h.url), sub: 'История', text: h.url });
       }
-      for (const c of COMMANDS.filter((c) => pMode !== 'split' && match(c.t)).slice(0, 4)) {
+      if (pMode !== 'split') {
+        (state.spaces || []).forEach((s, i) => {
+          if (i !== state.activeSpace && (match(s.name) || match('пространство ' + s.name))) {
+            results.push({ kind: 'space', ico: '◆', t: 'Пространство: ' + s.name, sub: i < 9 ? 'Ctrl+Shift+' + (i + 1) : '', index: i });
+          }
+        });
+      }
+      const canRun = (c) => pMode !== 'split' && !(c.notMain && curSpace().main);
+      for (const c of COMMANDS.filter((c) => canRun(c) && match(c.t)).slice(0, 4)) {
         results.push({ kind: 'cmd', ico: '›', t: c.t, sub: c.hint || 'Команда', k: c.k, confirm: c.confirm });
       }
     }
@@ -668,6 +781,8 @@ body.no-sidebar #findbar { left: var(--pad); }
     if (r.kind === 'tab') post({ type: pMode === 'split' ? 'split' : 'activate', id: r.id });
     else if (r.kind === 'cmd') { post({ type: 'palette_close' }); post({ type: 'key', k: r.k }); }
     else if (r.kind === 'dl') { post({ type: 'palette_close' }); post({ type: 'open_download', id: r.id }); }
+    else if (r.kind === 'space') { post({ type: 'palette_close' }); post({ type: 'space', index: r.index }); }
+    else if (r.kind === 'rename') post({ type: 'space_rename', name: r.name });
     else post({ type: 'navigate', text: r.text, mode: pMode });
   }
 

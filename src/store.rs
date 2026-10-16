@@ -18,9 +18,38 @@ pub struct SavedTab {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Session {
+    /// Пространства (Spaces) со своими вкладками.
+    pub spaces: Vec<SavedSpace>,
+    /// Индекс активного пространства в `spaces`.
+    pub active_space: usize,
+    pub sidebar_visible: Option<bool>,
+    /// Удалённые пространства: их папки данных стираются при следующем запуске
+    /// (пока браузер работает, файлы заняты).
+    pub deleted_spaces: Vec<u32>,
+
+    // Старый формат — одно пространство прямо в сессии. Читается, чтобы перенести
+    // его в «Основное» (см. `take_spaces`), и больше не пишется.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tabs: Vec<SavedTab>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<usize>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub closed: Vec<SavedTab>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub splits: Vec<SavedSplit>,
+}
+
+/// Пространство в сессии.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct SavedSpace {
+    /// 1 — «Основное»: его профиль — старая папка webview\, остальные — spaces\<id>\.
+    pub id: u32,
+    pub name: String,
+    /// Ключ цвета из палитры (см. spaces.rs и ui/index.html).
+    pub color: String,
     pub tabs: Vec<SavedTab>,
     pub active: Option<usize>,
-    pub sidebar_visible: Option<bool>,
     /// Недавно закрытые и архивированные вкладки (для Ctrl+Shift+T).
     pub closed: Vec<SavedTab>,
     /// Пары Split View: индексы в `tabs`.
@@ -45,6 +74,23 @@ impl Session {
         if let Ok(s) = serde_json::to_string_pretty(self) {
             write_atomic(path, &s);
         }
+    }
+
+    /// Забрать пространства. Сессия старого формата (без пространств)
+    /// становится одним пространством «Основное» с её вкладками.
+    pub fn take_spaces(&mut self) -> Vec<SavedSpace> {
+        if !self.spaces.is_empty() {
+            return std::mem::take(&mut self.spaces);
+        }
+        vec![SavedSpace {
+            id: 1,
+            name: String::new(),
+            color: String::new(),
+            tabs: std::mem::take(&mut self.tabs),
+            active: self.active.take(),
+            closed: std::mem::take(&mut self.closed),
+            splits: std::mem::take(&mut self.splits),
+        }]
     }
 }
 
@@ -359,11 +405,15 @@ mod tests {
         assert!(History::load(&path).entries.is_empty());
     }
 
+    fn tab(url: &str) -> SavedTab {
+        SavedTab { url: url.into(), ..Default::default() }
+    }
+
     #[test]
     fn session_save_and_load_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("session.json");
-        let tab = SavedTab {
+        let full = SavedTab {
             url: "https://a.test/".into(),
             title: "A".into(),
             pinned: true,
@@ -372,39 +422,93 @@ mod tests {
             last_active: 42,
         };
         let s = Session {
-            tabs: vec![tab.clone()],
-            active: Some(0),
+            spaces: vec![
+                SavedSpace {
+                    id: 1,
+                    name: "Основное".into(),
+                    color: "violet".into(),
+                    tabs: vec![full.clone(), tab("https://b.test/")],
+                    active: Some(1),
+                    closed: vec![tab("https://old.test/")],
+                    splits: vec![SavedSplit { left: 0, right: 1, ratio: 0.3 }],
+                },
+                SavedSpace { id: 4, name: "Работа".into(), color: "blue".into(), ..Default::default() },
+            ],
+            active_space: 1,
             sidebar_visible: Some(false),
-            closed: vec![SavedTab { pinned: false, pinned_url: None, ..tab }],
-            splits: vec![SavedSplit { left: 0, right: 0, ratio: 0.3 }],
+            deleted_spaces: vec![2, 3],
+            ..Default::default()
         };
         s.save(&path);
 
-        let loaded = Session::load(&path);
-        assert_eq!(loaded.tabs.len(), 1);
-        let t = &loaded.tabs[0];
+        let mut loaded = Session::load(&path);
+        assert_eq!((loaded.active_space, loaded.sidebar_visible), (1, Some(false)));
+        assert_eq!(loaded.deleted_spaces, [2, 3]);
+        let spaces = loaded.take_spaces();
+        assert_eq!(spaces.len(), 2);
+        let main = &spaces[0];
+        assert_eq!((main.id, main.name.as_str(), main.color.as_str()), (1, "Основное", "violet"));
+        let t = &main.tabs[0];
         assert_eq!(t.url, "https://a.test/");
         assert!(t.pinned);
         assert_eq!(t.pinned_url.as_deref(), Some("https://a.test/home"));
         assert_eq!(t.last_active, 42);
-        assert_eq!(loaded.active, Some(0));
-        assert_eq!(loaded.sidebar_visible, Some(false));
-        assert_eq!(loaded.closed.len(), 1);
-        assert!(!loaded.closed[0].pinned);
-        assert_eq!(loaded.splits, [SavedSplit { left: 0, right: 0, ratio: 0.3 }]);
+        assert_eq!(main.active, Some(1));
+        assert_eq!(main.closed[0].url, "https://old.test/");
+        assert_eq!(main.splits, [SavedSplit { left: 0, right: 1, ratio: 0.3 }]);
+        assert_eq!((spaces[1].id, spaces[1].name.as_str()), (4, "Работа"));
+    }
+
+    #[test]
+    fn new_format_does_not_write_old_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.json");
+        Session { spaces: vec![SavedSpace { id: 1, ..Default::default() }], ..Default::default() }.save(&path);
+        let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for old in ["tabs", "active", "closed", "splits"] {
+            assert!(v.get(old).is_none(), "{old}");
+        }
+    }
+
+    #[test]
+    fn old_session_becomes_main_space() {
+        // Так выглядела session.json до пространств.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.json");
+        std::fs::write(
+            &path,
+            r#"{"tabs":[{"url":"https://www.google.com/","pinned":true},{"url":"https://a.test/"}],
+                "active":1,"sidebar_visible":true,"closed":[{"url":"https://yandex.uz/"}],
+                "splits":[{"left":0,"right":1,"ratio":0.4}]}"#,
+        )
+        .unwrap();
+        let mut s = Session::load(&path);
+        let spaces = s.take_spaces();
+        assert_eq!(spaces.len(), 1);
+        let main = &spaces[0];
+        assert_eq!(main.id, 1);
+        assert_eq!(main.tabs.len(), 2);
+        assert!(main.tabs[0].pinned);
+        assert_eq!(main.active, Some(1));
+        assert_eq!(main.closed[0].url, "https://yandex.uz/");
+        assert_eq!(main.splits[0].ratio, 0.4);
+        assert_eq!(s.sidebar_visible, Some(true));
+        assert_eq!(s.active_space, 0);
+        // Старые поля перенесены, а не скопированы.
+        assert!(s.tabs.is_empty() && s.closed.is_empty() && s.splits.is_empty() && s.active.is_none());
     }
 
     #[test]
     fn session_tolerates_missing_fields() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("session.json");
-        std::fs::write(&path, r#"{"tabs":[{"url":"https://a.test/"}]}"#).unwrap();
-        let s = Session::load(&path);
-        assert_eq!(s.tabs.len(), 1);
-        assert_eq!(s.tabs[0].url, "https://a.test/");
-        assert!(!s.tabs[0].pinned);
-        assert_eq!(s.active, None);
-        assert!(s.closed.is_empty());
+        std::fs::write(&path, r#"{"spaces":[{"id":2,"tabs":[{"url":"https://a.test/"}]}]}"#).unwrap();
+        let mut s = Session::load(&path);
+        let spaces = s.take_spaces();
+        assert_eq!(spaces[0].tabs[0].url, "https://a.test/");
+        assert!(!spaces[0].tabs[0].pinned);
+        assert!(spaces[0].name.is_empty() && spaces[0].closed.is_empty());
+        assert!(s.deleted_spaces.is_empty());
     }
 
     #[test]

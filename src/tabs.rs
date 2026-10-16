@@ -94,7 +94,13 @@ pub struct TabList<V> {
 
 impl<V> TabList<V> {
     pub fn new(closed: Vec<SavedTab>) -> Self {
-        let mut list = Self { tabs: Vec::new(), active: None, next_id: 1, closed, splits: Vec::new() };
+        Self::with_id_base(closed, 0)
+    }
+
+    /// Список, у которого номера вкладок начинаются после `base` (у каждого
+    /// пространства свой диапазон, см. spaces::tab_id_base).
+    pub fn with_id_base(closed: Vec<SavedTab>, base: u64) -> Self {
+        let mut list = Self { tabs: Vec::new(), active: None, next_id: base + 1, closed, splits: Vec::new() };
         list.trim_closed();
         list
     }
@@ -299,10 +305,19 @@ impl<V> TabList<V> {
     /// (0 — никогда). Вкладки со звуком и вторая половина активной пары не трогаются.
     /// true — хоть одна уснула.
     pub fn sleep_idle(&mut self, now: u64, limit: u64) -> bool {
+        let visible = self.visible();
+        self.sleep_idle_except(now, limit, &visible)
+    }
+
+    /// То же для пространства, которого нет на экране: усыпить можно любую вкладку.
+    pub fn sleep_idle_offscreen(&mut self, now: u64, limit: u64) -> bool {
+        self.sleep_idle_except(now, limit, &[])
+    }
+
+    fn sleep_idle_except(&mut self, now: u64, limit: u64, visible: &[u64]) -> bool {
         if limit == 0 {
             return false;
         }
-        let visible = self.visible();
         let mut any = false;
         for t in &mut self.tabs {
             if !visible.contains(&t.id) && !t.media && t.view.is_some()
@@ -636,6 +651,24 @@ mod tests {
         assert!(!l.get(ids[1]).unwrap().loading);
         // Повторно усыплять некого.
         assert!(!l.sleep_idle(NOW, HOUR));
+    }
+
+    #[test]
+    fn offscreen_sleep_includes_active_tab() {
+        let (mut l, ids) = list(vec![st("https://a/", false, 1), st("https://b/", false, 1)]);
+        l.make_split(ids[0], ids[1]);
+        l.activate(ids[0], 1);
+        assert!(l.sleep_idle_offscreen(NOW, HOUR));
+        assert!(l.iter().all(|t| t.view.is_none()));
+        assert!(!l.sleep_idle_offscreen(NOW, 0));
+    }
+
+    #[test]
+    fn id_base_separates_tab_numbers() {
+        let mut a: TabList<()> = TabList::with_id_base(vec![], 1_000);
+        a.restore(vec![st("https://a/", false, NOW)], None, &[], NOW, 0);
+        assert_eq!(a.iter().next().unwrap().id, 1_001);
+        assert_eq!(a.alloc_id(), 1_002);
     }
 
     #[test]

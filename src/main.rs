@@ -7,6 +7,7 @@ mod hotkeys;
 mod input;
 mod limit;
 mod logging;
+mod spaces;
 mod store;
 mod tabs;
 
