@@ -176,6 +176,9 @@ kbd {
 }
 .fav img { width: 100%; height: 100%; display: block; }
 .fav.img { background: transparent; }
+/* Белый значок в светлой теме и чёрный в тёмной — на плашке цвета текста (см. toneOf в core.js). */
+:root[data-theme="light"] .fav.img[data-tone="light"],
+:root[data-theme="dark"] .fav.img[data-tone="dark"] { background: var(--text); padding: 2px; }
 .fav.lg { width: 28px; height: 28px; border-radius: 7px; font-size: 13px; }
 
 .muted { color: var(--text-3); }

@@ -272,6 +272,35 @@ const S = (() => {
 
   // Значок сайта: PNG от ядра (data:), иначе первая буква. Из сети интерфейс значки не
   // грузит: это раскрыло бы сайтам историю и шло бы с куки «Основного» Space.
+  // Тон значка на прозрачном фоне: 'light' — почти белый, 'dark' — почти чёрный, '' — цветной
+  // или со своим фоном. Сайты отдают значок под свою тему (GitHub в тёмной — белый), и в другой
+  // теме Seyro он сливается с фоном: тогда CSS подкладывает плашку (.fav[data-tone]).
+  const tones = new Map();
+  function toneOf(img) {
+    if (tones.has(img.src)) return tones.get(img.src);
+    let tone = '';
+    try {
+      const c = document.createElement('canvas');
+      c.width = c.height = 16;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0, 16, 16);
+      const px = g.getImageData(0, 0, 16, 16).data;
+      let seen = 0, sum = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 128) continue;
+        seen++;
+        sum += (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
+      }
+      // Почти непрозрачный значок — со своим фоном, ему плашка не нужна.
+      if (seen > 0 && seen < 256 * 0.9) {
+        const lum = sum / seen;
+        tone = lum > 0.8 ? 'light' : lum < 0.2 ? 'dark' : '';
+      }
+    } catch (_) { /* битая картинка */ }
+    tones.set(img.src, tone);
+    return tone;
+  }
+
   function fav(p, cls = '') {
     const box = h('span', { class: 'fav ' + cls, attrs: { 'aria-hidden': 'true' } });
     const letter = () => { box.classList.remove('img'); box.textContent = ((p.title || host(p.url) || '?').trim()[0] || '?').toUpperCase(); };
@@ -279,6 +308,8 @@ const S = (() => {
     if (src) {
       const img = h('img', { src, alt: '', draggable: false });
       img.onerror = () => { img.remove(); letter(); };
+      const mark = () => { const tone = toneOf(img); if (tone) box.dataset.tone = tone; };
+      if (img.complete && img.naturalWidth) mark(); else img.addEventListener('load', mark, { once: true });
       box.classList.add('img');
       box.append(img);
     } else letter();
