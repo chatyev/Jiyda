@@ -145,7 +145,7 @@ pub enum UserEvent {
         urls: Vec<String>,
     },
     UpdateChecked {
-        result: Result<Option<update::Release>, String>,
+        result: Result<Option<update::Release>, update::CheckError>,
         manual: bool,
     },
     UpdateDownloaded {

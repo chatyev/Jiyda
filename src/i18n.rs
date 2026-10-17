@@ -88,6 +88,10 @@ const STRINGS: &[(&str, &str)] = &[
     // Обновления.
     ("You have the latest version of Jiyda ({})", "У вас последняя версия Jiyda ({})"),
     ("Couldn't check for updates. Is GitHub reachable?", "Не удалось проверить обновления — нет связи с GitHub?"),
+    (
+        "GitHub is limiting update checks right now. Try again later.",
+        "GitHub временно ограничил проверки обновлений — попробуйте позже",
+    ),
     ("Couldn't download the update", "Не удалось скачать обновление"),
     ("Couldn't start the update installer", "Не удалось запустить установщик обновления"),
     // Страницы.

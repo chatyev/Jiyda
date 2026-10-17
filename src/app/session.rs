@@ -121,7 +121,10 @@ impl App {
                 self.capture(id);
             }
         }
-        if self.cfg.check_updates && t >= self.updates.next_check {
+        // Запуски для разработки (отладочная сборка, своя папка данных) сами не проверяют:
+        // десятки таких запусков подряд тратят лимит GitHub на запросы с этого адреса.
+        let dev_run = cfg!(debug_assertions) || crate::config::data_dir_override().is_some();
+        if self.cfg.check_updates && !dev_run && t >= self.updates.next_check {
             self.updates.next_check = t + UPDATE_CHECK_EVERY;
             self.check_updates(false);
         }

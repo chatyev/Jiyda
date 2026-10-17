@@ -18,7 +18,11 @@ impl App {
         });
     }
 
-    pub(super) fn on_update_checked(&mut self, result: Result<Option<update::Release>, String>, manual: bool) {
+    pub(super) fn on_update_checked(
+        &mut self,
+        result: Result<Option<update::Release>, update::CheckError>,
+        manual: bool,
+    ) {
         self.updates.busy = false;
         match result {
             Ok(Some(release)) => {
@@ -37,7 +41,10 @@ impl App {
             Err(e) => {
                 log::warn!("не удалось проверить обновления: {e}");
                 if manual {
-                    self.toast(i18n::tr("Couldn't check for updates. Is GitHub reachable?"));
+                    self.toast(i18n::tr(match e {
+                        update::CheckError::Limited => "GitHub is limiting update checks right now. Try again later.",
+                        update::CheckError::Other(_) => "Couldn't check for updates. Is GitHub reachable?",
+                    }));
                 }
             }
         }

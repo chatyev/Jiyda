@@ -3,15 +3,16 @@
 
 use std::time::Duration;
 
-/// Ответ сервера: код и тело.
+/// Ответ сервера: код, тело и (если не идти по перенаправлению) куда оно ведёт.
 pub struct Response {
     pub status: u32,
     pub body: Vec<u8>,
+    pub location: Option<String>,
 }
 
 /// HTTPS-запрос. `headers` — пары (имя, значение); тело ответа длиннее `max_bytes` —
-/// ошибка. Ответ с любым кодом — Ok: код проверяет вызывающий.
-#[cfg(windows)]
+/// ошибка. Ответ с любым кодом — Ok: код проверяет вызывающий. Перенаправления
+/// WinHTTP проходит сам.
 pub fn https(
     method: &str,
     url: &str,
@@ -20,12 +21,31 @@ pub fn https(
     max_bytes: usize,
     timeout: Duration,
 ) -> Result<Response, String> {
+    request(method, url, headers, body, max_bytes, timeout, true)
+}
+
+/// GET без перехода по перенаправлению: код ответа и заголовок Location.
+pub fn redirect(url: &str, timeout: Duration) -> Result<Response, String> {
+    request("GET", url, &[], None, 64 * 1024, timeout, false)
+}
+
+#[cfg(windows)]
+fn request(
+    method: &str,
+    url: &str,
+    headers: &[(&str, &str)],
+    body: Option<&[u8]>,
+    max_bytes: usize,
+    timeout: Duration,
+    follow_redirects: bool,
+) -> Result<Response, String> {
     use std::ffi::c_void;
     use windows::Win32::Networking::WinHttp::{
-        INTERNET_DEFAULT_HTTPS_PORT, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_ADDREQ_FLAG_ADD, WINHTTP_FLAG_SECURE,
-        WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_QUERY_STATUS_CODE, WinHttpAddRequestHeaders, WinHttpCloseHandle,
+        INTERNET_DEFAULT_HTTPS_PORT, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_ADDREQ_FLAG_ADD,
+        WINHTTP_DISABLE_REDIRECTS, WINHTTP_FLAG_SECURE, WINHTTP_OPTION_DISABLE_FEATURE, WINHTTP_QUERY_FLAG_NUMBER,
+        WINHTTP_QUERY_LOCATION, WINHTTP_QUERY_STATUS_CODE, WinHttpAddRequestHeaders, WinHttpCloseHandle,
         WinHttpConnect, WinHttpOpen, WinHttpOpenRequest, WinHttpQueryHeaders, WinHttpReadData, WinHttpReceiveResponse,
-        WinHttpSendRequest, WinHttpSetTimeouts,
+        WinHttpSendRequest, WinHttpSetOption, WinHttpSetTimeouts,
     };
     use windows::core::PCWSTR;
 
@@ -80,6 +100,11 @@ pub fn https(
             ),
             "запрос",
         )?;
+        if !follow_redirects {
+            let off = WINHTTP_DISABLE_REDIRECTS.to_ne_bytes();
+            WinHttpSetOption(Some(request.0), WINHTTP_OPTION_DISABLE_FEATURE, Some(&off))
+                .map_err(|e| format!("без перенаправлений: {e}"))?;
+        }
         for (name, value) in headers {
             let line: Vec<u16> = format!("{name}: {value}").encode_utf16().collect();
             WinHttpAddRequestHeaders(request.0, &line, WINHTTP_ADDREQ_FLAG_ADD)
@@ -98,6 +123,31 @@ pub fn https(
             std::ptr::null_mut(),
         )
         .map_err(|e| format!("код ответа: {e}"))?;
+        // Location: сначала узнаём длину (в байтах), потом читаем; нет заголовка — None.
+        let location = if follow_redirects {
+            None
+        } else {
+            let mut len = 0u32;
+            let _ = WinHttpQueryHeaders(
+                request.0,
+                WINHTTP_QUERY_LOCATION,
+                PCWSTR::null(),
+                None,
+                &mut len,
+                std::ptr::null_mut(),
+            );
+            let mut buf = vec![0u16; (len as usize / 2) + 1];
+            WinHttpQueryHeaders(
+                request.0,
+                WINHTTP_QUERY_LOCATION,
+                PCWSTR::null(),
+                Some(buf.as_mut_ptr() as *mut c_void),
+                &mut len,
+                std::ptr::null_mut(),
+            )
+            .ok()
+            .map(|()| String::from_utf16_lossy(&buf[..len as usize / 2]))
+        };
         let mut out = Vec::new();
         let mut buf = vec![0u8; 64 * 1024];
         loop {
@@ -112,18 +162,19 @@ pub fn https(
                 return Err("ответ слишком большой".into());
             }
         }
-        Ok(Response { status, body: out })
+        Ok(Response { status, body: out, location })
     }
 }
 
 #[cfg(not(windows))]
-pub fn https(
+fn request(
     _method: &str,
     _url: &str,
     _headers: &[(&str, &str)],
     _body: Option<&[u8]>,
     _max_bytes: usize,
     _timeout: Duration,
+    _follow_redirects: bool,
 ) -> Result<Response, String> {
     Err("сеть через WinHTTP есть только в Windows".into())
 }

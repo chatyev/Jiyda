@@ -2,14 +2,21 @@
 //! и запустить его. Установщик (installer/jiyda.iss) ставит новую версию поверх и,
 //! раз запущен с /update=1, открывает Jiyda снова.
 //!
+//! Последнюю версию узнаём не через API GitHub (без входа — 60 запросов в час на адрес,
+//! их легко исчерпать за одним роутером), а по перенаправлению обычной страницы:
+//! github.com/…/releases/latest ведёт на …/releases/tag/v<версия> последнего выпуска
+//! (черновики и предрелизы туда не попадают). Установщик — по известному адресу рядом.
+//!
 //! Сеть — через WinHTTP из Windows: системные прокси и сертификаты, без своих
-//! библиотек HTTPS. Запросы идут только на api.github.com и github.com.
+//! библиотек HTTPS. Запросы идут только на github.com.
 
 use std::path::{Path, PathBuf};
 
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
-const LATEST_API: &str = "https://api.github.com/repos/chatyev/jiyda/releases/latest";
-/// Скачиваем только отсюда — что бы ни оказалось в ответе API.
+const LATEST_PAGE: &str = "https://github.com/chatyev/jiyda/releases/latest";
+/// Куда ведёт LATEST_PAGE: страница выпуска с меткой.
+const TAG_PREFIX: &str = "https://github.com/chatyev/jiyda/releases/tag/";
+/// Скачиваем только отсюда.
 const DOWNLOAD_PREFIX: &str = "https://github.com/chatyev/jiyda/releases/download/";
 /// Установщик весит ~3 МБ; меньше — точно не он, больше — точно что-то не то.
 const MIN_INSTALLER: usize = 100 * 1024;
@@ -20,6 +27,24 @@ pub struct Release {
     pub version: String,
     /// Адрес установщика JiydaSetup-<версия>.exe.
     pub url: String,
+}
+
+/// Почему не удалось проверить обновления.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CheckError {
+    /// GitHub временно ограничил запросы с этого адреса (403 / 429) — пройдёт само.
+    Limited,
+    /// Сеть, неожиданный ответ и прочее — подробности для журнала.
+    Other(String),
+}
+
+impl std::fmt::Display for CheckError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CheckError::Limited => f.write_str("GitHub ограничил запросы (403/429)"),
+            CheckError::Other(e) => f.write_str(e),
+        }
+    }
 }
 
 /// «0.3.0», «v0.3.0», «1.2» → (0, 3, 0). Предрелизы («0.4.0-beta») не принимаем.
@@ -42,24 +67,17 @@ pub fn is_newer(candidate: &str, current: &str) -> bool {
     }
 }
 
-/// Разобрать ответ /releases/latest: версия из метки и адрес установщика к ней.
-pub fn parse_latest(json: &str) -> Option<Release> {
-    let v: serde_json::Value = serde_json::from_str(json).ok()?;
-    if v["draft"].as_bool() == Some(true) || v["prerelease"].as_bool() == Some(true) {
+/// Куда перенаправила LATEST_PAGE → версия и адрес установщика. Имя репозитория
+/// сравниваем без учёта регистра: GitHub пишет его так, как назвали (chatyev/Jiyda).
+pub fn release_from_location(location: &str) -> Option<Release> {
+    let prefix = location.get(..TAG_PREFIX.len()).filter(|p| p.eq_ignore_ascii_case(TAG_PREFIX))?;
+    let tag = &location[prefix.len()..];
+    if tag.is_empty() || !tag.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.') {
         return None;
     }
-    let tag = v["tag_name"].as_str()?;
     let version = tag.trim_start_matches('v');
     parse_version(version)?;
-    let name = format!("JiydaSetup-{version}.exe");
-    let url = v["assets"].as_array()?.iter().find_map(|a| {
-        let url = a["browser_download_url"].as_str()?;
-        // Имя репозитория в адресе GitHub пишет так, как его назвали (chatyev/Jiyda), а сам
-        // GitHub к регистру не чувствителен — поэтому сравниваем без учёта регистра.
-        (a["name"].as_str()? == name && url.eq_ignore_ascii_case(&format!("{DOWNLOAD_PREFIX}{tag}/{name}")))
-            .then(|| url.to_string())
-    })?;
-    Some(Release { version: version.to_string(), url })
+    Some(Release { version: version.to_string(), url: format!("{DOWNLOAD_PREFIX}{tag}/JiydaSetup-{version}.exe") })
 }
 
 /// Похоже ли скачанное на установщик: размер в разумных пределах и заголовок exe.
@@ -72,9 +90,14 @@ pub fn looks_like_installer(data: &[u8]) -> bool {
 pub const INSTALLER_ARGS: [&str; 5] = ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/update=1"];
 
 /// Есть ли версия новее этой. Ok(None) — у нас последняя.
-pub fn check() -> Result<Option<Release>, String> {
-    let body = http_get(LATEST_API, 1024 * 1024)?;
-    let release = parse_latest(&String::from_utf8_lossy(&body)).ok_or("в ответе GitHub нет установщика")?;
+pub fn check() -> Result<Option<Release>, CheckError> {
+    let r = crate::net::redirect(LATEST_PAGE, std::time::Duration::from_secs(60)).map_err(CheckError::Other)?;
+    let release = match (r.status, r.location) {
+        (301 | 302 | 303 | 307 | 308, Some(location)) => release_from_location(&location)
+            .ok_or_else(|| CheckError::Other(format!("непонятное перенаправление: {location}")))?,
+        (403 | 429, _) => return Err(CheckError::Limited),
+        (status, _) => return Err(CheckError::Other(format!("сервер ответил {status}"))),
+    };
     Ok(is_newer(&release.version, CURRENT).then_some(release))
 }
 
@@ -127,67 +150,42 @@ mod tests {
         assert!(!is_newer("0.4.0", "garbage"));
     }
 
-    fn release_json(tag: &str, assets: &str, extra: &str) -> String {
-        format!(r#"{{"tag_name":"{tag}","draft":false,"prerelease":false{extra},"assets":[{assets}]}}"#)
-    }
-
-    fn asset(name: &str, url: &str) -> String {
-        format!(r#"{{"name":"{name}","browser_download_url":"{url}"}}"#)
-    }
-
     #[test]
-    fn latest_release_with_installer() {
-        let url = "https://github.com/chatyev/jiyda/releases/download/v0.4.0/JiydaSetup-0.4.0.exe";
-        let assets = [
-            asset("notes.txt", "https://github.com/chatyev/jiyda/releases/download/v0.4.0/notes.txt"),
-            asset("JiydaSetup-0.4.0.exe", url),
-        ]
-        .join(",");
-        let r = parse_latest(&release_json("v0.4.0", &assets, "")).unwrap();
-        assert_eq!(r, Release { version: "0.4.0".into(), url: url.into() });
+    fn latest_release_from_redirect() {
+        let r = release_from_location("https://github.com/chatyev/jiyda/releases/tag/v0.6.1").unwrap();
+        assert_eq!(
+            r,
+            Release {
+                version: "0.6.1".into(),
+                url: "https://github.com/chatyev/jiyda/releases/download/v0.6.1/JiydaSetup-0.6.1.exe".into(),
+            }
+        );
     }
 
     #[test]
     fn repo_name_case_does_not_matter() {
-        // Так GitHub отдавал адреса, пока репозиторий назывался chatyev/Jiyda.
-        let url = "https://github.com/chatyev/Jiyda/releases/download/v0.6.0/JiydaSetup-0.6.0.exe";
-        let r = parse_latest(&release_json("v0.6.0", &asset("JiydaSetup-0.6.0.exe", url), "")).unwrap();
-        assert_eq!(r.url, url);
-        // Скачивание проверяет тот же адрес; до сети дело не доходит только у чужих адресов.
-        let foreign = Release { version: "0.6.0".into(), url: "https://evil.example/JiydaSetup-0.6.0.exe".into() };
-        assert!(download(&foreign, Path::new(".")).unwrap_err().contains("не с GitHub Releases"));
+        // Так GitHub отвечал, пока репозиторий назывался chatyev/Jiyda.
+        let r = release_from_location("https://github.com/chatyev/Jiyda/releases/tag/v0.6.0").unwrap();
+        assert_eq!(r.version, "0.6.0");
+        assert!(r.url.starts_with(DOWNLOAD_PREFIX));
     }
 
     #[test]
-    fn foreign_download_urls_are_rejected() {
-        for url in [
-            "https://evil.example/JiydaSetup-0.4.0.exe",
-            "http://github.com/chatyev/jiyda/releases/download/v0.4.0/JiydaSetup-0.4.0.exe",
-            "https://github.com/someone/jiyda/releases/download/v0.4.0/JiydaSetup-0.4.0.exe",
-            "https://github.com/chatyev/jiyda/releases/download/v0.3.0/JiydaSetup-0.4.0.exe",
+    fn foreign_or_odd_redirects_are_rejected() {
+        for location in [
+            // Выпусков нет — GitHub ведёт на список.
+            "https://github.com/chatyev/jiyda/releases",
+            "https://evil.example/chatyev/jiyda/releases/tag/v0.6.0",
+            "http://github.com/chatyev/jiyda/releases/tag/v0.6.0",
+            "https://github.com/someone/jiyda/releases/tag/v0.6.0",
+            "https://github.com/chatyev/jiyda/releases/tag/nightly",
+            "https://github.com/chatyev/jiyda/releases/tag/v0.7.0-beta",
+            "https://github.com/chatyev/jiyda/releases/tag/v0.6.0/../../x",
+            "https://github.com/chatyev/jiyda/releases/tag/",
+            "",
         ] {
-            let json = release_json("v0.4.0", &asset("JiydaSetup-0.4.0.exe", url), "");
-            assert_eq!(parse_latest(&json), None, "{url}");
+            assert_eq!(release_from_location(location), None, "{location}");
         }
-    }
-
-    #[test]
-    fn release_without_installer_or_bad_tag_is_ignored() {
-        let url = "https://github.com/chatyev/jiyda/releases/download/v0.4.0/Other.exe";
-        assert_eq!(parse_latest(&release_json("v0.4.0", &asset("Other.exe", url), "")), None);
-        assert_eq!(parse_latest(&release_json("nightly", "", "")), None);
-        assert_eq!(parse_latest(r#"{"message":"Not Found"}"#), None);
-        assert_eq!(parse_latest("not json"), None);
-    }
-
-    #[test]
-    fn drafts_and_prereleases_are_ignored() {
-        let url = "https://github.com/chatyev/jiyda/releases/download/v0.4.0/JiydaSetup-0.4.0.exe";
-        let a = asset("JiydaSetup-0.4.0.exe", url);
-        let draft = format!(r#"{{"tag_name":"v0.4.0","draft":true,"assets":[{a}]}}"#);
-        let pre = format!(r#"{{"tag_name":"v0.4.0","prerelease":true,"assets":[{a}]}}"#);
-        assert_eq!(parse_latest(&draft), None);
-        assert_eq!(parse_latest(&pre), None);
     }
 
     #[test]
@@ -204,6 +202,6 @@ mod tests {
     #[test]
     fn download_refuses_foreign_url_without_network() {
         let r = Release { version: "9.9.9".into(), url: "https://evil.example/x.exe".into() };
-        assert!(download(&r, Path::new(".")).is_err());
+        assert!(download(&r, Path::new(".")).unwrap_err().contains("не с GitHub Releases"));
     }
 }
