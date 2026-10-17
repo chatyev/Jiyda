@@ -26,10 +26,13 @@ jobs:
       - run: cargo test
       - name: Проверка интерфейса (открыть и закрыть каждый слой, без ошибок JS)
         shell: pwsh
-        timeout-minutes: 12
+        timeout-minutes: 14
         run: |
           cargo build
-          ./scripts/ui-smoke.ps1
+          # Обе рамки окна: обычная Windows и своя (frame.rs); итог — после обеих.
+          ./scripts/ui-smoke.ps1 -NativeFrame -TimeoutSec 150; $native = $LASTEXITCODE
+          ./scripts/ui-smoke.ps1 -TimeoutSec 150; $own = $LASTEXITCODE
+          if ($native -or $own) { exit 1 }
 
       - name: Версия из метки совпадает с Cargo.toml, release notes написаны
         if: startsWith(github.ref, 'refs/tags/v')

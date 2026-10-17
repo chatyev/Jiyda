@@ -7,7 +7,9 @@
 param(
     [string]$Exe = "target/debug/seyro.exe",
     # С запасом: на сервере CI без видеокарты WebView2 рисует программно и заметно медленнее.
-    [int]$TimeoutSec = 300
+    [int]$TimeoutSec = 300,
+    # Обычная рамка Windows вместо своей (без подкласса окна из frame.rs).
+    [switch]$NativeFrame
 )
 $ErrorActionPreference = 'Stop'
 
@@ -15,6 +17,8 @@ $data = Join-Path ([IO.Path]::GetTempPath()) ("seyro-smoke-" + [guid]::NewGuid()
 New-Item -ItemType Directory -Path $data | Out-Null
 $log = Join-Path $data 'seyro.log'
 $cmdFile = Join-Path $data 'automation.txt'
+if ($NativeFrame) { Set-Content -Path (Join-Path $data 'config.json') -Value '{ "custom_titlebar": false }' -Encoding utf8NoBOM }
+$label = if ($NativeFrame) { 'native frame' } else { 'Seyro frame' }
 
 # Сценарий в интерфейсе: команда → слой открыт → закрыть → слой закрыт.
 $driver = @'
@@ -87,10 +91,10 @@ $problems = (LogText) -split "`r?`n" | Where-Object { ($_ -match 'интерфе
 if ($problems) { $failure = (@($failure) + $problems | Where-Object { $_ }) -join "`n" }
 
 if ($failure) {
-    Write-Host "UI smoke test FAILED:`n$failure"
+    Write-Host "UI smoke test FAILED ($label):`n$failure"
     Write-Host "--- seyro.log ---"; Write-Host (LogText)
     exit 1
 }
 if ((LogText) -match 'SMOKE times: ([a-z][^\r\n]*)') { Write-Host "Steps: $($Matches[1])" }
-Write-Host 'UI smoke test passed'
+Write-Host "UI smoke test passed ($label)"
 Remove-Item -Recurse -Force $data -ErrorAction SilentlyContinue

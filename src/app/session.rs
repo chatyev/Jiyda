@@ -137,6 +137,14 @@ impl App {
         if std::env::var_os("SEYRO_AUTOMATION").is_none() {
             return;
         }
+        // Пульс раз в 5 с: по журналу видно, крутится ли цикл событий, если интерфейс завис.
+        thread_local!(static PULSE: Cell<Option<Instant>> = const { Cell::new(None) });
+        PULSE.with(|p| {
+            if p.get().is_none_or(|t| t.elapsed() >= Duration::from_secs(5)) {
+                p.set(Some(Instant::now()));
+                log::debug!("automation: цикл событий жив");
+            }
+        });
         let path = self.paths.base().join("automation.txt");
         let Ok(text) = std::fs::read_to_string(&path) else { return };
         let _ = std::fs::remove_file(&path);
