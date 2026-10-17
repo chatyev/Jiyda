@@ -54,7 +54,10 @@ pub fn parse_latest(json: &str) -> Option<Release> {
     let name = format!("JiydaSetup-{version}.exe");
     let url = v["assets"].as_array()?.iter().find_map(|a| {
         let url = a["browser_download_url"].as_str()?;
-        (a["name"].as_str()? == name && url == format!("{DOWNLOAD_PREFIX}{tag}/{name}")).then(|| url.to_string())
+        // Имя репозитория в адресе GitHub пишет так, как его назвали (chatyev/Jiyda), а сам
+        // GitHub к регистру не чувствителен — поэтому сравниваем без учёта регистра.
+        (a["name"].as_str()? == name && url.eq_ignore_ascii_case(&format!("{DOWNLOAD_PREFIX}{tag}/{name}")))
+            .then(|| url.to_string())
     })?;
     Some(Release { version: version.to_string(), url })
 }
@@ -77,7 +80,7 @@ pub fn check() -> Result<Option<Release>, String> {
 
 /// Скачать установщик в `dir` и вернуть путь к нему.
 pub fn download(release: &Release, dir: &Path) -> Result<PathBuf, String> {
-    if !release.url.starts_with(DOWNLOAD_PREFIX) {
+    if !release.url.to_ascii_lowercase().starts_with(DOWNLOAD_PREFIX) {
         return Err("адрес установщика не с GitHub Releases Jiyda".into());
     }
     let data = http_get(&release.url, MAX_INSTALLER)?;
@@ -142,6 +145,17 @@ mod tests {
         .join(",");
         let r = parse_latest(&release_json("v0.4.0", &assets, "")).unwrap();
         assert_eq!(r, Release { version: "0.4.0".into(), url: url.into() });
+    }
+
+    #[test]
+    fn repo_name_case_does_not_matter() {
+        // Так GitHub отдавал адреса, пока репозиторий назывался chatyev/Jiyda.
+        let url = "https://github.com/chatyev/Jiyda/releases/download/v0.6.0/JiydaSetup-0.6.0.exe";
+        let r = parse_latest(&release_json("v0.6.0", &asset("JiydaSetup-0.6.0.exe", url), "")).unwrap();
+        assert_eq!(r.url, url);
+        // Скачивание проверяет тот же адрес; до сети дело не доходит только у чужих адресов.
+        let foreign = Release { version: "0.6.0".into(), url: "https://evil.example/JiydaSetup-0.6.0.exe".into() };
+        assert!(download(&foreign, Path::new(".")).unwrap_err().contains("не с GitHub Releases"));
     }
 
     #[test]
