@@ -6,7 +6,8 @@
 #   cargo build; pwsh scripts/ui-smoke.ps1
 param(
     [string]$Exe = "target/debug/seyro.exe",
-    [int]$TimeoutSec = 90
+    # С запасом: на сервере CI без видеокарты WebView2 рисует программно и заметно медленнее.
+    [int]$TimeoutSec = 300
 )
 $ErrorActionPreference = 'Stop'
 
@@ -19,16 +20,22 @@ $cmdFile = Join-Path $data 'automation.txt'
 $driver = @'
 (async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const until = async (ok, ms) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await wait(100); return ok(); };
   const steps = [['palette', 'palette'], ['orbit', 'orbit'], ['spaces', 'spaces'], ['history', 'history'],
     ['closed', 'closed'], ['ask', 'ask'], ['settings', 'settings'], ['shortcuts', 'settings'], ['downloads', 'downloads']];
-  const failed = [];
+  const failed = [], times = [];
   for (const [cmd, layer] of steps) {
-    S.cmd(cmd); await wait(700);
-    if (!S.layers.isOpen(layer)) failed.push(cmd + ' did not open');
-    S.layers.close(layer); await wait(700);
-    if (S.layers.isOpen(layer)) failed.push(cmd + ' did not close');
+    const t0 = Date.now();
+    S.cmd(cmd);
+    if (!(await until(() => S.layers.isOpen(layer), 15000))) failed.push(cmd + ' did not open');
+    const t1 = Date.now();
+    S.layers.close(layer);
+    if (!(await until(() => !S.layers.isOpen(layer), 15000))) failed.push(cmd + ' did not close');
+    await wait(300);
+    times.push(cmd + ' ' + (t1 - t0) + 'ms');
   }
   S.cmd('theme'); await wait(300); S.cmd('theme'); await wait(300);
+  S.post({ type: 'log', msg: 'SMOKE times: ' + times.join(', ') });
   S.post({ type: 'log', msg: 'SMOKE ' + (failed.length ? 'FAIL: ' + failed.join('; ') : 'OK') });
 })();
 '@ -replace "`r?`n\s*", ' '
@@ -59,7 +66,7 @@ try {
         if (-not (WaitFor 'SMOKE (OK|FAIL)')) { $failure = 'сценарий не закончился' }
         elseif ((LogText) -match 'SMOKE FAIL: ([^\r\n]*)') { $failure = $Matches[1] }
         Send 'cmd win_close'
-        if (-not $proc.WaitForExit(20000)) { $failure = ($failure, 'программа не закрылась') -join '; ' }
+        if (-not $proc.WaitForExit(60000)) { $failure = ($failure, 'программа не закрылась') -join '; ' }
     }
 } finally {
     if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
@@ -74,5 +81,6 @@ if ($failure) {
     Write-Host "--- seyro.log ---"; Write-Host (LogText)
     exit 1
 }
+if ((LogText) -match 'SMOKE times: ([a-z][^\r\n]*)') { Write-Host "Steps: $($Matches[1])" }
 Write-Host 'UI smoke test passed'
 Remove-Item -Recurse -Force $data -ErrorAction SilentlyContinue

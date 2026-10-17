@@ -26,7 +26,7 @@ jobs:
       - run: cargo test
       - name: Проверка интерфейса (открыть и закрыть каждый слой, без ошибок JS)
         shell: pwsh
-        timeout-minutes: 5
+        timeout-minutes: 12
         run: |
           cargo build
           ./scripts/ui-smoke.ps1
