@@ -52,10 +52,10 @@ impl App {
 
     /// Новое пространство: свой профиль (пустые куки), сразу переходим в него.
     pub(super) fn new_space(&mut self) {
-        let mut used: Vec<(u32, &str)> = self.spaces.iter().map(|s| (s.id, s.color.as_str())).collect();
-        // Номера удалённых пространств не берём: их папки, возможно, ещё не стёрты.
-        used.extend(self.deleted_spaces.iter().map(|id| (*id, "")));
-        let Some(mut meta) = spaces::new_space(&used) else {
+        let used: Vec<(u32, &str)> = self.spaces.iter().map(|s| (s.id, s.color.as_str())).collect();
+        // Номера удалённых пространств не берём (их папки, возможно, ещё не стёрты), но в
+        // лимит они не входят.
+        let Some(mut meta) = spaces::new_space(&used, &self.deleted_spaces) else {
             self.toast(&i18n::trf("You can't have more than {} Spaces", &[&spaces::MAX_SPACES]));
             return;
         };

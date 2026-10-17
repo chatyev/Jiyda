@@ -24,6 +24,7 @@ import { S } from './core.js';
     'Delete “{0}” with its pages, cookies and logins?': 'Удалить «{0}» вместе со страницами, куки и логинами?',
     'Space name': 'Название Space', 'Space options': 'Действия со Space', 'New Space': 'Новый Space',
     // Orbit
+    'Categories': 'Категории',
     'Development': 'Разработка', 'Documentation': 'Документация', 'Design': 'Дизайн', 'Research': 'Исследования',
     'Productivity': 'Работа', 'Communication': 'Общение', 'AI': 'ИИ', 'Shopping': 'Покупки', 'Travel': 'Путешествия',
     'Media': 'Медиа', 'Social': 'Соцсети', 'News': 'Новости', 'Finance': 'Финансы', 'Searches': 'Поиск', 'Other': 'Другое',

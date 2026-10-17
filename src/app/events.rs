@@ -5,6 +5,8 @@ use super::*;
 impl App {
     pub fn handle(&mut self, ev: UserEvent) {
         match ev {
+            // Только разбудить цикл: дела сделает tick() на MainEventsCleared.
+            UserEvent::Wake => {}
             UserEvent::FromUi(body) => {
                 if let Some(msg) = UiMsg::parse(&body) {
                     self.handle_ui(msg);

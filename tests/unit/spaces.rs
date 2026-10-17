@@ -50,7 +50,7 @@ fn clean_name_trims_and_limits() {
 
 #[test]
 fn new_space_takes_next_id_and_free_color() {
-    let s = new_space(&[(1, "violet"), (4, "blue")]).unwrap();
+    let s = new_space(&[(1, "violet"), (4, "blue")], &[]).unwrap();
     assert_eq!(s.id, 5);
     assert_eq!(s.name, "Space 5");
     assert_eq!(s.color, "teal");
@@ -60,13 +60,23 @@ fn new_space_takes_next_id_and_free_color() {
 #[test]
 fn new_space_is_limited() {
     let full: Vec<(u32, &str)> = (1..=MAX_SPACES as u32).map(|i| (i, "blue")).collect();
-    assert!(new_space(&full).is_none());
+    assert!(new_space(&full, &[]).is_none());
+}
+
+#[test]
+fn deleted_spaces_do_not_count_toward_the_limit() {
+    // Найдено E2E: создать и удалить пространство 8 раз за сеанс — и новое уже не создаётся
+    // («больше 9 нельзя»), хотя пространство одно. Номера удалённых заняты до перезапуска
+    // (их папки ещё не стёрты), но в лимит они не входят.
+    let deleted: Vec<u32> = (2..=20).collect();
+    let s = new_space(&[(1, "violet")], &deleted).expect("одно пространство — можно создать ещё");
+    assert_eq!(s.id, 21, "номер удалённого не занимается повторно");
 }
 
 #[test]
 fn new_space_reuses_colors_when_all_taken() {
     let used: Vec<(u32, &str)> = COLORS.iter().enumerate().map(|(i, c)| (i as u32 + 1, *c)).collect();
-    assert!(is_color(&new_space(&used).unwrap().color));
+    assert!(is_color(&new_space(&used, &[]).unwrap().color));
 }
 
 #[test]

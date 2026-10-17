@@ -51,6 +51,8 @@ import { S } from './core.js';
   const seg = S.h('div', { class: 'seg', attrs: { role: 'tablist' } });
   const spaceChip = S.h('button', { class: 'btn ghost' });
   const closeBtn = S.iconBtn('x', 'Close', () => S.layers.close('orbit'), 'sm');
+  // Фильтр по категориям (Разработка, Документация, сайт…): «Все» и группы из state.groups.
+  const filterBar = S.h('div', { class: 'orbit-filter', hidden: true, attrs: { role: 'toolbar' } });
   const body = S.h('div', { class: 'panel-body orbit-body', id: 'orbit-list', attrs: { role: 'listbox', 'aria-multiselectable': 'true' } });
   const pickbar = S.h('div', { class: 'pickbar', hidden: true });
   const foot = S.h('div', { class: 'orbit-foot' });
@@ -58,7 +60,7 @@ import { S } from './core.js';
     S.h('div', { class: 'panel-head' },
       S.h('label', { class: 'search-field' }, S.icon('search', 'i16'), search),
       seg, spaceChip, closeBtn),
-    body, pickbar, foot);
+    filterBar, body, pickbar, foot);
   const zoneL = S.h('div', { class: 'drop-zone left' });
   const zoneR = S.h('div', { class: 'drop-zone right' });
   layer.append(backdrop, panel, zoneL, zoneR);
@@ -66,6 +68,27 @@ import { S } from './core.js';
   backdrop.addEventListener('mousedown', () => S.layers.close('orbit'));
 
   let tab = 'now', expanded = null, focusables = [], sel = 0, picked = new Set(), dragging = null;
+  // Выбранная категория: ключ как у страницы в p.group («development», «site:github.com»); null — все.
+  let category = null;
+  const groupKey = (g) => (g.key === 'site' ? 'site:' + g.label : g.key);
+  const inCategory = (p) => !category || p.group === category;
+
+  function drawFilter() {
+    const groups = S.state.groups || [];
+    if (category && !groups.some((g) => groupKey(g) === category)) category = null;
+    // Фильтр нужен, когда есть из чего выбирать: две категории и больше, вкладка Now.
+    filterBar.hidden = tab !== 'now' || groups.length < 2;
+    if (filterBar.hidden) return;
+    filterBar.setAttribute('aria-label', S.t('Categories'));
+    const now = S.pagesHere().filter((p) => p.state === 'now');
+    const btn = (key, label, count) => S.h('button', {
+      class: 'filter-chip',
+      attrs: { 'aria-pressed': category === key ? 'true' : 'false' },
+      on: { click: () => { category = key; sel = 0; draw(); search.focus(); } },
+    }, S.h('span', { text: label }), S.h('span', { class: 'count', text: count }));
+    S.fill(filterBar, btn(null, S.t('All'), now.length),
+      ...groups.map((g) => btn(groupKey(g), groupName(g), g.ids.filter((id) => now.some((p) => p.id === id)).length)));
+  }
 
   function setBackdrop() {
     if (!backdropShot) { shotImg.classList.remove('on'); return; }
@@ -209,7 +232,12 @@ import { S } from './core.js';
   }
 
   function drawNow() {
-    const now = S.pagesHere().filter((p) => p.state === 'now');
+    const now = S.pagesHere().filter((p) => p.state === 'now' && inCategory(p));
+    // Выбрана категория — только её страницы, карточками, без контекста и групп.
+    if (category) {
+      const g = (S.state.groups || []).find((x) => groupKey(x) === category);
+      return section(g ? groupName(g) : S.t('Now'), now.length, S.h('div', { class: 'cards' }, ...now.map(card)));
+    }
     const out = [...contextStrip(now)];
     const newCard = S.h('button', { class: 'card new', attrs: { tabindex: '-1' }, on: { click: () => { close(); S.cmd('new_tab'); } } },
       S.h('div', { class: 'shot' }, S.icon('plus', 'i20')),
@@ -291,7 +319,7 @@ import { S } from './core.js';
     const ql = q.toLowerCase();
     const has = (s) => (s || '').toLowerCase().includes(ql);
     const spaceName = (id) => (S.state.spaces.find((s) => s.id === id) || {}).name || '';
-    const hits = S.state.pages.filter((p) => has(p.title) || has(p.url) || has(p.domain) || has(groupOfPage(p)) || has(spaceName(p.spaceId)));
+    const hits = S.state.pages.filter((p) => inCategory(p) && (has(p.title) || has(p.url) || has(p.domain) || has(groupOfPage(p)) || has(spaceName(p.spaceId))));
     const arch = (S.state.closed || []).filter((c) => has(c.title) || has(c.url));
     if (!hits.length && !arch.length) return [S.h('div', { class: 'empty' }, S.h('b', { text: S.t('No pages match “{0}”', q) }), S.t('Press Enter to search the web instead.'))];
     const meta = (p) => [p.state === 'later' ? S.t('Later') : '', p.spaceId !== S.space().id ? spaceName(p.spaceId) : '', groupOfPage(p)].filter(Boolean).join(' · ');
@@ -314,6 +342,7 @@ import { S } from './core.js';
     }, S.t(l), S.h('span', { class: 'count', text: counts[k] }))));
     S.fill(spaceChip, S.h('span', { class: 'space-dot' }), S.space().name, S.icon('chevron-down', 'i12'));
     spaceChip.title = S.t('Switch Space');
+    drawFilter();
     const content = q ? drawSearch(q) : tab === 'later' ? drawLater() : tab === 'archive' ? drawArchive() : drawNow();
     S.fill(body, ...content);
     sel = Math.min(sel, Math.max(0, focusables.length - 1));
@@ -401,6 +430,7 @@ import { S } from './core.js';
       panel.setAttribute('aria-label', 'Orbit');
       closeBtn.title = S.t('Close'); closeBtn.setAttribute('aria-label', S.t('Close'));
       expanded = null;
+      category = null;
       picked.clear();
       // Текущая страница — выбранной.
       sel = 0;

@@ -93,6 +93,8 @@ fn split_boxes((x, y, w, h): Box4, ratio: f64) -> [Box4; 2] {
 /// События, которые приходят в главный поток из обработчиков WebView и потоков.
 #[derive(Debug)]
 pub enum UserEvent {
+    /// Будильник цикла событий (main.rs, Waker): пора выполнить отложенные дела в tick().
+    Wake,
     FromUi(String),
     /// Ответ страницы на UiMsg::E2eEval (только тесты E2E в отладочной сборке).
     #[cfg(debug_assertions)]

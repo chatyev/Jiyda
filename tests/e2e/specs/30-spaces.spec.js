@@ -58,6 +58,17 @@ E2E.test('spaces: delete removes the space and its pages', async (t) => {
   t.ok(!t.state().pages.some((p) => p.url === t.url('c.html')), 'страницы удалённого пространства нет');
 });
 
+E2E.test('spaces: deleted spaces do not block creating new ones', async (t) => {
+  // Регрессия: после 8 «создать — удалить» за сеанс новое пространство не создавалось.
+  for (let i = 0; i < 10; i++) {
+    const idx = await newSpace(t);
+    t.post({ type: 'space_delete', index: idx });
+    await t.waitFor(() => t.state().spaces.length === 1, `удалено (${i + 1})`);
+  }
+  await newSpace(t);
+  t.eq(t.state().spaces.length, 2, 'одиннадцатое создалось');
+});
+
 E2E.test('spaces: main space cannot be deleted', async (t) => {
   t.post({ type: 'space_delete', index: 0 });
   await t.sleep(400);

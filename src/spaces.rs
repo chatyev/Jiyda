@@ -74,11 +74,13 @@ pub fn normalize(spaces: Vec<SavedSpace>) -> Vec<SavedSpace> {
 
 /// Новое пространство: следующий свободный id, имя по умолчанию и первый
 /// незанятый цвет. None — пространств уже MAX_SPACES.
-pub fn new_space(existing: &[(u32, &str)]) -> Option<SavedSpace> {
+/// `reserved` — номера удалённых в этом сеансе: их папки стираются при следующем запуске,
+/// поэтому номер не занимаем, но и в лимит они не входят.
+pub fn new_space(existing: &[(u32, &str)], reserved: &[u32]) -> Option<SavedSpace> {
     if existing.len() >= MAX_SPACES {
         return None;
     }
-    let id = existing.iter().map(|(id, _)| *id).max().unwrap_or(MAIN_ID) + 1;
+    let id = existing.iter().map(|(id, _)| *id).chain(reserved.iter().copied()).max().unwrap_or(MAIN_ID) + 1;
     let color = COLORS
         .iter()
         .find(|c| !existing.iter().any(|(_, used)| used == *c))

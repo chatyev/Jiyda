@@ -61,6 +61,7 @@ fn main() {
     instance::listen(move |urls| {
         let _ = proxy.send_event(UserEvent::External { urls });
     });
+    let waker = Waker::start(event_loop.create_proxy());
     if !urls.is_empty() {
         app.handle(UserEvent::External { urls });
     }
@@ -89,7 +90,59 @@ fn main() {
             return;
         }
         if *control_flow != ControlFlow::Exit {
-            *control_flow = ControlFlow::WaitUntil(app.next_wakeup());
+            // Не WaitUntil: см. Waker.
+            *control_flow = ControlFlow::Wait;
+            waker.wake_at(app.next_wakeup());
         }
     });
+}
+
+/// Будильник цикла событий: в нужный момент присылает UserEvent::Wake, а цикл ждёт без срока
+/// (ControlFlow::Wait).
+///
+/// Почему не ControlFlow::WaitUntil: создание WebView2 крутит свой цикл сообщений внутри нашего
+/// обработчика, и если срок WaitUntil истекал в это время, tao начинал новый проход цикла прямо
+/// внутри незавершённого и падал («either event handler is re-entrant»). Пользовательские
+/// события tao в такой момент откладывает в очередь — поэтому будим ими.
+struct Waker {
+    tx: std::sync::mpsc::Sender<std::time::Instant>,
+    last: std::cell::Cell<Option<std::time::Instant>>,
+}
+
+impl Waker {
+    fn start(proxy: tao::event_loop::EventLoopProxy<UserEvent>) -> Self {
+        use std::sync::mpsc::RecvTimeoutError;
+        let (tx, rx) = std::sync::mpsc::channel::<std::time::Instant>();
+        std::thread::Builder::new()
+            .name("jiyda-waker".into())
+            .spawn(move || {
+                let mut at: Option<std::time::Instant> = None;
+                loop {
+                    let next = match at {
+                        Some(t) => rx.recv_timeout(t.saturating_duration_since(std::time::Instant::now())),
+                        None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
+                    };
+                    match next {
+                        Ok(t) => at = Some(t),
+                        Err(RecvTimeoutError::Timeout) => {
+                            at = None;
+                            if proxy.send_event(UserEvent::Wake).is_err() {
+                                break; // цикл событий закрыт
+                            }
+                        }
+                        Err(RecvTimeoutError::Disconnected) => break,
+                    }
+                }
+            })
+            .expect("поток будильника");
+        Self { tx, last: std::cell::Cell::new(None) }
+    }
+
+    /// Разбудить цикл в момент `at` (последний заданный срок заменяет прежний).
+    fn wake_at(&self, at: std::time::Instant) {
+        if self.last.get() != Some(at) {
+            self.last.set(Some(at));
+            let _ = self.tx.send(at);
+        }
+    }
 }
