@@ -1,59 +1,43 @@
-//! Горячие клавиши браузера во вкладках.
+//! Горячие клавиши браузера во вкладках и в интерфейсе.
 //!
 //! Ловятся событием WebView2 `AcceleratorKeyPressed` — до того, как нажатие
 //! попадёт на страницу. Поэтому они работают на любой странице (в том числе
 //! about:blank, куда не встраивается tab.js), а страница не может их ни
-//! перехватить, ни подделать.
+//! перехватить, ни подделать. Какое сочетание что делает — решает keymap.rs.
 
-const VK_TAB: u32 = 0x09;
+use crate::command::Command;
+use crate::keymap::{Combo, Keymap};
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 
-/// Команда для нажатия. `vk` — виртуальный код клавиши Windows: для букв и цифр
-/// он совпадает с латинской буквой на клавише при любой раскладке, в том числе русской.
-pub fn command(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<String> {
-    // Ctrl+Alt — это AltGr на многих раскладках, его не трогаем.
-    if !ctrl || alt {
-        return None;
+/// Общие для всех WebView: сочетания и режим записи нового сочетания
+/// (Settings → Shortcuts: следующее нажатие не выполняется, а отдаётся интерфейсу).
+#[derive(Default)]
+pub struct Keys {
+    pub map: RefCell<Keymap>,
+    pub recording: Cell<bool>,
+}
+
+/// Что получил обработчик: команду или (в режиме записи) нажатое сочетание.
+pub enum KeyEvent {
+    Command(Command),
+    Recorded(String),
+}
+
+/// Решить, что делать с нажатием. None — пропустить на страницу.
+pub fn decide(keys: &Keys, vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<KeyEvent> {
+    if keys.recording.get() {
+        let c = Combo { ctrl, shift, alt, vk };
+        // Сами модификаторы и не назначаемые сочетания пропускаем — ждём настоящую клавишу.
+        let modifier = matches!(vk, 0x10 | 0x11 | 0x12 | 0xA0..=0xA5 | 0x5B | 0x5C);
+        return (!modifier && c.assignable()).then(|| c.to_string_opt()).flatten().map(KeyEvent::Recorded);
     }
-    let key = |c: u8| vk == u32::from(c);
-    let cmd = if vk == VK_TAB {
-        if shift { "prev" } else { "next" }
-    } else if key(b'T') {
-        if shift { "reopen" } else { "new_tab" }
-    } else if key(b'L') {
-        "edit_url"
-    } else if key(b'W') {
-        "close"
-    } else if key(b'U') && shift {
-        "copy_url"
-    } else if shift && (u32::from(b'1')..=u32::from(b'9')).contains(&vk) {
-        // Ctrl+Shift+1…9 — пространство по номеру.
-        return Some(format!("space:{}", vk - u32::from(b'0')));
-    } else if shift {
-        return None;
-    } else if key(b'S') {
-        "toggle_sidebar"
-    } else if key(b'D') {
-        "pin"
-    } else if key(b'F') {
-        "find"
-    } else if key(b'J') {
-        "downloads"
-    } else if (u32::from(b'1')..=u32::from(b'9')).contains(&vk) {
-        return Some(format!("goto:{}", vk - u32::from(b'0')));
-    } else {
-        return None;
-    };
-    Some(cmd.to_string())
+    keys.map.borrow().lookup(vk, ctrl, shift, alt).map(KeyEvent::Command)
 }
 
-/// При удержании клавиши повторяем только переключение вкладок.
-pub fn repeats(cmd: &str) -> bool {
-    matches!(cmd, "next" | "prev")
-}
-
-/// Подписаться на нажатия во вкладке. `on_command` вызывается в главном потоке.
+/// Подписаться на нажатия в WebView. `on_key` вызывается в главном потоке.
 #[cfg(windows)]
-pub fn install(wv: &wry::WebView, on_command: impl Fn(String) + 'static) {
+pub fn install(wv: &wry::WebView, keys: Rc<Keys>, on_key: impl Fn(KeyEvent) + 'static) {
     use webview2_com::AcceleratorKeyPressedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         COREWEBVIEW2_KEY_EVENT_KIND, COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN, COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN,
@@ -74,12 +58,15 @@ pub fn install(wv: &wry::WebView, on_command: impl Fn(String) + 'static) {
             let mut vk = 0u32;
             args.VirtualKey(&mut vk)?;
             let down = |k: VIRTUAL_KEY| GetKeyState(i32::from(k.0)) < 0;
-            let Some(cmd) = command(vk, down(VK_CONTROL), down(VK_SHIFT), down(VK_MENU)) else { return Ok(()) };
+            let Some(ev) = decide(&keys, vk, down(VK_CONTROL), down(VK_SHIFT), down(VK_MENU)) else { return Ok(()) };
             args.SetHandled(true)?;
             let mut status = COREWEBVIEW2_PHYSICAL_KEY_STATUS::default();
             args.PhysicalKeyStatus(&mut status)?;
-            if !status.WasKeyDown.as_bool() || repeats(&cmd) {
-                on_command(cmd);
+            let repeat = status.WasKeyDown.as_bool();
+            match ev {
+                KeyEvent::Command(cmd) if repeat && !cmd.repeats() => {}
+                KeyEvent::Recorded(_) if repeat => {}
+                ev => on_key(ev),
             }
         }
         Ok(())
@@ -92,8 +79,7 @@ pub fn install(wv: &wry::WebView, on_command: impl Fn(String) + 'static) {
 }
 
 #[cfg(not(windows))]
-pub fn install(_wv: &wry::WebView, _on_command: impl Fn(String) + 'static) {}
-
+pub fn install(_wv: &wry::WebView, _keys: Rc<Keys>, _on_key: impl Fn(KeyEvent) + 'static) {}
 /// Положить текст в буфер обмена Windows.
 #[cfg(windows)]
 pub fn copy_to_clipboard(text: &str) -> bool {
@@ -138,74 +124,36 @@ pub fn copy_to_clipboard(_text: &str) -> bool {
 mod tests {
     use super::*;
 
-    fn vk(c: char) -> u32 {
-        c as u32
+    fn cmd(ev: Option<KeyEvent>) -> Option<String> {
+        match ev {
+            Some(KeyEvent::Command(c)) => Some(c.to_string()),
+            _ => None,
+        }
     }
 
-    fn cmd(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<String> {
-        command(vk, ctrl, shift, alt)
-    }
-
-    #[test]
-    fn ctrl_letters() {
-        let cases = [('T', "new_tab"), ('L', "edit_url"), ('W', "close"), ('S', "toggle_sidebar"), ('D', "pin"), ('F', "find"), ('J', "downloads")];
-        for (c, expected) in cases {
-            assert_eq!(cmd(vk(c), true, false, false).as_deref(), Some(expected), "Ctrl+{c}");
+    fn rec(ev: Option<KeyEvent>) -> Option<String> {
+        match ev {
+            Some(KeyEvent::Recorded(c)) => Some(c),
+            _ => None,
         }
     }
 
     #[test]
-    fn ctrl_shift_combinations() {
-        assert_eq!(cmd(vk('T'), true, true, false).as_deref(), Some("reopen"));
-        assert_eq!(cmd(vk('U'), true, true, false).as_deref(), Some("copy_url"));
-        assert_eq!(cmd(VK_TAB, true, true, false).as_deref(), Some("prev"));
-        // Как и раньше в tab.js, Shift не мешает Ctrl+L и Ctrl+W.
-        assert_eq!(cmd(vk('L'), true, true, false).as_deref(), Some("edit_url"));
-        assert_eq!(cmd(vk('W'), true, true, false).as_deref(), Some("close"));
+    fn commands_from_keymap() {
+        let keys = Keys::default();
+        assert_eq!(cmd(decide(&keys, 'K' as u32, true, false, false)).as_deref(), Some("palette"));
+        assert_eq!(cmd(decide(&keys, 'C' as u32, true, false, false)), None);
     }
 
     #[test]
-    fn shift_disables_other_shortcuts() {
-        for c in ['S', 'D', 'F', 'J', '0'] {
-            assert_eq!(cmd(vk(c), true, true, false), None, "Ctrl+Shift+{c}");
-        }
-    }
-
-    #[test]
-    fn ctrl_shift_digits_switch_spaces() {
-        assert_eq!(cmd(vk('1'), true, true, false).as_deref(), Some("space:1"));
-        assert_eq!(cmd(vk('9'), true, true, false).as_deref(), Some("space:9"));
-        assert_eq!(cmd(vk('0'), true, true, false), None);
-    }
-
-    #[test]
-    fn tab_switching_and_digits() {
-        assert_eq!(cmd(VK_TAB, true, false, false).as_deref(), Some("next"));
-        assert_eq!(cmd(vk('1'), true, false, false).as_deref(), Some("goto:1"));
-        assert_eq!(cmd(vk('9'), true, false, false).as_deref(), Some("goto:9"));
-        assert_eq!(cmd(vk('0'), true, false, false), None);
-    }
-
-    #[test]
-    fn needs_ctrl_and_no_alt() {
-        assert_eq!(cmd(vk('T'), false, false, false), None);
-        assert_eq!(cmd(vk('T'), false, true, false), None);
-        // Ctrl+Alt (AltGr) — ввод символов на некоторых раскладках.
-        assert_eq!(cmd(vk('T'), true, false, true), None);
-        assert_eq!(cmd(vk('U'), true, false, false), None);
-    }
-
-    #[test]
-    fn page_shortcuts_are_left_to_the_page() {
-        // Ctrl+C/V/A/Z/R и т.п. браузер не перехватывает.
-        for c in ['C', 'V', 'A', 'Z', 'R', 'P', 'K'] {
-            assert_eq!(cmd(vk(c), true, false, false), None, "Ctrl+{c}");
-        }
-    }
-
-    #[test]
-    fn only_tab_switching_repeats() {
-        assert!(repeats("next") && repeats("prev"));
-        assert!(!repeats("close") && !repeats("new_tab"));
+    fn recording_returns_combo_instead_of_command() {
+        let keys = Keys::default();
+        keys.recording.set(true);
+        assert_eq!(rec(decide(&keys, 'K' as u32, true, false, false)).as_deref(), Some("Ctrl+K"));
+        assert_eq!(rec(decide(&keys, 0x7A, false, false, false)).as_deref(), Some("F11"));
+        // Отдельно нажатый Ctrl, обычная буква и AltGr не записываются.
+        assert!(decide(&keys, 0x11, true, false, false).is_none());
+        assert!(decide(&keys, 'K' as u32, false, false, false).is_none());
+        assert!(decide(&keys, 'K' as u32, true, false, true).is_none());
     }
 }

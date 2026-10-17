@@ -25,9 +25,7 @@ pub fn arg_to_url(arg: &str, cwd: &Path) -> Option<String> {
     }
     let path = cwd.join(arg);
     if path.exists() {
-        return url::Url::from_file_path(std::fs::canonicalize(&path).unwrap_or(path))
-            .ok()
-            .map(|u| u.to_string());
+        return url::Url::from_file_path(std::fs::canonicalize(&path).unwrap_or(path)).ok().map(|u| u.to_string());
     }
     // Голый домен — но не поисковый запрос: аргумент запуска искать в Google странно.
     let url = crate::input::resolve(arg, "")?;
@@ -35,19 +33,14 @@ pub fn arg_to_url(arg: &str, cwd: &Path) -> Option<String> {
 }
 
 pub fn urls_from_args(args: impl IntoIterator<Item = String>, cwd: &Path) -> Vec<String> {
-    args.into_iter()
-        .filter_map(|a| arg_to_url(&a, cwd))
-        .take(MAX_URLS)
-        .collect()
+    args.into_iter().filter_map(|a| arg_to_url(&a, cwd)).take(MAX_URLS).collect()
 }
 
 /// Что можно открыть по сообщению из канала: обычные страницы и файлы, но не
 /// javascript:, data: и прочее, что выполнилось бы как код.
 fn is_allowed(url: &str) -> bool {
     let lower = url.to_ascii_lowercase();
-    ["http://", "https://", "file://", "about:"]
-        .iter()
-        .any(|s| lower.starts_with(s))
+    ["http://", "https://", "file://", "about:"].iter().any(|s| lower.starts_with(s))
 }
 
 /// Сообщение в канал: адреса по одному на строку.
@@ -74,7 +67,9 @@ fn pipe_name() -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
-    format!(r"\\.\pipe\seyro-{user}")
+    // Seyro с отдельной папкой данных (SEYRO_DATA_DIR) — отдельный экземпляр.
+    let alt = if crate::config::data_dir_override().is_some() { "-alt" } else { "" };
+    format!(r"\\.\pipe\seyro-{user}{alt}")
 }
 
 #[cfg(windows)]
@@ -138,12 +133,10 @@ pub fn send_to_running(_urls: &[String]) -> bool {
 #[cfg(windows)]
 pub fn listen(on_message: impl Fn(Vec<String>) + Send + 'static) {
     use windows::Win32::Foundation::{CloseHandle, ERROR_MORE_DATA, ERROR_PIPE_CONNECTED, HANDLE};
-    use windows::Win32::Storage::FileSystem::{
-        FILE_FLAG_FIRST_PIPE_INSTANCE, PIPE_ACCESS_INBOUND, ReadFile,
-    };
+    use windows::Win32::Storage::FileSystem::{FILE_FLAG_FIRST_PIPE_INSTANCE, PIPE_ACCESS_INBOUND, ReadFile};
     use windows::Win32::System::Pipes::{
-        ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_MESSAGE,
-        PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPE_WAIT,
+        ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_MESSAGE, PIPE_REJECT_REMOTE_CLIENTS,
+        PIPE_TYPE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPE_WAIT,
     };
     use windows::core::PCWSTR;
 
@@ -193,10 +186,7 @@ pub fn listen(on_message: impl Fn(Vec<String>) + Send + 'static) {
                         let res = ReadFile(handle, Some(&mut buf), Some(&mut read), None);
                         message.extend_from_slice(&buf[..read as usize]);
                         match res {
-                            Err(e)
-                                if e.code() == ERROR_MORE_DATA.to_hresult()
-                                    && message.len() < 1024 * 1024 =>
-                            {
+                            Err(e) if e.code() == ERROR_MORE_DATA.to_hresult() && message.len() < 1024 * 1024 => {
                                 continue;
                             }
                             _ => break,
@@ -232,22 +222,11 @@ const REGISTERED_NAME: &str = "Seyro";
 pub fn registered_as_browser() -> bool {
     use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_SZ, RegGetValueW};
     use windows::core::PCWSTR;
-    let (key, value) = (
-        wide(r"Software\RegisteredApplications"),
-        wide(REGISTERED_NAME),
-    );
+    let (key, value) = (wide(r"Software\RegisteredApplications"), wide(REGISTERED_NAME));
     // SAFETY: только проверяем наличие значения; буфер не передаём.
     unsafe {
-        RegGetValueW(
-            HKEY_CURRENT_USER,
-            PCWSTR(key.as_ptr()),
-            PCWSTR(value.as_ptr()),
-            RRF_RT_REG_SZ,
-            None,
-            None,
-            None,
-        )
-        .is_ok()
+        RegGetValueW(HKEY_CURRENT_USER, PCWSTR(key.as_ptr()), PCWSTR(value.as_ptr()), RRF_RT_REG_SZ, None, None, None)
+            .is_ok()
     }
 }
 
@@ -264,20 +243,11 @@ pub fn open_default_apps_settings() -> bool {
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
     use windows::core::PCWSTR;
-    let uri = wide(&format!(
-        "ms-settings:defaultapps?registeredAppUser={REGISTERED_NAME}"
-    ));
+    let uri = wide(&format!("ms-settings:defaultapps?registeredAppUser={REGISTERED_NAME}"));
     let verb = wide("open");
     // SAFETY: строки завершены нулём и живут до конца вызова.
     let result = unsafe {
-        ShellExecuteW(
-            None,
-            PCWSTR(verb.as_ptr()),
-            PCWSTR(uri.as_ptr()),
-            PCWSTR::null(),
-            PCWSTR::null(),
-            SW_SHOWNORMAL,
-        )
+        ShellExecuteW(None, PCWSTR(verb.as_ptr()), PCWSTR(uri.as_ptr()), PCWSTR::null(), PCWSTR::null(), SW_SHOWNORMAL)
     };
     // По документации значение больше 32 — успех.
     result.0 as isize > 32
@@ -298,47 +268,23 @@ mod tests {
 
     #[test]
     fn links_pass_through() {
-        for u in [
-            "https://example.com/a?b=1",
-            "http://x.test",
-            "file:///C:/a.html",
-            "about:blank",
-            "HTTPS://X.TEST",
-        ] {
+        for u in ["https://example.com/a?b=1", "http://x.test", "file:///C:/a.html", "about:blank", "HTTPS://X.TEST"] {
             assert_eq!(arg_to_url(u, &cwd()).as_deref(), Some(u), "{u}");
         }
-        assert_eq!(
-            arg_to_url("\"https://q.test/\"", &cwd()).as_deref(),
-            Some("https://q.test/")
-        );
+        assert_eq!(arg_to_url("\"https://q.test/\"", &cwd()).as_deref(), Some("https://q.test/"));
     }
 
     #[test]
     fn flags_and_junk_are_ignored() {
-        for a in [
-            "",
-            "  ",
-            "--flag",
-            "-x",
-            "hello world",
-            "javascript:alert(1)",
-            "data:text/html,x",
-            "word",
-        ] {
+        for a in ["", "  ", "--flag", "-x", "hello world", "javascript:alert(1)", "data:text/html,x", "word"] {
             assert_eq!(arg_to_url(a, &cwd()), None, "{a}");
         }
     }
 
     #[test]
     fn bare_domain_becomes_https() {
-        assert_eq!(
-            arg_to_url("example.com", &cwd()).as_deref(),
-            Some("https://example.com")
-        );
-        assert_eq!(
-            arg_to_url("localhost:3000", &cwd()).as_deref(),
-            Some("http://localhost:3000")
-        );
+        assert_eq!(arg_to_url("example.com", &cwd()).as_deref(), Some("https://example.com"));
+        assert_eq!(arg_to_url("localhost:3000", &cwd()).as_deref(), Some("http://localhost:3000"));
     }
 
     #[test]
@@ -346,33 +292,20 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("page one.html"), "<p>x</p>").unwrap();
         let url = arg_to_url("page one.html", dir.path()).unwrap();
-        assert!(
-            url.starts_with("file:///") && url.ends_with("/page%20one.html"),
-            "{url}"
-        );
+        assert!(url.starts_with("file:///") && url.ends_with("/page%20one.html"), "{url}");
         let abs = dir.path().join("page one.html");
-        assert!(
-            arg_to_url(abs.to_str().unwrap(), &cwd())
-                .unwrap()
-                .starts_with("file:///")
-        );
+        assert!(arg_to_url(abs.to_str().unwrap(), &cwd()).unwrap().starts_with("file:///"));
     }
 
     #[test]
     fn urls_from_args_keeps_order_and_skips_junk() {
         let args = ["--x", "https://a.test", "nothing here", "b.test"].map(String::from);
-        assert_eq!(
-            urls_from_args(args, &cwd()),
-            ["https://a.test", "https://b.test"]
-        );
+        assert_eq!(urls_from_args(args, &cwd()), ["https://a.test", "https://b.test"]);
     }
 
     #[test]
     fn message_roundtrip() {
-        let urls = vec![
-            "https://a.test/".to_string(),
-            "file:///C:/x.html".to_string(),
-        ];
+        let urls = vec!["https://a.test/".to_string(), "file:///C:/x.html".to_string()];
         assert_eq!(decode(&encode(&urls)), urls);
         assert!(decode(&encode(&[])).is_empty());
     }
@@ -380,8 +313,7 @@ mod tests {
     #[test]
     fn decode_drops_dangerous_and_oversized() {
         let long = format!("https://a.test/{}", "x".repeat(MAX_URL_LEN));
-        let msg =
-            format!("javascript:alert(1)\r\ndata:text/html,<b>\n  https://ok.test/  \n{long}\n\n");
+        let msg = format!("javascript:alert(1)\r\ndata:text/html,<b>\n  https://ok.test/  \n{long}\n\n");
         assert_eq!(decode(msg.as_bytes()), ["https://ok.test/"]);
         let many: String = (0..100).map(|i| format!("https://t.test/{i}\n")).collect();
         assert_eq!(decode(many.as_bytes()).len(), MAX_URLS);
@@ -392,10 +324,6 @@ mod tests {
     fn pipe_name_is_safe() {
         let n = pipe_name();
         assert!(n.starts_with(r"\\.\pipe\seyro-"));
-        assert!(
-            n[r"\\.\pipe\".len()..]
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        );
+        assert!(n[r"\\.\pipe\".len()..].chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
     }
 }

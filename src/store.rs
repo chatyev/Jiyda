@@ -1,5 +1,6 @@
 //! Сохранение сессии (вкладки) и истории посещений на диск.
 
+#[cfg(test)]
 use crate::config::write_atomic;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -13,6 +14,22 @@ pub struct SavedTab {
     pub pinned_url: Option<String>,
     pub favicon: String,
     pub last_active: u64,
+    /// Страница отложена (Orbit → Later). В сессии пишется только true.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub later: bool,
+    /// Когда страницу открыли (0 — неизвестно, старая сессия).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub created_at: u64,
+    /// Страница, с которой открыли эту: индекс в том же списке сессии.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<usize>,
+    /// Когда закрыли (только у закрытых и архивированных).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub closed_at: u64,
+}
+
+fn is_zero(v: &u64) -> bool {
+    *v == 0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -67,15 +84,18 @@ pub struct SavedSplit {
 
 impl Session {
     pub fn load(path: &Path) -> Self {
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
     }
+    /// Синхронная запись — для тестов; браузер пишет через `config::Writer`.
+    #[cfg(test)]
     pub fn save(&self, path: &Path) {
-        if let Ok(s) = serde_json::to_string_pretty(self) {
+        if let Some(s) = self.to_json() {
             write_atomic(path, &s);
         }
+    }
+
+    pub fn to_json(&self) -> Option<String> {
+        serde_json::to_string_pretty(self).ok()
     }
 
     /// Забрать пространства. Сессия старого формата (без пространств)
@@ -124,20 +144,33 @@ const HISTORY_LIMIT: usize = 5000;
 
 impl History {
     pub fn load(path: &Path) -> Self {
-        let entries = std::fs::read_to_string(path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default();
+        let entries =
+            std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
         Self { entries, dirty: false }
     }
 
+    /// Синхронная запись — для тестов; браузер пишет через `config::Writer`.
+    #[cfg(test)]
     pub fn save(&mut self, path: &Path) {
-        if let Ok(s) = serde_json::to_string(&self.entries) {
+        if let Some(s) = self.to_json() {
             write_atomic(path, &s);
         }
         self.dirty = false;
     }
 
+    /// Для записи в фоне: данные и отметка «записано».
+    pub fn take_changes(&mut self) -> Option<String> {
+        if !std::mem::take(&mut self.dirty) {
+            return None;
+        }
+        self.to_json()
+    }
+
+    fn to_json(&self) -> Option<String> {
+        serde_json::to_string(&self.entries).ok()
+    }
+
+    #[cfg(test)]
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
@@ -157,7 +190,7 @@ impl History {
         } else {
             self.entries.push(HistEntry { url: url.into(), title: title.into(), ts, visits: 1 });
             if self.entries.len() > HISTORY_LIMIT {
-                self.entries.sort_by(|a, b| b.ts.cmp(&a.ts));
+                self.entries.sort_by_key(|e| std::cmp::Reverse(e.ts));
                 self.entries.truncate(HISTORY_LIMIT);
             }
         }
@@ -174,7 +207,7 @@ impl History {
     /// Последние записи для командной палитры.
     pub fn recent(&self, n: usize) -> Vec<&HistEntry> {
         let mut v: Vec<_> = self.entries.iter().collect();
-        v.sort_by(|a, b| b.ts.cmp(&a.ts));
+        v.sort_by_key(|e| std::cmp::Reverse(e.ts));
         v.truncate(n);
         v
     }
@@ -210,6 +243,37 @@ impl History {
         self.entries.clear();
         self.dirty = true;
     }
+
+    /// Удалить запись (из панели «История»); вернуть её, чтобы можно было отменить.
+    pub fn remove(&mut self, url: &str) -> Option<HistEntry> {
+        let i = self.entries.iter().position(|e| e.url == url)?;
+        self.dirty = true;
+        Some(self.entries.remove(i))
+    }
+
+    /// Вернуть удалённую запись (Undo). Если адрес за это время открыли снова,
+    /// посещения складываются.
+    pub fn restore(&mut self, entry: HistEntry) {
+        match self.entries.iter_mut().find(|e| e.url == entry.url) {
+            Some(e) => {
+                e.visits += entry.visits;
+                if e.title.is_empty() {
+                    e.title = entry.title;
+                }
+            }
+            None => self.entries.push(entry),
+        }
+        self.dirty = true;
+    }
+
+    /// Записи, открытые в пределах `window` секунд от `ts` (кроме самой `url`),
+    /// новые первыми: «Restore context» в истории.
+    pub fn around(&self, url: &str, ts: u64, window: u64, n: usize) -> Vec<&HistEntry> {
+        let mut v: Vec<_> = self.entries.iter().filter(|e| e.url != url && e.ts.abs_diff(ts) <= window).collect();
+        v.sort_by_key(|e| e.ts.abs_diff(ts));
+        v.truncate(n);
+        v
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -228,6 +292,11 @@ pub struct Download {
     pub path: String,
     pub state: DownloadState,
     pub ts: u64,
+    /// Ход загрузки: получено и всего байт (0 — неизвестно).
+    #[serde(default)]
+    pub received: u64,
+    #[serde(default)]
+    pub total: u64,
 }
 
 impl Download {
@@ -254,10 +323,8 @@ const DOWNLOADS_LIMIT: usize = 200;
 
 impl Downloads {
     pub fn load(path: &Path) -> Self {
-        let mut items: Vec<Download> = std::fs::read_to_string(path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default();
+        let mut items: Vec<Download> =
+            std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
         // Браузер закрыли посреди загрузки — она уже не завершится.
         for d in &mut items {
             if d.state == DownloadState::Running {
@@ -268,16 +335,30 @@ impl Downloads {
         Self { items, next_id }
     }
 
+    /// Синхронная запись — для тестов; браузер пишет через `config::Writer`.
+    #[cfg(test)]
     pub fn save(&self, path: &Path) {
-        if let Ok(s) = serde_json::to_string(&self.items) {
+        if let Some(s) = self.to_json() {
             write_atomic(path, &s);
         }
+    }
+
+    pub fn to_json(&self) -> Option<String> {
+        serde_json::to_string(&self.items).ok()
     }
 
     pub fn started(&mut self, url: &str, path: &str, ts: u64) {
         let id = self.next_id;
         self.next_id += 1;
-        self.items.push(Download { id, url: url.into(), path: path.into(), state: DownloadState::Running, ts });
+        self.items.push(Download {
+            id,
+            url: url.into(),
+            path: path.into(),
+            state: DownloadState::Running,
+            ts,
+            received: 0,
+            total: 0,
+        });
         if self.items.len() > DOWNLOADS_LIMIT {
             let extra = self.items.len() - DOWNLOADS_LIMIT;
             self.items.drain(..extra);
@@ -297,6 +378,9 @@ impl Downloads {
         };
         let d = &mut self.items[idx];
         d.state = state;
+        if ok && d.total > 0 {
+            d.received = d.total;
+        }
         if let Some(p) = path.filter(|p| !p.is_empty()) {
             d.path = p.into();
         }
@@ -307,17 +391,89 @@ impl Downloads {
         self.items.iter().find(|d| d.id == id)
     }
 
+    /// Ход идущей загрузки с этого адреса. true — нашлась.
+    pub fn progress(&mut self, url: &str, received: u64, total: u64) -> bool {
+        match self.items.iter_mut().rev().find(|d| d.url == url && d.state == DownloadState::Running) {
+            Some(d) => {
+                d.received = received;
+                d.total = total;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Убрать из списка (файл не трогается).
+    pub fn remove(&mut self, id: u64) -> bool {
+        let before = self.items.len();
+        self.items.retain(|d| d.id != id);
+        before != self.items.len()
+    }
+
     /// Новые сверху.
     pub fn recent(&self) -> impl Iterator<Item = &Download> {
         self.items.iter().rev()
     }
 }
 
+/// Значки сайтов по домену (без «www.»): data: URI с PNG, который отдал сам WebView.
+/// Нужны там, где страницы нет (история, New Page, закрытые) — интерфейс не грузит
+/// значки из сети сам. Недавно обновлённые — в конце; самые старые вытесняются.
+pub struct Favicons {
+    items: Vec<(String, String)>,
+    dirty: bool,
+}
+
+const FAVICONS_LIMIT: usize = 600;
+
+impl Favicons {
+    pub fn load(path: &Path) -> Self {
+        let items: Vec<(String, String)> =
+            std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let items = items.into_iter().filter(|(_, u)| u.starts_with("data:image/")).collect();
+        Self { items, dirty: false }
+    }
+
+    /// Синхронная запись — для тестов; браузер пишет через `config::Writer`.
+    #[cfg(test)]
+    pub fn save(&mut self, path: &Path) {
+        if let Some(s) = self.take_changes() {
+            write_atomic(path, &s);
+        }
+    }
+
+    /// Для записи в фоне: данные, если были изменения, и отметка «записано».
+    pub fn take_changes(&mut self) -> Option<String> {
+        if !std::mem::take(&mut self.dirty) {
+            return None;
+        }
+        serde_json::to_string(&self.items).ok()
+    }
+
+    pub fn get(&self, host: &str) -> Option<&str> {
+        self.items.iter().find(|(h, _)| h == host).map(|(_, u)| u.as_str())
+    }
+
+    /// Запомнить значок сайта. Принимается только data:image/ — никаких адресов в сети.
+    pub fn set(&mut self, host: &str, uri: &str) {
+        if host.is_empty() || !uri.starts_with("data:image/") {
+            return;
+        }
+        if self.get(host) == Some(uri) {
+            return;
+        }
+        self.items.retain(|(h, _)| h != host);
+        self.items.push((host.to_string(), uri.to_string()));
+        if self.items.len() > FAVICONS_LIMIT {
+            let extra = self.items.len() - FAVICONS_LIMIT;
+            self.items.drain(..extra);
+        }
+        self.dirty = true;
+    }
+}
+
 pub fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -459,6 +615,10 @@ mod tests {
             pinned_url: Some("https://a.test/home".into()),
             favicon: "https://a.test/favicon.ico".into(),
             last_active: 42,
+            later: true,
+            created_at: 40,
+            parent: Some(1),
+            closed_at: 0,
         };
         let s = Session {
             spaces: vec![
@@ -492,6 +652,9 @@ mod tests {
         assert!(t.pinned);
         assert_eq!(t.pinned_url.as_deref(), Some("https://a.test/home"));
         assert_eq!(t.last_active, 42);
+        assert!(t.later);
+        assert_eq!((t.created_at, t.parent), (40, Some(1)));
+        assert!(!main.tabs[1].later && main.tabs[1].parent.is_none());
         assert_eq!(main.active, Some(1));
         assert_eq!(main.closed[0].url, "https://old.test/");
         assert_eq!(main.splits, [SavedSplit { left: 0, right: 1, ratio: 0.3 }]);
@@ -561,6 +724,37 @@ mod tests {
     }
 
     #[test]
+    fn favicons_keep_only_data_uris_and_evict_oldest() {
+        let mut f = Favicons { items: vec![], dirty: false };
+        f.set("a.test", "https://a.test/favicon.ico");
+        f.set("", "data:image/png;base64,AA");
+        assert!(f.items.is_empty() && !f.dirty);
+        f.set("a.test", "data:image/png;base64,AA");
+        f.set("b.test", "data:image/png;base64,BB");
+        f.set("a.test", "data:image/png;base64,A2");
+        assert_eq!(f.get("a.test"), Some("data:image/png;base64,A2"));
+        assert_eq!(f.items.last().unwrap().0, "a.test");
+        for i in 0..FAVICONS_LIMIT {
+            f.set(&format!("h{i}.test"), "data:image/png;base64,CC");
+        }
+        assert_eq!(f.items.len(), FAVICONS_LIMIT);
+        assert_eq!(f.get("b.test"), None);
+    }
+
+    #[test]
+    fn favicons_roundtrip_drops_foreign_urls() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("favicons.json");
+        std::fs::write(&p, r#"[["a.test","data:image/png;base64,AA"],["b.test","https://b.test/x.ico"]]"#).unwrap();
+        let mut f = Favicons::load(&p);
+        assert_eq!(f.get("a.test"), Some("data:image/png;base64,AA"));
+        assert_eq!(f.get("b.test"), None);
+        f.set("c.test", "data:image/png;base64,CC");
+        f.save(&p);
+        assert_eq!(Favicons::load(&p).get("c.test"), Some("data:image/png;base64,CC"));
+    }
+
+    #[test]
     fn now_is_after_2020() {
         assert!(now() > 1_577_836_800);
     }
@@ -573,7 +767,8 @@ mod tests {
         b.visits = 2;
         let mut c = entry("https://example.com/a", 30);
         c.visits = 4;
-        let h = history(vec![a, b, c, entry("about:blank", 40), entry("file:///C:/x.html", 50), entry("not a url", 60)]);
+        let h =
+            history(vec![a, b, c, entry("about:blank", 40), entry("file:///C:/x.html", 50), entry("not a url", 60)]);
         let top = h.top_sites(10);
         let hosts: Vec<_> = top.iter().map(|s| (s.host.as_str(), s.visits)).collect();
         assert_eq!(hosts, [("github.com", 5), ("example.com", 4)]);
@@ -587,6 +782,36 @@ mod tests {
         let hosts: Vec<_> = h.top_sites(2).into_iter().map(|s| s.host).collect();
         assert_eq!(hosts, ["b.test", "c.test"]);
         assert!(history(vec![]).top_sites(5).is_empty());
+    }
+
+    #[test]
+    fn remove_and_restore_history_entry() {
+        let mut h = history(vec![entry("https://a/", 1), entry("https://b/", 2)]);
+        let e = h.remove("https://a/").unwrap();
+        assert!(h.is_dirty());
+        assert_eq!(h.entries.len(), 1);
+        assert!(h.remove("https://missing/").is_none());
+        h.restore(e);
+        assert_eq!(h.entries.len(), 2);
+        // Адрес открыли снова до отмены — запись одна, посещения сложены.
+        let e = h.remove("https://b/").unwrap();
+        h.visit("https://b/", "B");
+        h.restore(e);
+        let b: Vec<_> = h.entries.iter().filter(|e| e.url == "https://b/").collect();
+        assert_eq!((b.len(), b[0].visits, b[0].title.as_str()), (1, 2, "B"));
+    }
+
+    #[test]
+    fn around_finds_nearby_visits_closest_first() {
+        let h = history(vec![
+            entry("https://x/", 1000),
+            entry("https://a/", 1100),
+            entry("https://b/", 950),
+            entry("https://far/", 5000),
+        ]);
+        let urls: Vec<_> = h.around("https://x/", 1000, 600, 5).iter().map(|e| e.url.as_str()).collect();
+        assert_eq!(urls, ["https://b/", "https://a/"]);
+        assert_eq!(h.around("https://x/", 1000, 600, 1).len(), 1);
     }
 
     #[test]
@@ -658,6 +883,20 @@ mod tests {
         assert_eq!(d.recent().next().unwrap().url, "https://x/2");
         assert_eq!(d.get(ids[1]).unwrap().url, "https://x/1");
         assert!(d.get(999).is_none());
+    }
+
+    #[test]
+    fn progress_and_remove() {
+        let mut d = downloads();
+        d.started("https://x/a", "", 1);
+        assert!(d.progress("https://x/a", 10, 100));
+        assert!(!d.progress("https://x/b", 1, 1));
+        assert_eq!((d.items[0].received, d.items[0].total), (10, 100));
+        d.finished("https://x/a", None, true, 2);
+        assert_eq!(d.items[0].received, 100);
+        let id = d.items[0].id;
+        assert!(d.remove(id));
+        assert!(!d.remove(id));
     }
 
     #[test]

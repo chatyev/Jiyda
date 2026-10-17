@@ -19,7 +19,7 @@ const NAME_MAX: usize = 40;
 pub const COLORS: [&str; 7] = ["violet", "blue", "teal", "green", "orange", "rose", "gray"];
 
 pub fn default_name(id: u32) -> String {
-    if id == MAIN_ID { crate::i18n::tr("Основное").into() } else { crate::i18n::trf("Flow {}", &[&id]) }
+    if id == MAIN_ID { crate::i18n::tr("Personal").into() } else { crate::i18n::trf("Space {}", &[&id]) }
 }
 
 /// Имя от пользователя: без лишних пробелов и не длиннее NAME_MAX. None — пустое.
@@ -88,7 +88,7 @@ pub fn new_space(existing: &[(u32, &str)]) -> Option<SavedSpace> {
 
 /// Первый id вкладок пространства: у пространств непересекающиеся номера вкладок,
 /// потому что события от WebView приходят по номеру вкладки.
-pub fn tab_id_base(space_id: u32) -> u64 {
+pub fn page_id_base(space_id: u32) -> u64 {
     u64::from(space_id) * 1_000_000_000
 }
 
@@ -125,7 +125,7 @@ mod tests {
     fn normalize_fills_names_and_colors() {
         let out = normalize(vec![sp(1, "  ", "nope"), sp(5, "", "")]);
         assert_eq!(out[0].name, "Основное");
-        assert_eq!(out[1].name, "Flow 5");
+        assert_eq!(out[1].name, "Space 5");
         assert!(out.iter().all(|s| is_color(&s.color)));
     }
 
@@ -146,7 +146,7 @@ mod tests {
     fn new_space_takes_next_id_and_free_color() {
         let s = new_space(&[(1, "violet"), (4, "blue")]).unwrap();
         assert_eq!(s.id, 5);
-        assert_eq!(s.name, "Flow 5");
+        assert_eq!(s.name, "Space 5");
         assert_eq!(s.color, "teal");
         assert!(s.tabs.is_empty());
     }
@@ -165,17 +165,9 @@ mod tests {
 
     #[test]
     fn main_space_keeps_old_profile_folder() {
-        let dir = std::path::Path::new(r"C:\D");
-        let paths = Paths {
-            config: dir.join("config.json"),
-            session: dir.join("session.json"),
-            history: dir.join("history.json"),
-            downloads: dir.join("downloads.json"),
-            webview_data: dir.join("webview"),
-            spaces: dir.join("spaces"),
-            extensions: dir.join("extensions"),
-            log: dir.join("seyro.log"),
-        };
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let paths = Paths::in_dir(dir);
         assert_eq!(profile_dir(&paths, MAIN_ID), dir.join("webview"));
         assert_eq!(profile_dir(&paths, 7), dir.join("spaces").join("7").join("webview"));
         assert_eq!(space_dir(&paths, 7), dir.join("spaces").join("7"));
@@ -183,7 +175,7 @@ mod tests {
 
     #[test]
     fn tab_ids_do_not_overlap_between_spaces() {
-        assert!(tab_id_base(2) > tab_id_base(1) + 100_000_000);
-        assert_eq!(tab_id_base(0), 0);
+        assert!(page_id_base(2) > page_id_base(1) + 100_000_000);
+        assert_eq!(page_id_base(0), 0);
     }
 }

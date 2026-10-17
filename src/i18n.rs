@@ -1,7 +1,6 @@
 //! Язык сообщений браузера: русский или английский — по языку Windows или настройке
-//! `"language"` в config.json. Ключ перевода — сама русская строка: если язык
-//! английский и перевод есть — берётся он, иначе русский текст. Подстановки — `{}`.
-//! Строки интерфейса переводит ui/index.html (свой словарь, тот же принцип).
+//! `"language"` в config.json. Ключ перевода — английская строка, как в интерфейсе
+//! (ui/js/i18n.js): для русского языка берётся перевод из таблицы. Подстановки — `{}`.
 
 use std::sync::OnceLock;
 
@@ -52,17 +51,17 @@ fn system() -> Lang {
     Lang::Ru
 }
 
-/// Перевод строки.
-pub fn tr(ru: &'static str) -> &'static str {
-    if lang() == Lang::Ru {
-        return ru;
+/// Перевод строки; ключ — английский текст.
+pub fn tr(en: &'static str) -> &'static str {
+    if lang() == Lang::En {
+        return en;
     }
-    STRINGS.iter().find(|(k, _)| *k == ru).map_or(ru, |(_, en)| en)
+    STRINGS.iter().find(|(k, _)| *k == en).map_or(en, |(_, ru)| ru)
 }
 
 /// Перевод строки с подстановками `{}` по порядку.
-pub fn trf(ru: &'static str, args: &[&dyn std::fmt::Display]) -> String {
-    fill(tr(ru), args)
+pub fn trf(en: &'static str, args: &[&dyn std::fmt::Display]) -> String {
+    fill(tr(en), args)
 }
 
 fn fill(template: &str, args: &[&dyn std::fmt::Display]) -> String {
@@ -81,45 +80,76 @@ fn fill(template: &str, args: &[&dyn std::fmt::Display]) -> String {
     out
 }
 
-/// Русская строка → английская.
+/// Английская строка → русская.
 const STRINGS: &[(&str, &str)] = &[
     // Пространства по умолчанию.
-    ("Основное", "Main"),
-    ("Flow {}", "Flow {}"),
+    ("Personal", "Основное"),
+    ("Space {}", "Space {}"),
     // Обновления.
-    ("У вас последняя версия Seyro ({})", "You have the latest version of Seyro ({})"),
-    ("Не удалось проверить обновления — нет связи с GitHub?", "Couldn't check for updates. Is GitHub reachable?"),
-    ("Не удалось скачать обновление", "Couldn't download the update"),
-    ("Не удалось запустить установщик обновления", "Couldn't start the update installer"),
-    // Вкладки и страницы.
-    ("Ошибка WebView2: {}", "WebView2 error: {}"),
-    ("Заблокировано: страница открывает слишком много вкладок", "Blocked: the page is opening too many tabs"),
-    ("Новая вкладка во Flow «{}»", "New tab in the \u{201c}{}\u{201d} Flow"),
-    ("Нет закрытых вкладок", "No closed tabs"),
-    ("Ссылка скопирована", "Link copied"),
-    ("Не удалось скопировать ссылку", "Couldn't copy the link"),
+    ("You have the latest version of Seyro ({})", "У вас последняя версия Seyro ({})"),
+    ("Couldn't check for updates. Is GitHub reachable?", "Не удалось проверить обновления — нет связи с GitHub?"),
+    ("Couldn't download the update", "Не удалось скачать обновление"),
+    ("Couldn't start the update installer", "Не удалось запустить установщик обновления"),
+    // Страницы.
+    ("WebView2 error: {}", "Ошибка WebView2: {}"),
+    ("Blocked: the page is opening too many pages", "Заблокировано: страница открывает слишком много вкладок"),
+    ("New page in \u{201c}{}\u{201d}", "Новая страница в «{}»"),
+    ("No closed pages", "Нет закрытых вкладок"),
+    ("Page closed", "Страница закрыта"),
+    ("Moved to Later", "Отложено в Later"),
+    ("Undo", "Отменить"),
+    ("Link copied", "Ссылка скопирована"),
+    ("Couldn't copy the link", "Не удалось скопировать ссылку"),
     // Пространства.
-    ("Больше {} Flows создать нельзя", "You can't have more than {} Flows"),
-    ("Flow «Основное» удалить нельзя", "The main Flow can't be deleted"),
-    ("Flow «{}» удалён", "Flow \u{201c}{}\u{201d} deleted"),
+    ("You can't have more than {} Spaces", "Больше {} пространств создать нельзя"),
+    ("The main Space can't be deleted", "Основное пространство удалить нельзя"),
+    ("Space \u{201c}{}\u{201d} deleted", "Пространство «{}» удалено"),
+    ("Moved to \u{201c}{}\u{201d}", "Перенесено в «{}»"),
     // Загрузки, история, данные.
-    ("Загрузка: {} (Ctrl+J — список)", "Downloading {} (Ctrl+J to see all)"),
-    ("Загружено: {}", "Downloaded {}"),
-    ("Загрузка не удалась: {}", "Download failed: {}"),
-    ("Файл не найден: возможно, его удалили или переместили", "File not found. It may have been moved or deleted"),
-    ("История очищена", "History cleared"),
-    ("Откройте любую вкладку в этом Flow и повторите", "Open any tab in this Flow and try again"),
-    ("Данные сайтов в «{}» очищены", "Site data in \u{201c}{}\u{201d} cleared"),
-    ("Не удалось очистить данные сайтов", "Couldn't clear site data"),
-    // Тема и система.
-    ("Тема: светлая", "Theme: light"),
-    ("Тема: тёмная", "Theme: dark"),
-    ("Тема: как в Windows", "Theme: same as Windows"),
+    ("File not found. It may have been moved or deleted", "Файл не найден: возможно, его удалили или переместили"),
+    ("This download can't be cancelled anymore", "Эту загрузку уже нельзя отменить"),
+    ("History", "История"),
+    ("History cleared", "История очищена"),
+    ("Removed from history", "Удалено из истории"),
+    ("Opened {} pages from the same time", "Открыто страниц из того же времени: {}"),
+    ("Open any page in this Space and try again", "Откройте любую страницу в этом пространстве и повторите"),
+    ("Site data in \u{201c}{}\u{201d} cleared", "Данные сайтов в «{}» очищены"),
+    ("Couldn't clear site data", "Не удалось очистить данные сайтов"),
+    // Настройки.
     (
-        "Сначала установите Seyro установщиком — он добавит его в список браузеров Windows",
-        "Install Seyro with its installer first: it adds Seyro to Windows' list of browsers",
+        "The search address must start with https:// and contain %s",
+        "Адрес поиска должен начинаться с https:// и содержать %s",
     ),
-    ("Не удалось открыть «Параметры»", "Couldn't open Settings"),
+    ("That folder doesn't exist", "Такой папки нет"),
+    (
+        "This shortcut can't be used: it needs Ctrl or Alt (or F1\u{2013}F24)",
+        "Это сочетание нельзя назначить: нужен Ctrl или Alt (или F1–F24)",
+    ),
+    ("This change takes effect after restarting Seyro", "Изменение вступит в силу после перезапуска Seyro"),
+    ("Key removed", "Ключ удалён"),
+    ("Key saved in Windows Credential Manager", "Ключ сохранён в диспетчере учётных данных Windows"),
+    ("Couldn't save the key", "Не удалось сохранить ключ"),
+    // Тема и система.
+    ("Theme: light", "Тема: светлая"),
+    ("Theme: dark", "Тема: тёмная"),
+    ("Theme: same as Windows", "Тема: как в Windows"),
+    (
+        "Install Seyro with its installer first: it adds Seyro to Windows' list of browsers",
+        "Сначала установите Seyro установщиком — он добавит его в список браузеров Windows",
+    ),
+    ("Couldn't open Settings", "Не удалось открыть «Параметры»"),
+    ("Invalid value", "Недопустимое значение"),
+    // Ask Seyro.
+    (
+        "The API key was rejected. Check it in Settings \u{2192} AI Assistant.",
+        "Ключ API не принят. Проверьте его в «Настройки \u{2192} AI Assistant».",
+    ),
+    ("Rate limit reached. Try again in a moment.", "Слишком много запросов. Попробуйте чуть позже."),
+    ("Claude is overloaded right now. Try again in a moment.", "Claude сейчас перегружен. Попробуйте чуть позже."),
+    ("Claude declined this request.", "Claude отказался отвечать на этот запрос."),
+    ("Claude returned an empty answer.", "Claude вернул пустой ответ."),
+    ("answer cut off", "ответ обрезан"),
+    ("Couldn't reach Claude ({})", "Нет связи с Claude ({})"),
 ];
 
 #[cfg(test)]
@@ -136,19 +166,70 @@ mod tests {
     }
 
     #[test]
-    fn default_language_is_russian_and_keeps_text() {
+    fn default_language_is_russian() {
         assert_eq!(lang(), Lang::Ru);
-        assert_eq!(tr("Ссылка скопирована"), "Ссылка скопирована");
-        assert_eq!(trf("Flow «{}» удалён", &[&"Работа"]), "Flow «Работа» удалён");
+        assert_eq!(tr("Link copied"), "Ссылка скопирована");
+        assert_eq!(trf("Space \u{201c}{}\u{201d} deleted", &[&"Работа"]), "Пространство «Работа» удалено");
+        // Перевода нет — английский текст как есть.
+        assert_eq!(tr("no such string"), "no such string");
+    }
+
+    /// Литерал из исходника → строка: раскрыть `\u{…}`.
+    fn unescape(lit: &str) -> String {
+        let mut out = String::new();
+        let mut rest = lit;
+        while let Some(at) = rest.find("\\u{") {
+            out.push_str(&rest[..at]);
+            let end = at + rest[at..].find('}').unwrap();
+            let code = u32::from_str_radix(&rest[at + 3..end], 16).unwrap();
+            out.push(char::from_u32(code).unwrap());
+            rest = &rest[end + 1..];
+        }
+        out + rest
+    }
+
+    /// У каждой строки `tr("…")`/`trf("…")` в коде есть русский перевод.
+    #[test]
+    fn every_used_string_is_translated() {
+        fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            for e in std::fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, out);
+                } else if p.extension().is_some_and(|x| x == "rs") {
+                    out.push(p);
+                }
+            }
+        }
+        let mut files = Vec::new();
+        walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+        let mut used = 0;
+        for f in files.iter().filter(|f| !f.ends_with("i18n.rs")) {
+            let text = std::fs::read_to_string(f).unwrap();
+            for start in ["tr(\"", "trf(\""] {
+                for (at, _) in text.match_indices(start) {
+                    // Только целое имя: не push_str("…").
+                    if text[..at].ends_with(|c: char| c.is_alphanumeric() || c == '_') {
+                        continue;
+                    }
+                    let rest = &text[at + start.len()..];
+                    let key = &rest[..rest.find('"').unwrap()];
+                    let key = unescape(key);
+                    assert!(STRINGS.iter().any(|(en, _)| *en == key), "нет перевода: {key} ({})", f.display());
+                    used += 1;
+                }
+            }
+        }
+        assert!(used > 20, "строки не найдены: {used}");
     }
 
     #[test]
     fn table_is_consistent() {
-        for (i, (ru, en)) in STRINGS.iter().enumerate() {
-            assert_eq!(ru.matches("{}").count(), en.matches("{}").count(), "{ru}");
-            // В английском переводе не осталось кириллицы.
-            assert!(!en.is_empty() && !en.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "{en}");
-            assert!(STRINGS[..i].iter().all(|(k, _)| k != ru), "повтор: {ru}");
+        for (i, (en, ru)) in STRINGS.iter().enumerate() {
+            assert_eq!(ru.matches("{}").count(), en.matches("{}").count(), "{en}");
+            // В английском ключе нет кириллицы.
+            assert!(!ru.is_empty() && !en.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "{en}");
+            assert!(STRINGS[..i].iter().all(|(k, _)| k != en), "повтор: {en}");
         }
     }
 

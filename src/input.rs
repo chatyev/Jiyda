@@ -19,13 +19,7 @@ pub fn resolve(text: &str, search_url: &str) -> Option<String> {
         return Some(search(t, search_url));
     }
 
-    let host = lower
-        .split(['/', '?', '#'])
-        .next()
-        .unwrap_or("")
-        .rsplit('@')
-        .next()
-        .unwrap_or("");
+    let host = lower.split(['/', '?', '#']).next().unwrap_or("").rsplit('@').next().unwrap_or("");
     let host_no_port = host.split(':').next().unwrap_or("");
 
     if host_no_port == "localhost" || is_ipv4(host_no_port) {
@@ -48,11 +42,7 @@ fn is_ipv4(s: &str) -> bool {
 
 fn search(q: &str, search_url: &str) -> String {
     let encoded: String = url::form_urlencoded::byte_serialize(q.as_bytes()).collect();
-    if search_url.contains("%s") {
-        search_url.replace("%s", &encoded)
-    } else {
-        format!("{search_url}{encoded}")
-    }
+    if search_url.contains("%s") { search_url.replace("%s", &encoded) } else { format!("{search_url}{encoded}") }
 }
 
 #[cfg(test)]

@@ -4,12 +4,25 @@ use std::fs::OpenOptions;
 use std::path::Path;
 
 use simplelog::{
-    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, SharedLogger, TermLogger,
-    TerminalMode, WriteLogger,
+    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, SharedLogger, TermLogger, TerminalMode, WriteLogger,
 };
 
 /// Больше этого размера журнал при запуске переносится в seyro.old.log.
 const MAX_LOG_SIZE: u64 = 1024 * 1024;
+
+/// Для вызовов, ошибка которых не мешает работе (страница закрылась, WebView занят),
+/// но пригодится в журнале при разборе: `wv.reload().or_log("reload")`.
+pub trait OrLog {
+    fn or_log(self, what: &str);
+}
+
+impl<T, E: std::fmt::Display> OrLog for Result<T, E> {
+    fn or_log(self, what: &str) {
+        if let Err(e) = self {
+            log::debug!("{what}: {e}");
+        }
+    }
+}
 
 pub fn init(path: &Path) {
     if std::fs::metadata(path).is_ok_and(|m| m.len() > MAX_LOG_SIZE) {

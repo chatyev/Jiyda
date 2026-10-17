@@ -1,18 +1,29 @@
 // В релизной сборке под Windows не показываем консольное окно.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod ai;
 mod app;
+mod command;
 mod config;
+mod frame;
 mod hotkeys;
 mod i18n;
 mod input;
 mod instance;
+mod ipc;
+mod keymap;
 mod limit;
 mod logging;
+mod net;
+mod orbit;
+mod page_list;
+mod permissions;
+mod settings;
+mod shield;
 mod spaces;
 mod store;
-mod tabs;
 mod update;
+mod webhooks;
 
 use app::{App, UserEvent};
 use tao::event::{Event, WindowEvent};
@@ -40,7 +51,9 @@ fn main() {
         Ok(a) => a,
         Err(e) => {
             log::error!("Не удалось запустить WebView2: {e}");
-            log::error!("Проверьте, что установлен WebView2 Runtime: https://developer.microsoft.com/microsoft-edge/webview2/");
+            log::error!(
+                "Проверьте, что установлен WebView2 Runtime: https://developer.microsoft.com/microsoft-edge/webview2/"
+            );
             std::process::exit(1);
         }
     };
@@ -64,18 +77,16 @@ fn main() {
                 WindowEvent::Focused(true) => app.on_focus(),
                 _ => {}
             },
-            Event::UserEvent(ev) => {
-                app.handle(ev);
-                // Окно без рамки закрывается кнопкой в интерфейсе.
-                if app.exit_requested() {
-                    app.shutdown();
-                    *control_flow = ControlFlow::Exit;
-                    return;
-                }
-            }
+            Event::UserEvent(ev) => app.handle(ev),
             // Все события пачки обработаны — время для отложенных дел.
             Event::MainEventsCleared => app.tick(),
             _ => {}
+        }
+        // Закрыть просили не окном (команда, обновление) — выходим после любой обработки.
+        if app.exit_requested() {
+            app.shutdown();
+            *control_flow = ControlFlow::Exit;
+            return;
         }
         if *control_flow != ControlFlow::Exit {
             *control_flow = ControlFlow::WaitUntil(app.next_wakeup());

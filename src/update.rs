@@ -90,101 +90,13 @@ pub fn download(release: &Release, dir: &Path) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-#[cfg(windows)]
+/// GET с ответом 200 — иначе ошибка.
 fn http_get(url: &str, max_bytes: usize) -> Result<Vec<u8>, String> {
-    use std::ffi::c_void;
-    use windows::Win32::Networking::WinHttp::{
-        INTERNET_DEFAULT_HTTPS_PORT, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_FLAG_SECURE, WINHTTP_QUERY_FLAG_NUMBER,
-        WINHTTP_QUERY_STATUS_CODE, WinHttpCloseHandle, WinHttpConnect, WinHttpOpen, WinHttpOpenRequest, WinHttpQueryHeaders,
-        WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest,
-    };
-    use windows::core::PCWSTR;
-
-    /// Дескриптор WinHTTP, который закрывается сам.
-    struct Handle(*mut c_void);
-    impl Drop for Handle {
-        fn drop(&mut self) {
-            // SAFETY: дескриптор получен от WinHTTP и закрывается один раз.
-            unsafe {
-                let _ = WinHttpCloseHandle(self.0);
-            }
-        }
+    let r = crate::net::https("GET", url, &[], None, max_bytes, std::time::Duration::from_secs(60))?;
+    if r.status != 200 {
+        return Err(format!("сервер ответил {}", r.status));
     }
-    let open = |h: *mut c_void, what: &str| {
-        if h.is_null() { Err(format!("{what}: {}", windows::core::Error::from_thread())) } else { Ok(Handle(h)) }
-    };
-    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-
-    let u = url::Url::parse(url).map_err(|e| e.to_string())?;
-    if u.scheme() != "https" {
-        return Err("только https".into());
-    }
-    let host = wide(u.host_str().ok_or("в адресе нет сервера")?);
-    let mut path = u.path().to_string();
-    if let Some(q) = u.query() {
-        path.push('?');
-        path.push_str(q);
-    }
-    let (path, agent, verb) = (wide(&path), wide(&format!("Seyro/{CURRENT}")), wide("GET"));
-
-    // SAFETY: последовательность вызовов WinHTTP с живыми дескрипторами и строками,
-    // завершёнными нулём; буферы — свои и нужного размера.
-    unsafe {
-        // GitHub требует User-Agent — им служит имя приложения.
-        let session = open(
-            WinHttpOpen(PCWSTR(agent.as_ptr()), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, PCWSTR::null(), PCWSTR::null(), 0),
-            "WinHttpOpen",
-        )?;
-        let port = u.port().unwrap_or(INTERNET_DEFAULT_HTTPS_PORT);
-        let connect = open(WinHttpConnect(session.0, PCWSTR(host.as_ptr()), port, 0), "соединение")?;
-        let request = open(
-            WinHttpOpenRequest(
-                connect.0,
-                PCWSTR(verb.as_ptr()),
-                PCWSTR(path.as_ptr()),
-                PCWSTR::null(),
-                PCWSTR::null(),
-                std::ptr::null(),
-                WINHTTP_FLAG_SECURE,
-            ),
-            "запрос",
-        )?;
-        WinHttpSendRequest(request.0, None, None, 0, 0, 0).map_err(|e| format!("отправка запроса: {e}"))?;
-        WinHttpReceiveResponse(request.0, std::ptr::null_mut()).map_err(|e| format!("ответ сервера: {e}"))?;
-        let (mut status, mut len) = (0u32, 4u32);
-        WinHttpQueryHeaders(
-            request.0,
-            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            PCWSTR::null(),
-            Some(&mut status as *mut u32 as *mut c_void),
-            &mut len,
-            std::ptr::null_mut(),
-        )
-        .map_err(|e| format!("код ответа: {e}"))?;
-        if status != 200 {
-            return Err(format!("сервер ответил {status}"));
-        }
-        let mut body = Vec::new();
-        let mut buf = vec![0u8; 64 * 1024];
-        loop {
-            let mut read = 0u32;
-            WinHttpReadData(request.0, buf.as_mut_ptr() as *mut c_void, buf.len() as u32, &mut read)
-                .map_err(|e| format!("чтение ответа: {e}"))?;
-            if read == 0 {
-                break;
-            }
-            body.extend_from_slice(&buf[..read as usize]);
-            if body.len() > max_bytes {
-                return Err("ответ слишком большой".into());
-            }
-        }
-        Ok(body)
-    }
-}
-
-#[cfg(not(windows))]
-fn http_get(_url: &str, _max_bytes: usize) -> Result<Vec<u8>, String> {
-    Err("автообновление есть только в Windows".into())
+    Ok(r.body)
 }
 
 #[cfg(test)]
@@ -223,7 +135,11 @@ mod tests {
     #[test]
     fn latest_release_with_installer() {
         let url = "https://github.com/chatyev/seyro/releases/download/v0.4.0/SeyroSetup-0.4.0.exe";
-        let assets = [asset("notes.txt", "https://github.com/chatyev/seyro/releases/download/v0.4.0/notes.txt"), asset("SeyroSetup-0.4.0.exe", url)].join(",");
+        let assets = [
+            asset("notes.txt", "https://github.com/chatyev/seyro/releases/download/v0.4.0/notes.txt"),
+            asset("SeyroSetup-0.4.0.exe", url),
+        ]
+        .join(",");
         let r = parse_latest(&release_json("v0.4.0", &assets, "")).unwrap();
         assert_eq!(r, Release { version: "0.4.0".into(), url: url.into() });
     }
