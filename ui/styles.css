@@ -23,12 +23,12 @@
   --text-2: #9DA6B2;
   --text-3: #7A8390; /* muted; чуть светлее #69727E, чтобы на --s1 был контраст AA для мелкого текста */
   /* Акцент и состояния */
-  --accent: #7CB7FF;
+  --accent: #9CCB7B; /* зелёный листа из значка Jiyda */
   --accent-ink: #0B0F14;
   --hover: rgba(255, 255, 255, 0.05);
   --press: rgba(255, 255, 255, 0.08);
-  --sel: rgba(124, 183, 255, 0.10);
-  --sel-line: rgba(124, 183, 255, 0.30);
+  --sel: rgba(156, 203, 123, 0.10);
+  --sel-line: rgba(156, 203, 123, 0.30);
   --ok: #4CC38A;
   --warn: #E5B454;
   --danger: #F2555A;
@@ -39,9 +39,9 @@
   /* Всплывающее над страницей: тень короче запаса региона (data-hit), иначе её срежет край. */
   --shadow-pop: 0 6px 16px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.25);
   --focus: 0 0 0 2px var(--accent);
-  --grad-a: #0F1A2A;
-  --grad-b: #0B1220;
-  --grad-c: #13202B;
+  --grad-a: #101C17;
+  --grad-b: #0B130F;
+  --grad-c: #13211B;
 
   /* Геометрия */
   --r-sm: 8px;
@@ -70,12 +70,12 @@
   --text: #10151C;
   --text-2: #4A5361;
   --text-3: #636C79;
-  --accent: #1F6FD1;
+  --accent: #3B6E2C; /* тёмный зелёный листа: контраст 6:1 на белом */
   --accent-ink: #FFFFFF;
   --hover: rgba(15, 23, 42, 0.05);
   --press: rgba(15, 23, 42, 0.08);
-  --sel: rgba(31, 111, 209, 0.10);
-  --sel-line: rgba(31, 111, 209, 0.35);
+  --sel: rgba(59, 110, 44, 0.10);
+  --sel-line: rgba(59, 110, 44, 0.35);
   --ok: #1E8E5A;
   --warn: #A86B00;
   --danger: #C4314B;
@@ -84,9 +84,9 @@
   --shadow: 0 24px 64px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
   --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
   --shadow-pop: 0 6px 16px rgba(15, 23, 42, 0.14), 0 1px 3px rgba(15, 23, 42, 0.10);
-  --grad-a: #E6EEF8;
+  --grad-a: #E8F0E3;
   --grad-b: #F4F1EC;
-  --grad-c: #E9F1F2;
+  --grad-c: #EAF2EA;
   color-scheme: light;
 }
 
@@ -306,6 +306,9 @@ body.fullscreen .stage { top: 0; }
 .tile:hover { background: color-mix(in srgb, var(--s1) 70%, transparent); color: var(--text); }
 .tile .tile-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--s2) 92%, transparent); border: 1px solid var(--line); overflow: hidden; }
 .tile .tile-ico img { width: 22px; height: 22px; }
+/* Белый значок на светлой плитке и чёрный на тёмной — плитка цвета текста (см. .fav[data-tone]). */
+:root[data-theme="light"] .tile .tile-ico[data-tone="light"],
+:root[data-theme="dark"] .tile .tile-ico[data-tone="dark"] { background: var(--text); border-color: transparent; }
 .tile .tile-ico .letter { font: 600 15px/1 var(--font); color: var(--text-2); }
 .tile .tile-name { max-width: 76px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .home-clock { position: absolute; left: 32px; bottom: 28px; }

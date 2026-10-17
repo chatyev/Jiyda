@@ -31,8 +31,11 @@ import { S } from './core.js';
   // Значок — только из кэша ядра (data:); из сети New Page ничего не грузит.
   function tile(name, url, favicon) {
     const ico = S.h('span', { class: 'tile-ico' });
-    if (favicon && favicon.startsWith('data:image/')) ico.append(S.h('img', { src: favicon, alt: '', draggable: false }));
-    else ico.append(S.h('span', { class: 'letter', text: name[0].toUpperCase() }));
+    if (favicon && favicon.startsWith('data:image/')) {
+      const img = S.h('img', { src: favicon, alt: '', draggable: false });
+      S.markTone(img, ico);
+      ico.append(img);
+    } else ico.append(S.h('span', { class: 'letter', text: name[0].toUpperCase() }));
     return S.h('button', { class: 'tile', title: url, on: { click: () => S.post({ type: 'navigate', text: url, mode: 'new' }) } },
       ico, S.h('span', { class: 'tile-name', text: name }));
   }

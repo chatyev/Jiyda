@@ -301,6 +301,12 @@ const S = (() => {
     return tone;
   }
 
+  // Пометить el тоном значка img (data-tone), когда картинка загрузится; плашку рисует CSS.
+  function markTone(img, el) {
+    const mark = () => { const tone = toneOf(img); if (tone) el.dataset.tone = tone; };
+    if (img.complete && img.naturalWidth) mark(); else img.addEventListener('load', mark, { once: true });
+  }
+
   function fav(p, cls = '') {
     const box = h('span', { class: 'fav ' + cls, attrs: { 'aria-hidden': 'true' } });
     const letter = () => { box.classList.remove('img'); box.textContent = ((p.title || host(p.url) || '?').trim()[0] || '?').toUpperCase(); };
@@ -308,8 +314,7 @@ const S = (() => {
     if (src) {
       const img = h('img', { src, alt: '', draggable: false });
       img.onerror = () => { img.remove(); letter(); };
-      const mark = () => { const tone = toneOf(img); if (tone) box.dataset.tone = tone; };
-      if (img.complete && img.naturalWidth) mark(); else img.addEventListener('load', mark, { once: true });
+      markTone(img, box);
       box.classList.add('img');
       box.append(img);
     } else letter();
@@ -346,7 +351,7 @@ const S = (() => {
     get state() { return state; },
     space, pagesHere, page, activePage, splitOf, colorOf, SPACE_COLORS,
     layers, holdKeyboard, placeAt, show, hide, afterMotion, activeOption,
-    host, splitUrl, ago, size, time, fav, titleOf, keyOf, withKey, nowSec,
+    host, splitUrl, ago, size, time, fav, markTone, titleOf, keyOf, withKey, nowSec,
     cmd: (k) => post({ type: 'cmd', k }),
     watchPosts: (fn) => { onPost = fn; },
     applyTheme,

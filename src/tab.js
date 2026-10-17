@@ -61,10 +61,10 @@
     // Цвета — те же, что в ui/styles.css (--s2, --text, --line-2, --hover, --accent, --shadow-pop).
     // Тема страницы совпадает с темой Jiyda (ядро задаёт её WebView), и при смене панель перекрашивается сама.
     root.innerHTML = `<style>
-      :host{--bg:#ffffff;--fg:#10151C;--line:rgba(15,23,42,.12);--hover:rgba(15,23,42,.06);--accent:#1F6FD1;
+      :host{--bg:#ffffff;--fg:#10151C;--line:rgba(15,23,42,.12);--hover:rgba(15,23,42,.06);--accent:#3B6E2C;
         --shadow:0 6px 16px rgba(15,23,42,.14),0 1px 3px rgba(15,23,42,.10)}
       @media (prefers-color-scheme: dark){:host{--bg:#151B23;--fg:#F4F6F8;--line:rgba(255,255,255,.10);
-        --hover:rgba(255,255,255,.07);--accent:#7CB7FF;--shadow:0 6px 16px rgba(0,0,0,.34),0 1px 3px rgba(0,0,0,.25)}}
+        --hover:rgba(255,255,255,.07);--accent:#9CCB7B;--shadow:0 6px 16px rgba(0,0,0,.34),0 1px 3px rgba(0,0,0,.25)}}
       .bar{display:flex;gap:2px;padding:4px;border-radius:10px;font:500 12px/1 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
         background:var(--bg);color:var(--fg);border:1px solid var(--line);box-shadow:var(--shadow);
         opacity:0;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease}
