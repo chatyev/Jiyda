@@ -1,0 +1,43 @@
+# Проверка зависимостей (cargo-deny): уязвимости по базе RustSec — то же, что cargo audit,
+# — лицензии, повторы и источники. Запускается в CI (.github/workflows/windows.yml);
+# локально: cargo deny check.
+
+[graph]
+# Jiyda собирается только под Windows: зависимости других платформ не проверяем.
+targets = ["x86_64-pc-windows-msvc"]
+
+[advisories]
+# Уязвимости и отозванные (yanked) версии — ошибка; заброшенные крейты — предупреждение.
+yanked = "deny"
+unmaintained = "workspace"
+
+[licenses]
+# Все разрешительные: годятся и для открытого, и для закрытого Jiyda.
+# MPL-2.0 (option-ext, через dirs) — копилефт на уровне файлов: открывать пришлось бы
+# только свои изменения в файлах самого крейта; мы их не меняем.
+# Unicode-3.0 — данные ICU для международных доменов (idna).
+allow = [
+    "Apache-2.0",
+    "CC0-1.0",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.93
+
+[licenses.private]
+# Сам Jiyda не публикуется на crates.io (publish = false): своя лицензия — отдельное решение.
+ignore = true
+
+[bans]
+# Две версии одного крейта — не ошибка (так бывает у windows-*), но видно в отчёте.
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+# Только crates.io: никаких зависимостей из чужих git-репозиториев и реестров.
+unknown-registry = "deny"
+unknown-git = "deny"
