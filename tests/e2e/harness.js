@@ -103,6 +103,17 @@
       await t.waitFor(() => S.state.pages.length === 0, 'закрытие всех страниц');
       t.post({ type: 'clear_closed' });
       await t.waitFor(() => !(S.state.closed || []).length, 'очистка закрытых');
+      // Запомненные разрешения сайтов («Разрешать всегда», «Запретить»): иначе следующий
+      // тест не увидит запроса.
+      const perms = await new Promise((resolve) => {
+        const done = (s) => resolve((s && s.permissions) || {});
+        S.on('data:settings', done);
+        t.post({ type: 'get', what: 'settings' });
+        setTimeout(() => resolve({}), 2000);
+      });
+      for (const [origin, kinds] of Object.entries(perms)) {
+        for (const kind of Object.keys(kinds || {})) t.post({ type: 'permission_revoke', origin, kind });
+      }
       S.layers.closeAll();
       await sleep(100);
     },
@@ -111,14 +122,15 @@
   window.E2E = {
     t,
     test(name, fn, opts = {}) { tests.push({ name, fn, timeout: opts.timeout || 30000, skip: opts.skip }); },
-    async run(filter = '') {
+    /// `reset: false` — для проверок после перезапуска: состояние нужно как есть.
+    async run(filter = '', { reset = true } = {}) {
       let pass = 0, fail = 0, skip = 0;
       const re = filter ? new RegExp(filter, 'i') : null;
       for (const tc of tests) {
         if ((re && !re.test(tc.name)) || tc.skip) { skip++; log(`E2E SKIP ${tc.name}${tc.skip ? ' ⟶ ' + tc.skip : ''}`); continue; }
         const t0 = Date.now();
         try {
-          await t.reset();
+          if (reset) await t.reset();
           await Promise.race([
             tc.fn(t),
             sleep(tc.timeout).then(() => { throw new AssertionError(`тест не уложился в ${tc.timeout} мс`); }),

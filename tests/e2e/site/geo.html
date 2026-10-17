@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Permission Page</title></head>
+<body>
+<h1>Permission Page</h1>
+<p>Asks for location; the answer is stored in window.__geo: "granted", "denied" or "error:N".</p>
+<script>
+window.__geo = 'pending';
+function ask() {
+  navigator.geolocation.getCurrentPosition(
+    () => { window.__geo = 'granted'; },
+    (e) => { window.__geo = e.code === 1 ? 'denied' : 'error:' + e.code; },
+    { timeout: 4000 });
+}
+</script>
+</body></html>

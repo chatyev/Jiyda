@@ -28,10 +28,13 @@ E2E.test('layers: Escape closes the top layer', async (t) => {
   await t.waitFor(() => !t.layerOpen('palette'), 'палитра закрыта по Esc');
 });
 
-E2E.test('layers: theme toggles and comes back', async (t) => {
-  const before = document.documentElement.dataset.theme;
-  t.cmd('theme');
-  await t.waitFor(() => document.documentElement.dataset.theme && document.documentElement.dataset.theme !== before, 'тема сменилась');
-  t.cmd('theme');
-  await t.waitFor(() => t.state().theme, 'тема в состоянии');
+E2E.test('layers: theme command cycles system → light → dark → system', async (t) => {
+  // Начинаем с «как в Windows» — от темы самой Windows (на CI светлая) тест не зависит.
+  t.post({ type: 'setting', key: 'theme', value: 'system' });
+  await t.waitFor(() => t.state().theme === 'system', 'как в Windows');
+  for (const want of ['light', 'dark', 'system']) {
+    t.cmd('theme');
+    await t.waitFor(() => t.state().theme === want, `тема ${want}`);
+    if (want !== 'system') t.eq(document.documentElement.dataset.theme, want, 'интерфейс перекрасился');
+  }
 });
