@@ -1,4 +1,4 @@
-// ai.js — Ask Seyro: появляется только по запросу (кнопка ✦, Ctrl+Shift+A, палитра,
+// ai.js — Ask Jiyda: появляется только по запросу (кнопка ✦, Ctrl+Shift+A, палитра,
 // выделенный текст, несколько страниц в Orbit). Постоянной панели ИИ нет.
 // Работает с Claude по ключу Anthropic API пользователя (Settings → AI Assistant);
 // текст страницы отправляется только когда пользователь сам нажал действие или спросил.
@@ -129,14 +129,14 @@ import { S } from './core.js';
 
   function draw() {
     S.fill(head, 
-      S.h('h2', {}, S.icon('sparkle', 'i16'), 'Ask Seyro'),
+      S.h('h2', {}, S.icon('sparkle', 'i16'), 'Ask Jiyda'),
       thread.length ? S.iconBtn('undo', S.t('New conversation'), () => { thread = []; draw(); }, 'sm') : null,
       S.iconBtn('x', S.t('Close'), () => S.layers.close('ask'), 'sm'));
-    pop.setAttribute('aria-label', 'Ask Seyro');
+    pop.setAttribute('aria-label', 'Ask Jiyda');
     drawCtx();
     if (!ready()) {
       S.fill(body, S.h('div', { class: 'ask-setup' },
-        S.h('p', { text: S.t('Ask Seyro uses Claude by Anthropic with your own API key. Page text is sent to Anthropic only when you ask a question or press an action.') }),
+        S.h('p', { text: S.t('Ask Jiyda uses Claude by Anthropic with your own API key. Page text is sent to Anthropic only when you ask a question or press an action.') }),
         S.h('button', { class: 'btn primary', text: S.t('Set up in Settings'), on: { click: () => S.layers.open('settings', { section: 'ai' }) } })));
       inputRow.hidden = true;
       note.hidden = true;
@@ -190,7 +190,7 @@ import { S } from './core.js';
   pop.tabIndex = -1;
   S.on('render', () => { if (S.layers.isOpen('ask')) { drawCtx(); } });
   S.on('command:ask', () => S.layers.toggle('ask', {}));
-  // Панель над выделенным текстом на странице: Explain / Translate / Ask Seyro.
+  // Панель над выделенным текстом на странице: Explain / Translate / Ask Jiyda.
   S.on('command:ask_selection', (d) => {
     const map = { explain: 'explain', translate: 'translate', ask: null };
     S.layers.open('ask', { selection: d.text, action: map[d.action] || undefined });

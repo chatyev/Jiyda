@@ -1,6 +1,6 @@
 //! Разрешения сайтов: камера, микрофон, местоположение, уведомления…
 //!
-//! Запрос сайта WebView2 передаёт в `PermissionRequested`; Seyro откладывает ответ
+//! Запрос сайта WebView2 передаёт в `PermissionRequested`; Jiyda откладывает ответ
 //! и показывает свою подсказку под адресной строкой: «Allow once» (только сейчас),
 //! «Always allow» и «Block» (запоминаются в permissions.json). WebView2 решения
 //! сам не хранит — всё в одном месте, его видно и можно отозвать в настройках.
@@ -165,7 +165,7 @@ mod win {
     unsafe fn finish(args: &ICoreWebView2PermissionRequestedEventArgs, state: COREWEBVIEW2_PERMISSION_STATE) {
         unsafe {
             let _ = args.SetState(state);
-            // Решения хранит Seyro, а не профиль WebView2.
+            // Решения хранит Jiyda, а не профиль WebView2.
             if let Ok(a3) = args.cast::<ICoreWebView2PermissionRequestedEventArgs3>() {
                 let _ = a3.SetSavesInProfile(false);
             }

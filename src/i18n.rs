@@ -86,7 +86,7 @@ const STRINGS: &[(&str, &str)] = &[
     ("Personal", "Основное"),
     ("Space {}", "Space {}"),
     // Обновления.
-    ("You have the latest version of Seyro ({})", "У вас последняя версия Seyro ({})"),
+    ("You have the latest version of Jiyda ({})", "У вас последняя версия Jiyda ({})"),
     ("Couldn't check for updates. Is GitHub reachable?", "Не удалось проверить обновления — нет связи с GitHub?"),
     ("Couldn't download the update", "Не удалось скачать обновление"),
     ("Couldn't start the update installer", "Не удалось запустить установщик обновления"),
@@ -125,7 +125,7 @@ const STRINGS: &[(&str, &str)] = &[
         "This shortcut can't be used: it needs Ctrl or Alt (or F1\u{2013}F24)",
         "Это сочетание нельзя назначить: нужен Ctrl или Alt (или F1–F24)",
     ),
-    ("This change takes effect after restarting Seyro", "Изменение вступит в силу после перезапуска Seyro"),
+    ("This change takes effect after restarting Jiyda", "Изменение вступит в силу после перезапуска Jiyda"),
     ("Key removed", "Ключ удалён"),
     ("Key saved in Windows Credential Manager", "Ключ сохранён в диспетчере учётных данных Windows"),
     ("Couldn't save the key", "Не удалось сохранить ключ"),
@@ -134,12 +134,12 @@ const STRINGS: &[(&str, &str)] = &[
     ("Theme: dark", "Тема: тёмная"),
     ("Theme: same as Windows", "Тема: как в Windows"),
     (
-        "Install Seyro with its installer first: it adds Seyro to Windows' list of browsers",
-        "Сначала установите Seyro установщиком — он добавит его в список браузеров Windows",
+        "Install Jiyda with its installer first: it adds Jiyda to Windows' list of browsers",
+        "Сначала установите Jiyda установщиком — он добавит его в список браузеров Windows",
     ),
     ("Couldn't open Settings", "Не удалось открыть «Параметры»"),
     ("Invalid value", "Недопустимое значение"),
-    // Ask Seyro.
+    // Ask Jiyda.
     (
         "The API key was rejected. Check it in Settings \u{2192} AI Assistant.",
         "Ключ API не принят. Проверьте его в «Настройки \u{2192} AI Assistant».",

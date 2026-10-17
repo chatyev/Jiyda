@@ -1,5 +1,5 @@
 // security.js — панель «Защита» по щелчку на значок слева в адресной строке.
-// Показывает только то, что Seyro действительно делает: соединение (HTTPS),
+// Показывает только то, что Jiyda действительно делает: соединение (HTTPS),
 // заблокированные на странице трекеры и реклама (shield.rs), изоляцию куки по Space,
 // запомненные разрешения сайта — и выключатель защиты для этого сайта.
 import { S } from './core.js';
@@ -26,7 +26,7 @@ import { S } from './core.js';
       ? S.h('div', { class: 'sec-status' }, S.icon('info', 'i20'), S.h('div', {}, S.t('This is a local or internal page')))
       : d.https
         ? S.h('div', { class: 'sec-status' }, S.icon('lock', 'i20'), S.h('div', {}, S.t('Connection is secure'),
-          S.h('small', { text: protectedHere ? (blocked ? S.t('Seyro blocked {0} trackers and ads on this page', blocked) : S.t('Seyro is protecting you on this site')) : S.t('Protection is off for this site') })))
+          S.h('small', { text: protectedHere ? (blocked ? S.t('Jiyda blocked {0} trackers and ads on this page', blocked) : S.t('Jiyda is protecting you on this site')) : S.t('Protection is off for this site') })))
         : S.h('div', { class: 'sec-status warn' }, S.icon('lock-open', 'i20'), S.h('div', {}, S.t('Connection is not secure'),
           S.h('small', { text: S.t('Don’t enter passwords or payment details on this site') })));
     const perms = Object.entries(d.permissions || {});

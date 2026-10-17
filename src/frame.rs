@@ -1,4 +1,4 @@
-//! Рамка окна Seyro в Windows.
+//! Рамка окна Jiyda в Windows.
 //!
 //! Окно без системной рамки, но с тенью, скруглёнными углами и невидимыми краями
 //! изменения размера Windows 11 (tao, `with_undecorated_shadow`). Поверх страниц
@@ -533,7 +533,7 @@ mod win {
     /// Обрезать WebView интерфейса регионом: верхняя панель (если она есть), плавающие
     /// элементы и всё окно при `full`, за вычетом дыр и кнопок окна. У не развёрнутого
     /// окна верхняя полоска остаётся окну — за неё Windows меняет высоту.
-    /// `own_caption` — кнопки окна рисует Seyro (окно без системной рамки).
+    /// `own_caption` — кнопки окна рисует Jiyda (окно без системной рамки).
     pub fn set_ui_region(
         window: &tao::window::Window,
         ui: &wry::WebView,
@@ -584,12 +584,12 @@ mod win {
     }
 
     /// Настройки WebView интерфейса: без своих клавиш WebView (Ctrl+P, F5, Ctrl+F…) и
-    /// масштаба — у интерфейса они не нужны, а клавиши Seyro по-прежнему приходят в
+    /// масштаба — у интерфейса они не нужны, а клавиши Jiyda по-прежнему приходят в
     /// AcceleratorKeyPressed.
     ///
     /// CSS `app-region: drag` (SetIsNonClientRegionSupportEnabled) не включаем: пересчитывая
     /// области перетаскивания, WebView2 синхронно двигает своё окно (UpdateDraggableRegions →
-    /// SetWindowPos), и это может навсегда остановить главный поток — так зависал Seyro на CI.
+    /// SetWindowPos), и это может навсегда остановить главный поток — так зависал Jiyda на CI.
     /// Окно тянет ядро по сообщению интерфейса (UiMsg::WindowDrag, titlebar.js).
     pub fn configure_ui(ui: &wry::WebView) {
         use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;

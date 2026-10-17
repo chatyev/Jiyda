@@ -33,18 +33,18 @@ fn main() {
     // Адреса из командной строки (так Windows передаёт ссылки браузеру по умолчанию).
     let cwd = std::env::current_dir().unwrap_or_default();
     let urls = instance::urls_from_args(std::env::args().skip(1), &cwd);
-    // Seyro уже работает — отдаём адреса ему и выходим, второе окно не нужно.
+    // Jiyda уже работает — отдаём адреса ему и выходим, второе окно не нужно.
     if instance::send_to_running(&urls) {
         return;
     }
 
-    // До ребрендинга браузер назывался Drift: переносим его данные до того, как что-то их откроет.
+    // Раньше браузер назывался Seyro (а до того Drift): переносим его данные до того, как что-то их откроет.
     let migration = config::migrate_old_data();
     logging::init(&config::Paths::new().log);
     match migration {
-        Ok(true) => log::info!("данные Drift перенесены в папку Seyro"),
+        Ok(true) => log::info!("данные Seyro / Drift перенесены в папку Jiyda"),
         Ok(false) => {}
-        Err(e) => log::warn!("не удалось перенести данные Drift, работаю со старой папкой: {e}"),
+        Err(e) => log::warn!("не удалось перенести старые данные, работаю со старой папкой: {e}"),
     }
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let mut app = match App::new(&event_loop) {

@@ -258,7 +258,7 @@ import { S } from './core.js';
   function groupMenu(g, pages, at) {
     const ids = pages.map((p) => p.id);
     S.menu.open(at, [
-      { label: S.t('Ask Seyro about this group'), icon: 'sparkle', action: () => { close(); S.layers.open('ask', { pages: ids, action: 'research' }); } },
+      { label: S.t('Ask Jiyda about this group'), icon: 'sparkle', action: () => { close(); S.layers.open('ask', { pages: ids, action: 'research' }); } },
       { label: S.t('Move group to Later'), icon: 'inbox', action: () => ids.forEach((id) => S.post({ type: 'later', id })) },
       'sep',
       { label: S.t('Close group'), icon: 'x', danger: true, action: () => ids.forEach((id) => S.post({ type: 'close', id })) },
@@ -325,7 +325,7 @@ import { S } from './core.js';
     if (ids.length) {
       S.fill(pickbar, 
         S.h('span', { text: S.t('{0} selected', ids.length) }), S.h('span', { class: 'spacer' }),
-        S.h('button', { class: 'btn', on: { click: () => { close(); S.layers.open('ask', { pages: ids, action: ids.length > 1 ? 'compare' : 'summarize' }); } } }, S.icon('sparkle', 'i16'), S.t('Ask Seyro')),
+        S.h('button', { class: 'btn', on: { click: () => { close(); S.layers.open('ask', { pages: ids, action: ids.length > 1 ? 'compare' : 'summarize' }); } } }, S.icon('sparkle', 'i16'), S.t('Ask Jiyda')),
         S.h('button', { class: 'btn', text: S.t('Move to Later'), on: { click: () => { ids.forEach((id) => S.post({ type: 'later', id })); picked.clear(); } } }),
         S.h('button', { class: 'btn', text: S.t('Close'), on: { click: () => { ids.forEach((id) => S.post({ type: 'close', id })); picked.clear(); } } }),
         S.h('button', { class: 'btn ghost', text: S.t('Clear'), on: { click: () => { picked.clear(); draw(); } } }));

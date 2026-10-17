@@ -21,7 +21,7 @@ impl App {
         .with_bounds(rect(b.0, b.1, b.2, b.3))
         .with_visible(visible)
         .with_initialization_script(format!(
-            "window.__SEYRO_PAGE = {};\n{TAB_JS}",
+            "window.__JIYDA_PAGE = {};\n{TAB_JS}",
             json!({ "selection": self.cfg.selection_toolbar, "lang": i18n::code() })
         ))
         .with_ipc_handler(move |req| {

@@ -129,12 +129,12 @@ impl App {
         self.flush_state();
     }
 
-    /// Отладочная сборка с SEYRO_AUTOMATION: команды из файла automation.txt в папке
+    /// Отладочная сборка с JIYDA_AUTOMATION: команды из файла automation.txt в папке
     /// данных (по строке: `ui {json}`, `cmd имя`, `js код`) — для проверки интерфейса
     /// без мыши и клавиатуры. В релизной сборке этого нет.
     #[cfg(debug_assertions)]
     pub(super) fn automation(&mut self) {
-        if std::env::var_os("SEYRO_AUTOMATION").is_none() {
+        if std::env::var_os("JIYDA_AUTOMATION").is_none() {
             return;
         }
         // Пульс раз в 5 с: по журналу видно, крутится ли цикл событий, если интерфейс завис.
@@ -174,7 +174,7 @@ impl App {
     pub fn next_wakeup(&self) -> Instant {
         let mut at = self.next_sleep_check;
         #[cfg(debug_assertions)]
-        if std::env::var_os("SEYRO_AUTOMATION").is_some() {
+        if std::env::var_os("JIYDA_AUTOMATION").is_some() {
             at = at.min(Instant::now() + Duration::from_millis(250));
         }
         if let Some(due) = self.save_due {

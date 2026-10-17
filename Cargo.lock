@@ -1014,6 +1014,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "jiyda"
+version = "0.6.0"
+dependencies = [
+ "dirs 6.0.0",
+ "log",
+ "serde",
+ "serde_json",
+ "simplelog",
+ "tao",
+ "tempfile",
+ "url",
+ "webview2-com",
+ "windows",
+ "winresource",
+ "wry",
+]
+
+[[package]]
 name = "jni"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1797,24 +1815,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "170fb83ab34de17dc69aa7c67482b22218ddb85da56546f9bd6b929e32a05930"
 dependencies = [
  "stable_deref_trait",
-]
-
-[[package]]
-name = "seyro"
-version = "0.5.0"
-dependencies = [
- "dirs 6.0.0",
- "log",
- "serde",
- "serde_json",
- "simplelog",
- "tao",
- "tempfile",
- "url",
- "webview2-com",
- "windows",
- "winresource",
- "wry",
 ]
 
 [[package]]

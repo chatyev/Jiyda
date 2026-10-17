@@ -38,7 +38,7 @@ impl App {
 
     pub(super) fn make_default_browser(&self) {
         if !instance::registered_as_browser() {
-            self.toast(i18n::tr("Install Seyro with its installer first: it adds Seyro to Windows' list of browsers"));
+            self.toast(i18n::tr("Install Jiyda with its installer first: it adds Jiyda to Windows' list of browsers"));
             return;
         }
         if !instance::open_default_apps_settings() {

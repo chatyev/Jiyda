@@ -1,5 +1,5 @@
 /* =====================================================================
-   Seyro — стили интерфейса.
+   Jiyda — стили интерфейса.
    Токены темы — в :root; тёмная тема по умолчанию, светлая — [data-theme="light"].
    Размеры, совпадающие с Rust: --chrome-h (frame::CHROME_H), --caption-w
    (frame::CAPTION_W), --pane-h и --split-gap (app.rs) — их задаёт core.js из конфигурации.
@@ -577,7 +577,7 @@ body.fullscreen .layer .backdrop { inset: 0; }
 .closed-panel { left: 50%; top: calc(var(--chrome-h) + 56px); width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - var(--chrome-h) - 96px); transform: translate(-50%, -6px) scale(0.985); }
 .layer.open .closed-panel { transform: translate(-50%, 0); }
 
-/* ----- Ask Seyro ----- */
+/* ----- Ask Jiyda ----- */
 .ask { width: 400px; max-height: min(640px, calc(100vh - var(--chrome-h) - 24px)); display: flex; flex-direction: column; }
 .ask-head { display: flex; align-items: center; gap: 10px; padding: 12px 10px 10px 16px; }
 .ask-head h2 { font: 600 14px/1 var(--font); flex: 1; display: flex; align-items: center; gap: 8px; }

@@ -1,4 +1,4 @@
-// titlebar.js — верхняя панель: Space, назад/вперёд, Ask Seyro, меню браузера.
+// titlebar.js — верхняя панель: Space, назад/вперёд, Ask Jiyda, меню браузера.
 // Адресная строка — addressbar.js. Кнопки окна справа рисует само окно (src/frame.rs),
 // здесь под них только оставлено место (.caption-space).
 import { S } from './core.js';
@@ -29,7 +29,7 @@ import { S } from './core.js';
     const set = (el, label, cmd) => { const l = S.withKey(label, cmd); el.title = l; el.setAttribute('aria-label', l); };
     set(S.$('#back'), S.t('Back'), 'back');
     set(S.$('#forward'), S.t('Forward'), 'forward');
-    set(S.$('#ask-btn'), S.t('Ask Seyro'), 'ask');
+    set(S.$('#ask-btn'), S.t('Ask Jiyda'), 'ask');
     set(S.$('#menu-btn'), S.t('Browser menu'), null);
     set(spaceBtn, S.t('Switch Space'), 'spaces');
   }
@@ -70,7 +70,7 @@ import { S } from './core.js';
       { label: S.t('Settings'), icon: 'settings', kbd: k('settings'), action: () => S.layers.open('settings') },
       { label: S.t('Keyboard shortcuts'), icon: 'keyboard', kbd: k('shortcuts'), action: () => S.layers.open('settings', { section: 'shortcuts' }) },
       S.state.update ? 'sep' : null,
-      S.state.update ? { label: S.t('Update to Seyro {0}', S.state.update.version), icon: 'download', action: () => S.cmd('update_now') } : null,
+      S.state.update ? { label: S.t('Update to Jiyda {0}', S.state.update.version), icon: 'download', action: () => S.cmd('update_now') } : null,
     ]);
   }
   S.openMainMenu = () => openMainMenu(S.$('#menu-btn'));

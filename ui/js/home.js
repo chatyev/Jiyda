@@ -67,12 +67,12 @@ import { S } from './core.js';
     privacy.classList.toggle('off', !on);
     S.fill(privacy, S.icon(on ? 'shield-check' : 'shield', 'i20'),
       S.h('span', { style: { textAlign: 'left' } },
-        S.h('b', { text: on ? S.t('Seyro protects you') : S.t('Tracker protection is off') }),
+        S.h('b', { text: on ? S.t('Jiyda protects you') : S.t('Tracker protection is off') }),
         on ? (n ? S.t('{0} trackers and ads blocked today', n) : S.t('No trackers blocked yet today')) : S.t('Turn it on in Settings')));
     privacy.onclick = () => S.layers.open('settings', { section: 'privacy' });
     if (st.update) {
       update.hidden = false;
-      S.fill(update, S.h('span', { text: st.updating ? S.t('Downloading Seyro {0}…', st.update.version) : S.t('Seyro {0} is available', st.update.version) }),
+      S.fill(update, S.h('span', { text: st.updating ? S.t('Downloading Jiyda {0}…', st.update.version) : S.t('Jiyda {0} is available', st.update.version) }),
         S.h('button', { class: 'btn primary', text: S.t('Update'), disabled: st.updating, on: { click: () => S.cmd('update_now') } }),
         S.iconBtn('x', S.t('Later'), () => S.cmd('update_dismiss'), 'sm'));
     } else update.hidden = true;

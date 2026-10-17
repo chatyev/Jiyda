@@ -31,7 +31,7 @@ impl App {
             }
             Ok(None) => {
                 if manual {
-                    self.toast(&i18n::trf("You have the latest version of Seyro ({})", &[&update::CURRENT]));
+                    self.toast(&i18n::trf("You have the latest version of Jiyda ({})", &[&update::CURRENT]));
                 }
             }
             Err(e) => {
@@ -52,7 +52,7 @@ impl App {
         self.updates.busy = true;
         self.updates.downloading = true;
         self.push_state();
-        let dir = std::env::temp_dir().join("Seyro");
+        let dir = std::env::temp_dir().join("Jiyda");
         let proxy = self.proxy.clone();
         std::thread::spawn(move || {
             let _ = proxy.send_event(UserEvent::UpdateDownloaded { result: update::download(&release, &dir) });
@@ -71,7 +71,7 @@ impl App {
                 return;
             }
         };
-        // Всё сохраняем до запуска установщика: он заменит seyro.exe и откроет Seyro заново.
+        // Всё сохраняем до запуска установщика: он заменит jiyda.exe и откроет Jiyda заново.
         self.save_now();
         match std::process::Command::new(&path).args(update::INSTALLER_ARGS).spawn() {
             Ok(_) => {

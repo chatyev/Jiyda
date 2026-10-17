@@ -1,25 +1,25 @@
-# Проверка интерфейса без мыши и клавиатуры: запускает отладочный seyro.exe с чистой
+# Проверка интерфейса без мыши и клавиатуры: запускает отладочный jiyda.exe с чистой
 # папкой данных, открывает и закрывает каждый слой через канал автоматизации
 # (automation.txt, см. src/app/session.rs) и проверяет журнал: ни одной ошибки JS,
 # все слои открылись и закрылись, программа завершилась сама.
 #
 #   cargo build; pwsh scripts/ui-smoke.ps1
 param(
-    [string]$Exe = "target/debug/seyro.exe",
+    [string]$Exe = "target/debug/jiyda.exe",
     # С запасом: на сервере CI без видеокарты WebView2 рисует программно и заметно медленнее.
     [int]$TimeoutSec = 300,
     # Обычная рамка Windows вместо своей (без подкласса окна из frame.rs).
     [switch]$NativeFrame,
-    [string]$ShotDir = (Join-Path ([IO.Path]::GetTempPath()) 'seyro-smoke-shots')
+    [string]$ShotDir = (Join-Path ([IO.Path]::GetTempPath()) 'jiyda-smoke-shots')
 )
 $ErrorActionPreference = 'Stop'
 
-$data = Join-Path ([IO.Path]::GetTempPath()) ("seyro-smoke-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$data = Join-Path ([IO.Path]::GetTempPath()) ("jiyda-smoke-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Path $data | Out-Null
-$log = Join-Path $data 'seyro.log'
+$log = Join-Path $data 'jiyda.log'
 $cmdFile = Join-Path $data 'automation.txt'
 if ($NativeFrame) { Set-Content -Path (Join-Path $data 'config.json') -Value '{ "custom_titlebar": false }' -Encoding utf8NoBOM }
-$label = if ($NativeFrame) { 'native frame' } else { 'Seyro frame' }
+$label = if ($NativeFrame) { 'native frame' } else { 'Jiyda frame' }
 
 # Сценарий в интерфейсе: команда → слой открыт → закрыть → слой закрыт.
 $driver = @'
@@ -34,8 +34,8 @@ $driver = @'
   const bump = (k) => { cnt[k] = (cnt[k] || 0) + 1; };
   S.watchPosts((m) => bump('>' + m.type));
   for (const k of ['render', 'command', 'data']) {
-    const f = window.seyro[k];
-    window.seyro[k] = (...a) => { bump('<' + (k === 'render' ? k : k + ':' + a[0])); return f.apply(window.seyro, a); };
+    const f = window.jiyda[k];
+    window.jiyda[k] = (...a) => { bump('<' + (k === 'render' ? k : k + ':' + a[0])); return f.apply(window.jiyda, a); };
   }
   for (const [cmd, layer] of steps) {
     cnt = {};
@@ -68,7 +68,7 @@ function WaitFor([string]$pattern, [scriptblock]$retry) {
     $false
 }
 
-# При сбое: окна процесса Seyro (класс, заголовок, видимость, размер, переднее ли) и снимок
+# При сбое: окна процесса Jiyda (класс, заголовок, видимость, размер, переднее ли) и снимок
 # экрана в $ShotDir — CI прикладывает его к запуску.
 function Snapshot {
     try {
@@ -117,7 +117,7 @@ public static class SmokeWin {
             Get-Content $out -ErrorAction SilentlyContinue | Where-Object { $_ -notmatch '^ModLoad|^\*\*\*|^Symbol search|^Executable search|^\s*$' } |
                 ForEach-Object { Write-Host $_ }
         } elseif (-not $cdb) { Write-Host '(cdb не найден — стеки не сняты)' }
-        Write-Host "--- окна Seyro ($label) ---"
+        Write-Host "--- окна Jiyda ($label) ---"
         [SmokeWin]::List([uint32]$proc.Id) | ForEach-Object { Write-Host $_ }
         Add-Type -AssemblyName System.Windows.Forms, System.Drawing
         $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
@@ -131,9 +131,9 @@ public static class SmokeWin {
     } catch { Write-Host "снимок не удался: $_" }
 }
 
-$env:SEYRO_AUTOMATION = '1'
-$env:SEYRO_DATA_DIR = $data
-# Отладочный seyro.exe — консольная программа и пишет журнал ещё и в консоль. Без перенаправления
+$env:JIYDA_AUTOMATION = '1'
+$env:JIYDA_DATA_DIR = $data
+# Отладочный jiyda.exe — консольная программа и пишет журнал ещё и в консоль. Без перенаправления
 # Start-Process открывает ей окно терминала; на сервере CI терминал перестаёт читать вывод, запись
 # в консоль блокируется — и вместе с ней главный поток. Поэтому вывод — в файлы.
 $proc = Start-Process -FilePath $Exe -PassThru -NoNewWindow `
@@ -163,7 +163,7 @@ if ($problems) { $failure = (@($failure) + $problems | Where-Object { $_ }) -joi
 
 if ($failure) {
     Write-Host "UI smoke test FAILED ($label):`n$failure"
-    Write-Host "--- seyro.log ---"; Write-Host (LogText)
+    Write-Host "--- jiyda.log ---"; Write-Host (LogText)
     exit 1
 }
 if ((LogText) -match 'SMOKE times: ([a-z][^\r\n]*)') { Write-Host "Steps: $($Matches[1])" }

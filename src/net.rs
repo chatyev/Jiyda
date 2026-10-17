@@ -1,5 +1,5 @@
 //! HTTPS через WinHTTP из Windows: системные прокси и сертификаты, без своих
-//! библиотек TLS. Используется для обновлений (GitHub) и Ask Seyro (Anthropic API).
+//! библиотек TLS. Используется для обновлений (GitHub) и Ask Jiyda (Anthropic API).
 
 use std::time::Duration;
 
@@ -54,7 +54,7 @@ pub fn https(
         path.push('?');
         path.push_str(q);
     }
-    let agent = wide(&format!("Seyro/{}", env!("CARGO_PKG_VERSION")));
+    let agent = wide(&format!("Jiyda/{}", env!("CARGO_PKG_VERSION")));
     let (path, verb) = (wide(&path), wide(method));
     let ms = timeout.as_millis().min(i32::MAX as u128) as i32;
 

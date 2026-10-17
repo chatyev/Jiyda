@@ -1,8 +1,8 @@
 [package]
-name = "seyro"
-version = "0.5.0"
+name = "jiyda"
+version = "0.6.0"
 edition = "2024"
-description = "Seyro — Arc-подобный браузер на Rust поверх WebView2"
+description = "Jiyda — Arc-подобный браузер на Rust поверх WebView2"
 
 [dependencies]
 dirs = "6"

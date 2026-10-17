@@ -22,7 +22,7 @@ import { S } from './core.js';
   const split = () => !!(S.state.active && S.splitOf(S.state.active));
   // Команды палитры. cmd — команда ядра (те же имена, что у горячих клавиш), fn — своя.
   const COMMANDS = () => [
-    { t: 'Ask Seyro', icon: 'sparkle', key: 'ask', fn: () => S.layers.open('ask', {}) },
+    { t: 'Ask Jiyda', icon: 'sparkle', key: 'ask', fn: () => S.layers.open('ask', {}) },
     { t: 'Open new page', icon: 'plus', key: 'new_tab', cmd: 'new_tab' },
     { t: 'Search open pages', icon: 'orbit', key: 'orbit', fn: () => S.layers.open('orbit') },
     { t: 'Switch Space', icon: 'layers', key: 'spaces', fn: () => S.layers.open('spaces', {}) },
@@ -50,7 +50,7 @@ import { S } from './core.js';
     { t: 'Theme: dark', icon: 'moon', fn: () => S.post({ type: 'setting', key: 'theme', value: 'dark' }) },
     { t: 'Developer tools', icon: 'wrench', key: 'devtools', when: page, cmd: 'devtools' },
     { t: 'Check for updates', icon: 'download', cmd: 'check_updates' },
-    { t: 'Make Seyro the default browser', icon: 'globe', cmd: 'default_browser' },
+    { t: 'Make Jiyda the default browser', icon: 'globe', cmd: 'default_browser' },
     { t: 'Open downloads folder', icon: 'folder', cmd: 'open_downloads_folder' },
   ].filter((c) => !c.when || c.when());
 

@@ -1,5 +1,5 @@
-# Сборка Seyro под Windows на GitHub.
-# При каждом push собираются seyro.exe и установщик SeyroSetup-<версия>.exe —
+# Сборка Jiyda под Windows на GitHub.
+# При каждом push собираются jiyda.exe и установщик JiydaSetup-<версия>.exe —
 # их можно скачать во вкладке Actions → последний запуск → Artifacts.
 # При метке вида v0.2.0 (git tag v0.2.0 && git push --tags) установщик
 # выкладывается в Releases с описанием из docs/releases/<метка>.md (на английском).
@@ -65,17 +65,30 @@ jobs:
         shell: pwsh
         run: ./installer/build.ps1
 
+      # Мост для Seyro 0.5.0: он ищет обновление в chatyev/seyro и берёт только файл
+      # SeyroSetup-<версия>.exe. Тот же установщик Jiyda под старым именем — и Seyro
+      # обновится сам. Убрать после переименования репозитория в chatyev/jiyda: тогда
+      # старые версии всё равно не примут адрес загрузки (update.rs, DOWNLOAD_PREFIX).
+      - name: Установщик под именем Seyro (мост для 0.5.0)
+        shell: pwsh
+        run: |
+          Get-ChildItem target/installer/JiydaSetup-*.exe | ForEach-Object {
+            Copy-Item $_.FullName (Join-Path $_.DirectoryName ($_.Name -replace '^JiydaSetup-', 'SeyroSetup-'))
+          }
+
       - uses: actions/upload-artifact@v7
         with:
-          name: seyro-windows
+          name: jiyda-windows
           path: |
-            target/release/seyro.exe
-            target/installer/SeyroSetup-*.exe
+            target/release/jiyda.exe
+            target/installer/JiydaSetup-*.exe
 
       - name: Релиз
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          name: Seyro ${{ github.ref_name }}
+          name: Jiyda ${{ github.ref_name }}
           body_path: docs/releases/${{ github.ref_name }}.md
-          files: target/installer/SeyroSetup-*.exe
+          files: |
+            target/installer/JiydaSetup-*.exe
+            target/installer/SeyroSetup-*.exe

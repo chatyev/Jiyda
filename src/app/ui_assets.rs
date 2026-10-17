@@ -1,7 +1,7 @@
-//! Файлы интерфейса внутри seyro.exe и их выдача WebView по адресу seyro://ui/…
+//! Файлы интерфейса внутри jiyda.exe и их выдача WebView по адресу jiyda://ui/…
 //!
 //! Список файлов собирает build.rs из папки ui/. WebView2 видит этот адрес как
-//! https://seyro.ui/ — защищённый источник, отдельный от любых сайтов. Отдаются только
+//! https://jiyda.ui/ — защищённый источник, отдельный от любых сайтов. Отдаются только
 //! встроенные файлы: путь сравнивается со списком, ничего с диска не читается.
 
 use std::borrow::Cow;
@@ -10,10 +10,10 @@ use wry::http::{Request, Response, StatusCode, header::CONTENT_TYPE};
 include!(concat!(env!("OUT_DIR"), "/ui_files.rs"));
 
 /// Имя протокола и адрес страницы интерфейса.
-pub(super) const SCHEME: &str = "seyro";
-pub(super) const INDEX_URL: &str = "seyro://ui/index.html";
+pub(super) const SCHEME: &str = "jiyda";
+pub(super) const INDEX_URL: &str = "jiyda://ui/index.html";
 /// Так WebView2 видит адреса интерфейса (wry: with_https_scheme).
-pub(super) const ORIGIN: &str = "https://seyro.ui/";
+pub(super) const ORIGIN: &str = "https://jiyda.ui/";
 
 /// Встроенный файл: байты и тип. Путь — относительно ui/, например «js/core.js».
 pub(super) fn asset(path: &str) -> Option<(&'static [u8], &'static str)> {
@@ -22,7 +22,7 @@ pub(super) fn asset(path: &str) -> Option<(&'static [u8], &'static str)> {
     UI_FILES.iter().find(|(p, _, _)| *p == path).map(|(_, data, mime)| (*data, *mime))
 }
 
-/// Ответ на запрос WebView к seyro://ui/…
+/// Ответ на запрос WebView к jiyda://ui/…
 pub(super) fn respond(req: &Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
     let found = asset(req.uri().path());
     let response = match found {
@@ -37,7 +37,7 @@ pub(super) fn respond(req: &Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
 
 /// Адрес — сам интерфейс (а не сайт, на который он пытается уйти).
 pub(super) fn is_ui_url(url: &str) -> bool {
-    url.starts_with(ORIGIN) || url.starts_with("seyro://ui/")
+    url.starts_with(ORIGIN) || url.starts_with("jiyda://ui/")
 }
 
 #[cfg(test)]
@@ -78,8 +78,8 @@ mod tests {
 
     #[test]
     fn ui_urls() {
-        assert!(is_ui_url("https://seyro.ui/index.html"));
-        assert!(!is_ui_url("https://seyro.ui.evil.test/"));
+        assert!(is_ui_url("https://jiyda.ui/index.html"));
+        assert!(!is_ui_url("https://jiyda.ui.evil.test/"));
         assert!(!is_ui_url("https://example.com/"));
     }
 }

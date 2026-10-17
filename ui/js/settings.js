@@ -20,7 +20,7 @@ import { S } from './core.js';
     next_seq: 'Next page', prev_seq: 'Previous page', back: 'Back', forward: 'Forward', reload: 'Reload',
     hard_reload: 'Reload without cache', find: 'Find on page', focus: 'Focus Mode', spaces: 'Switch Space',
     history: 'History', closed: 'Recently closed', downloads: 'Downloads', later: 'Move page to Later', split: 'Split View',
-    ask: 'Ask Seyro', fullscreen: 'Full screen', pin: 'Pin page', copy_url: 'Copy page link', settings: 'Settings',
+    ask: 'Ask Jiyda', fullscreen: 'Full screen', pin: 'Pin page', copy_url: 'Copy page link', settings: 'Settings',
     shortcuts: 'Keyboard shortcuts', devtools: 'Developer tools',
   };
   const ENGINES = [
@@ -76,22 +76,22 @@ import { S } from './core.js';
       ...ENGINES.map(([n, u]) => S.h('option', { value: u, text: n, selected: u === c.search_url })),
       S.h('option', { value: 'custom', text: S.t('Custom…'), selected: !known }));
     return [
-      ...head(S.t('General'), S.t('Search, language and how Seyro keeps memory use low.')),
+      ...head(S.t('General'), S.t('Search, language and how Jiyda keeps memory use low.')),
       card(
         row(S.t('Search engine'), S.t('Used for searches from the address bar, New Page and the palette.'), engine),
         !known ? row(S.t('Custom search address'), S.t('Use %s where the query goes.'), custom) : null,
-        row(S.t('Language'), S.t('Takes effect after restarting Seyro.'), select('language', c.language, [['auto', S.t('Same as Windows')], ['en', 'English'], ['ru', 'Русский']], S.t('Language')))),
+        row(S.t('Language'), S.t('Takes effect after restarting Jiyda.'), select('language', c.language, [['auto', S.t('Same as Windows')], ['en', 'English'], ['ru', 'Русский']], S.t('Language')))),
       sub(S.t('Pages')),
       card(
         row(S.t('Put inactive pages to sleep'), S.t('Background pages you haven’t opened for a while are unloaded from memory. Pages playing sound stay awake.'),
           select('sleep_minutes', c.sleep_minutes, [[0, S.t('Never')], [15, S.t('After {0} min', 15)], [30, S.t('After {0} min', 30)], [60, S.t('After 1 hour')], [120, S.t('After {0} hours', 2)], [240, S.t('After {0} hours', 4)]], S.t('Sleep'), Number)),
-        row(S.t('Move unused pages to Archive'), S.t('Checked when Seyro starts. Pinned and Later pages are never archived.'),
+        row(S.t('Move unused pages to Archive'), S.t('Checked when Jiyda starts. Pinned and Later pages are never archived.'),
           select('archive_hours', c.archive_hours, [[0, S.t('Never')], [4, S.t('After {0} hours', 4)], [12, S.t('After {0} hours', 12)], [24, S.t('After 1 day')], [72, S.t('After {0} days', 3)], [168, S.t('After 1 week')]], S.t('Archive'), Number))),
       sub(S.t('Windows')),
       card(
-        row(S.t('Default browser'), c.default_browser ? S.t('Open Windows Settings to choose Seyro for links.') : S.t('Install Seyro with its installer to make it available as a default browser.'),
+        row(S.t('Default browser'), c.default_browser ? S.t('Open Windows Settings to choose Jiyda for links.') : S.t('Install Jiyda with its installer to make it available as a default browser.'),
           S.h('button', { class: 'btn', text: S.t('Open Windows Settings'), on: { click: () => S.cmd('default_browser') } })),
-        row(S.t('Check for updates automatically'), S.t('Seyro {0}. Updates come from GitHub Releases.', c.version), S.h('span', { style: { display: 'flex', gap: '12px', alignItems: 'center' } },
+        row(S.t('Check for updates automatically'), S.t('Jiyda {0}. Updates come from GitHub Releases.', c.version), S.h('span', { style: { display: 'flex', gap: '12px', alignItems: 'center' } },
           S.h('button', { class: 'btn ghost', text: S.t('Check now'), on: { click: () => S.cmd('check_updates') } }),
           toggle('check_updates', c.check_updates, S.t('Check for updates automatically'))))),
     ];
@@ -101,7 +101,7 @@ import { S } from './core.js';
     const sites = Object.entries(c.permissions || {});
     sites.sort(([a], [b]) => (b === highlightOrigin) - (a === highlightOrigin) || a.localeCompare(b));
     return [
-      ...head(S.t('Privacy & Security'), S.t('Seyro protects you by default — you shouldn’t have to manage it.')),
+      ...head(S.t('Privacy & Security'), S.t('Jiyda protects you by default — you shouldn’t have to manage it.')),
       card(
         row(S.t('Block trackers and ads'), c.shield ? S.t('Blocked today: {0} trackers, {1} ads.', st.shield.trackersToday, st.shield.adsToday) : S.t('Known trackers and ad networks are allowed to load.'),
           toggle('shield', c.shield, S.t('Block trackers and ads'))),
@@ -128,7 +128,7 @@ import { S } from './core.js';
   function appearance(c) {
     const themes = [['system', S.t('System')], ['light', S.t('Light')], ['dark', S.t('Dark')]];
     return [
-      ...head(S.t('Appearance'), S.t('Seyro follows Windows by default and keeps its own calm look.')),
+      ...head(S.t('Appearance'), S.t('Jiyda follows Windows by default and keeps its own calm look.')),
       card(S.h('div', { class: 'setting' },
         S.h('div', { class: 'text' }, S.h('div', { class: 'title', text: S.t('Theme') }), S.h('div', { class: 'desc', text: S.t('“System” switches with Windows dark and light mode.') })),
         S.h('div', { class: 'theme-picker', attrs: { role: 'radiogroup', 'aria-label': S.t('Theme') } }, ...themes.map(([k, l]) => S.h('button', {
@@ -138,11 +138,11 @@ import { S } from './core.js';
       card(
         row(S.t('Dim the toolbar while reading'), S.t('Buttons fade until you move the pointer to the top.'), toggle('dim_chrome', c.dim_chrome, S.t('Dim the toolbar while reading'))),
         row(S.t('Edge Reveal'), S.t('Navigation appears when the pointer touches the left edge of the window.'), toggle('edge_reveal', c.edge_reveal, S.t('Edge Reveal'))),
-        row(S.t('Toolbar for selected text'), S.t('Copy, Search, Explain, Translate and Ask Seyro above selected text on pages.'), toggle('selection_toolbar', c.selection_toolbar, S.t('Toolbar for selected text')))),
+        row(S.t('Toolbar for selected text'), S.t('Copy, Search, Explain, Translate and Ask Jiyda above selected text on pages.'), toggle('selection_toolbar', c.selection_toolbar, S.t('Toolbar for selected text')))),
       sub(S.t('Accessibility')),
       card(
         row(S.t('Animations'), S.t('“System” follows the Windows setting “Animation effects”.'), select('motion', c.motion, [['system', S.t('System')], ['reduced', S.t('Reduced')]], S.t('Animations'))),
-        row(S.t('High contrast'), S.t('Seyro uses Windows contrast themes automatically.'), S.h('span', { class: 'chip', text: S.t('Automatic') }))),
+        row(S.t('High contrast'), S.t('Jiyda uses Windows contrast themes automatically.'), S.h('span', { class: 'chip', text: S.t('Automatic') }))),
     ];
   }
 
@@ -151,12 +151,12 @@ import { S } from './core.js';
     const save = S.h('button', { class: 'btn primary', text: S.t('Save key'), on: { click: () => { if (key.value.trim()) S.post({ type: 'ai_key', key: key.value }); } } });
     key.addEventListener('keydown', (e) => { if (e.key === 'Enter') save.click(); });
     return [
-      ...head(S.t('AI Assistant'), S.t('Ask Seyro appears only when you call it — no permanent sidebar.')),
-      S.h('div', { class: 'notice' }, S.icon('info', 'i16'), S.h('div', { text: S.t('Ask Seyro uses Claude (claude-opus-5-5) by Anthropic with your own API key. Page text, selected text or page titles are sent to Anthropic only when you press an action or ask a question. The key is stored in Windows Credential Manager, not in Seyro’s files.') })),
+      ...head(S.t('AI Assistant'), S.t('Ask Jiyda appears only when you call it — no permanent sidebar.')),
+      S.h('div', { class: 'notice' }, S.icon('info', 'i16'), S.h('div', { text: S.t('Ask Jiyda uses Claude (claude-opus-5-5) by Anthropic with your own API key. Page text, selected text or page titles are sent to Anthropic only when you press an action or ask a question. The key is stored in Windows Credential Manager, not in Jiyda’s files.') })),
       card(
         row(S.t('Anthropic API key'), c.ai_key ? S.t('A key is saved.') : S.t('Create a key at console.anthropic.com.'), S.h('span', { style: { display: 'flex', gap: '8px' } }, key, save)),
-        c.ai_key ? row(S.t('Remove key'), S.t('Ask Seyro will stop working until you add a key again.'), S.h('button', { class: 'btn danger', text: S.t('Remove'), on: { click: () => S.post({ type: 'ai_key', key: '' }) } })) : null,
-        row(S.t('Show Ask Seyro'), S.t('The ✦ button, palette command and selection actions.'), toggle('ai', c.ai, S.t('Show Ask Seyro')))),
+        c.ai_key ? row(S.t('Remove key'), S.t('Ask Jiyda will stop working until you add a key again.'), S.h('button', { class: 'btn danger', text: S.t('Remove'), on: { click: () => S.post({ type: 'ai_key', key: '' }) } })) : null,
+        row(S.t('Show Ask Jiyda'), S.t('The ✦ button, palette command and selection actions.'), toggle('ai', c.ai, S.t('Show Ask Jiyda')))),
     ];
   }
 
@@ -194,7 +194,7 @@ import { S } from './core.js';
         btn);
     });
     return [
-      ...head(S.t('Shortcuts'), S.t('Windows shortcuts work as you expect. Every Seyro shortcut can be changed: click it and press a new combination with Ctrl or Alt (or an F-key). Ctrl+1…9 open pages, Ctrl+Shift+1…9 switch Spaces.')),
+      ...head(S.t('Shortcuts'), S.t('Windows shortcuts work as you expect. Every Jiyda shortcut can be changed: click it and press a new combination with Ctrl or Alt (or an F-key). Ctrl+1…9 open pages, Ctrl+Shift+1…9 switch Spaces.')),
       card(...rows),
       S.h('div', { style: { marginTop: '12px' } }, S.h('button', { class: 'btn', text: S.t('Reset all shortcuts'), on: { click: () => set('shortcut_reset', null) } })),
     ];
@@ -219,14 +219,14 @@ import { S } from './core.js';
 
   function advanced(c) {
     return [
-      ...head(S.t('Advanced'), S.t('Changes here take effect after restarting Seyro.')),
+      ...head(S.t('Advanced'), S.t('Changes here take effect after restarting Jiyda.')),
       card(
-        row(S.t('Seyro title bar'), S.t('Seyro’s own top bar with Windows buttons and Snap Layouts. Turn off to use the standard Windows frame.'), toggle('custom_titlebar', c.custom_titlebar, S.t('Seyro title bar'))),
-        row(S.t('Extensions'), S.t('Load unpacked extensions from the extensions folder in Seyro’s data folder.'), toggle('extensions', c.extensions, S.t('Extensions'))),
+        row(S.t('Jiyda title bar'), S.t('Jiyda’s own top bar with Windows buttons and Snap Layouts. Turn off to use the standard Windows frame.'), toggle('custom_titlebar', c.custom_titlebar, S.t('Jiyda title bar'))),
+        row(S.t('Extensions'), S.t('Load unpacked extensions from the extensions folder in Jiyda’s data folder.'), toggle('extensions', c.extensions, S.t('Extensions'))),
         row(S.t('Developer tools'), S.t('Allow F12 and Ctrl+Shift+I.'), toggle('devtools', c.devtools, S.t('Developer tools')))),
       sub(S.t('About')),
       card(
-        row('Seyro ' + c.version, S.t('Rust core, WebView2 engine.'), S.h('button', { class: 'btn ghost', text: S.t('Check for updates'), on: { click: () => S.cmd('check_updates') } })),
+        row('Jiyda ' + c.version, S.t('Rust core, WebView2 engine.'), S.h('button', { class: 'btn ghost', text: S.t('Check for updates'), on: { click: () => S.cmd('check_updates') } })),
         row(S.t('Data folder'), c.data_dir, S.h('button', { class: 'btn', text: S.t('Open folder'), on: { click: () => S.cmd('open_data_folder') } }))),
     ];
   }

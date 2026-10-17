@@ -301,7 +301,7 @@ mod win {
                     return Ok(());
                 }
                 let response =
-                    env.CreateWebResourceResponse(None, 403, &HSTRING::from("Blocked by Seyro"), &HSTRING::new())?;
+                    env.CreateWebResourceResponse(None, 403, &HSTRING::from("Blocked by Jiyda"), &HSTRING::new())?;
                 args.SetResponse(&response)?;
                 on_block(kind);
                 Ok(())

@@ -1,14 +1,14 @@
 // core.js — основа интерфейса: связь с ядром (Rust), состояние, слои, помощники.
 //
 // Интерфейс → ядро: S.post({type, ...}) — сообщения описаны в src/ipc.rs.
-// Ядро → интерфейс: window.seyro.render(state) — всё состояние браузера,
+// Ядро → интерфейс: window.jiyda.render(state) — всё состояние браузера,
 //   command(cmd, arg) — открыть палитру/Orbit/…, data(kind, payload) — списки по запросу,
 //   toast(t), preview(id, uri), findResult(r).
 // Компоненты (ui/js/*.js) подписываются на события S.on('render' | 'command:<cmd>' | 'data:<kind>' …).
 const S = (() => {
   const cfg = Object.assign(
     { lang: 'en', chromeH: 46, captionW: 46, splitGap: 6, paneH: 30, frameless: true, version: '' },
-    window.SEYRO_CONFIG || {},
+    window.JIYDA_CONFIG || {},
   );
   const root = document.documentElement;
   root.style.setProperty('--chrome-h', cfg.chromeH + 'px');
@@ -22,9 +22,9 @@ const S = (() => {
   let onPost = null;
   const post = (m) => {
     if (onPost) onPost(m);
-    try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) { /* вне Seyro */ }
+    try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) { /* вне Jiyda */ }
   };
-  // Ошибки интерфейса — в журнал ядра (seyro.log): DevTools у пользователя не открыты.
+  // Ошибки интерфейса — в журнал ядра (jiyda.log): DevTools у пользователя не открыты.
   addEventListener('error', (e) => post({ type: 'log', msg: `${e.message} @ ${e.lineno}:${e.colno}` }));
   addEventListener('unhandledrejection', (e) => post({ type: 'log', msg: 'promise: ' + String(e.reason) }));
   const $ = (s, r = document) => r.querySelector(s);
@@ -274,7 +274,7 @@ const S = (() => {
   // грузит: это раскрыло бы сайтам историю и шло бы с куки «Основного» Space.
   // Тон значка на прозрачном фоне: 'light' — почти белый, 'dark' — почти чёрный, '' — цветной
   // или со своим фоном. Сайты отдают значок под свою тему (GitHub в тёмной — белый), и в другой
-  // теме Seyro он сливается с фоном: тогда CSS подкладывает плашку (.fav[data-tone]).
+  // теме Jiyda он сливается с фоном: тогда CSS подкладывает плашку (.fav[data-tone]).
   const tones = new Map();
   function toneOf(img) {
     if (tones.has(img.src)) return tones.get(img.src);
@@ -326,7 +326,7 @@ const S = (() => {
   const withKey = (label, cmd) => (keyOf(cmd) ? `${label} (${keyOf(cmd)})` : label);
 
   // ---------- API для ядра ----------
-  window.seyro = {
+  window.jiyda = {
     render(s) {
       state = s;
       applyTheme();
@@ -353,6 +353,6 @@ const S = (() => {
   };
 })();
 
-// Для отладки и проверок (SEYRO_AUTOMATION: команда js).
+// Для отладки и проверок (JIYDA_AUTOMATION: команда js).
 window.S = S;
 export { S };

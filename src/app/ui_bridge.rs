@@ -1,4 +1,4 @@
-//! Связь с интерфейсом: состояние браузера для ui/js и вызовы seyro.*.
+//! Связь с интерфейсом: состояние браузера для ui/js и вызовы jiyda.*.
 
 use super::*;
 
@@ -22,7 +22,7 @@ impl App {
         }
     }
 
-    /// Всё состояние браузера — интерфейсу (`seyro.render`).
+    /// Всё состояние браузера — интерфейсу (`jiyda.render`).
     pub(super) fn send_state(&self) {
         // Группы Orbit — по страницам Now активного пространства.
         let now_pages: Vec<(u64, &str)> =
@@ -91,12 +91,12 @@ impl App {
             },
             "peek": self.peek.as_ref().map(|p| json!({ "url": p.url, "rect": [p.rect.0, p.rect.1, p.rect.2, p.rect.3] })),
         });
-        self.eval_ui(&format!("window.seyro && seyro.render({state})"));
+        self.eval_ui(&format!("window.jiyda && jiyda.render({state})"));
 
         let title = self.pages.active_page().map(|t| if t.title.is_empty() { t.url.clone() } else { t.title.clone() });
         self.window.set_title(&match title {
-            Some(t) => format!("{t} — Seyro"),
-            None => "Seyro".into(),
+            Some(t) => format!("{t} — Jiyda"),
+            None => "Jiyda".into(),
         });
     }
 
@@ -117,24 +117,24 @@ impl App {
     /// Команда, которую выполняет интерфейс (открыть палитру, Orbit, панель…).
     pub(super) fn ui_command(&self, cmd: &str, arg: Value) {
         self.flush_state();
-        self.eval_ui(&format!("window.seyro && seyro.command({}, {arg})", json!(cmd)));
+        self.eval_ui(&format!("window.jiyda && jiyda.command({}, {arg})", json!(cmd)));
     }
 
     pub(super) fn ui_data(&self, kind: &str, data: Value) {
         self.flush_state();
-        self.eval_ui(&format!("window.seyro && seyro.data({}, {data})", json!(kind)));
+        self.eval_ui(&format!("window.jiyda && jiyda.data({}, {data})", json!(kind)));
     }
 
     pub(super) fn toast(&self, text: &str) {
         self.flush_state();
-        self.eval_ui(&format!("window.seyro && seyro.toast({})", json!({ "text": text })));
+        self.eval_ui(&format!("window.jiyda && jiyda.toast({})", json!({ "text": text })));
     }
 
     /// Тост с кнопкой (Undo): по нажатию интерфейс пришлёт сообщение `msg`.
     pub(super) fn toast_action(&self, text: &str, label: &str, msg: Value) {
         self.flush_state();
         self.eval_ui(&format!(
-            "window.seyro && seyro.toast({})",
+            "window.jiyda && jiyda.toast({})",
             json!({ "text": text, "action": { "label": label, "msg": msg } })
         ));
     }

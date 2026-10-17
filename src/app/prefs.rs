@@ -64,7 +64,7 @@ impl App {
             SettingChange::Shield(on) => self.shield.borrow_mut().enabled = on,
             SettingChange::SelectionToolbar(on) => {
                 // Уже открытым страницам — сразу, новым — через скрипт при создании.
-                let js = format!("window.__seyroSel && window.__seyroSel({on})");
+                let js = format!("window.__jiydaSel && window.__jiydaSel({on})");
                 for wv in self.all_views() {
                     wv.evaluate_script(&js).or_log("evaluate_script");
                 }
@@ -81,7 +81,7 @@ impl App {
         }
         self.save_config();
         if applied.restart {
-            self.toast(i18n::tr("This change takes effect after restarting Seyro"));
+            self.toast(i18n::tr("This change takes effect after restarting Jiyda"));
         }
         self.ui_data("settings", self.settings_json());
         self.push_state();

@@ -1,9 +1,9 @@
-//! Ask Seyro: сбор текста страниц и запрос к Claude в фоновом потоке.
+//! Ask Jiyda: сбор текста страниц и запрос к Claude в фоновом потоке.
 
 use super::*;
 
 impl App {
-    // ---------- Ask Seyro ----------
+    // ---------- Ask Jiyda ----------
 
     pub(super) fn ask(&mut self, req: u64, prompt: String, context: &str, pages: Vec<u64>, selection: String) {
         let Some(_) = &self.ai_key else {
@@ -18,7 +18,7 @@ impl App {
         };
         if context == "history" {
             let list: String = self.history.recent(300).iter().map(|e| format!("{} — {}\n", e.title, e.url)).collect();
-            job.pages.push((i18n::tr("History").to_string(), "seyro://history".into(), list));
+            job.pages.push((i18n::tr("History").to_string(), "jiyda://history".into(), list));
         }
         // Только заголовки и адреса открытых страниц (Organize pages) — без их текста.
         if context == "titles" {
@@ -29,7 +29,7 @@ impl App {
                 .filter(|t| t.is_now())
                 .map(|t| format!("{} — {}\n", t.title, t.url))
                 .collect();
-            job.pages.push(("Open pages".to_string(), "seyro://pages".into(), list));
+            job.pages.push(("Open pages".to_string(), "jiyda://pages".into(), list));
         }
         for id in ids {
             let Some(t) = self.page_any(id) else { continue };
@@ -71,7 +71,7 @@ impl App {
             let r = ai::Request { prompt: &job.prompt, lang, selection: &job.selection, pages: &job.pages };
             let result = ai::ask(&key, &r);
             if let Err(e) = &result {
-                log::warn!("Ask Seyro: {e}");
+                log::warn!("Ask Jiyda: {e}");
             }
             let _ = p.send_event(UserEvent::AiAnswer { req, result });
         });

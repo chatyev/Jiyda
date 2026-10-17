@@ -1,6 +1,6 @@
 //! Настройки браузера и пути к файлам данных.
 //!
-//! Файл настроек: %LOCALAPPDATA%\Seyro\config.json — создаётся при первом запуске,
+//! Файл настроек: %LOCALAPPDATA%\Jiyda\config.json — создаётся при первом запуске,
 //! его можно править руками (браузер нужно перезапустить).
 
 use serde::{Deserialize, Serialize};
@@ -8,17 +8,23 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 /// Папка данных в %LOCALAPPDATA%.
-const DATA_DIR: &str = "Seyro";
-/// Так она называлась до ребрендинга (браузер назывался Drift).
-const OLD_DATA_DIR: &str = "Drift";
+const DATA_DIR: &str = "Jiyda";
+/// Так она называлась раньше: браузер был Seyro (до 0.6.0), а ещё раньше — Drift.
+/// Переносится самая новая из найденных.
+const OLD_DATA_DIRS: &[&str] = &["Seyro", "Drift"];
 
 fn local_data() -> PathBuf {
     dirs::data_local_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
 }
 
-/// Перенести данные из старой папки Drift в Seyro (вкладки, пространства, логины,
-/// настройки). Ok(true) — перенесли, Ok(false) — нечего переносить. Вызывается до
-/// `Paths::new`, пока в папках ничего не открыто.
+/// Старая папка данных, если она есть.
+fn old_data_dir(local: &Path) -> Option<PathBuf> {
+    OLD_DATA_DIRS.iter().map(|d| local.join(d)).find(|d| d.is_dir())
+}
+
+/// Перенести данные из старой папки (Seyro или Drift) в Jiyda: вкладки, пространства,
+/// логины, настройки. Ok(true) — перенесли, Ok(false) — нечего переносить. Вызывается
+/// до `Paths::new`, пока в папках ничего не открыто.
 pub fn migrate_old_data() -> std::io::Result<bool> {
     if data_dir_override().is_some() {
         return Ok(false);
@@ -26,28 +32,26 @@ pub fn migrate_old_data() -> std::io::Result<bool> {
     migrate_in(&local_data())
 }
 
-/// Своя папка данных из переменной SEYRO_DATA_DIR — для разработки и проверки, чтобы
-/// не трогать настоящие вкладки и логины. Такой Seyro не мешает основному (см. instance.rs).
+/// Своя папка данных из переменной JIYDA_DATA_DIR — для разработки и проверки, чтобы
+/// не трогать настоящие вкладки и логины. Такой Jiyda не мешает основному (см. instance.rs).
 pub fn data_dir_override() -> Option<PathBuf> {
-    std::env::var_os("SEYRO_DATA_DIR").filter(|v| !v.is_empty()).map(PathBuf::from)
+    std::env::var_os("JIYDA_DATA_DIR").filter(|v| !v.is_empty()).map(PathBuf::from)
 }
 
 fn migrate_in(local: &Path) -> std::io::Result<bool> {
-    let (new, old) = (local.join(DATA_DIR), local.join(OLD_DATA_DIR));
-    if new.exists() || !old.is_dir() {
-        return Ok(false);
-    }
+    let new = local.join(DATA_DIR);
+    let Some(old) = old_data_dir(local).filter(|_| !new.exists()) else { return Ok(false) };
     // Переименование внутри одного диска мгновенное и ничего не копирует.
     std::fs::rename(&old, &new)?;
     Ok(true)
 }
 
-/// Если перенести не удалось (старая папка занята, например работает drift.exe),
+/// Если перенести не удалось (старая папка занята, например ещё работает seyro.exe),
 /// работаем в старой папке, чтобы ничего не потерять; перенос повторится при
 /// следующем запуске.
 fn data_dir_in(local: &Path) -> PathBuf {
-    let (new, old) = (local.join(DATA_DIR), local.join(OLD_DATA_DIR));
-    if !new.exists() && old.is_dir() { old } else { new }
+    let new = local.join(DATA_DIR);
+    if new.exists() { new } else { old_data_dir(local).unwrap_or(new) }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,7 +88,7 @@ pub struct Config {
     pub dim_chrome: bool,
     /// Анимации: "system" (как в Windows) или "reduced".
     pub motion: String,
-    /// Ask Seyro включён (ключ — в диспетчере учётных данных Windows, не здесь).
+    /// Ask Jiyda включён (ключ — в диспетчере учётных данных Windows, не здесь).
     pub ai: bool,
     /// Папка загрузок; пусто — как в Windows.
     pub download_dir: String,
@@ -150,7 +154,7 @@ impl Paths {
             webview_data: base.join("webview"),
             spaces: base.join("spaces"),
             extensions: base.join("extensions"),
-            log: base.join("seyro.log"),
+            log: base.join("jiyda.log"),
         };
         let _ = std::fs::create_dir_all(&p.webview_data);
         let _ = std::fs::create_dir_all(&p.extensions);
@@ -201,7 +205,7 @@ impl Writer {
     pub fn new() -> Self {
         let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, String)>();
         let thread = std::thread::Builder::new()
-            .name("seyro-writer".into())
+            .name("jiyda-writer".into())
             .spawn(move || {
                 for (path, data) in rx {
                     write_atomic(&path, &data);
@@ -327,10 +331,10 @@ mod tests {
         assert!(!path.exists());
     }
 
-    // ---------- Перенос данных из Drift ----------
+    // ---------- Перенос данных из Seyro и Drift ----------
 
-    fn old_drift_data(local: &std::path::Path) {
-        let old = local.join(OLD_DATA_DIR);
+    fn old_data(local: &std::path::Path, name: &str) {
+        let old = local.join(name);
         std::fs::create_dir_all(old.join("webview").join("EBWebView")).unwrap();
         std::fs::write(old.join("session.json"), "{\"spaces\":[]}").unwrap();
         std::fs::write(old.join("webview").join("EBWebView").join("Cookies"), "c").unwrap();
@@ -338,33 +342,46 @@ mod tests {
 
     #[test]
     fn migration_moves_old_folder_with_everything_inside() {
-        let local = tempfile::tempdir().unwrap();
-        old_drift_data(local.path());
-        assert!(migrate_in(local.path()).unwrap());
-        let new = local.path().join(DATA_DIR);
-        assert_eq!(std::fs::read_to_string(new.join("session.json")).unwrap(), "{\"spaces\":[]}");
-        assert!(new.join("webview").join("EBWebView").join("Cookies").exists());
-        assert!(!local.path().join(OLD_DATA_DIR).exists());
-        assert_eq!(data_dir_in(local.path()), new);
-        // Второй раз переносить нечего.
-        assert!(!migrate_in(local.path()).unwrap());
+        for name in OLD_DATA_DIRS {
+            let local = tempfile::tempdir().unwrap();
+            old_data(local.path(), name);
+            assert!(migrate_in(local.path()).unwrap(), "{name}");
+            let new = local.path().join(DATA_DIR);
+            assert_eq!(std::fs::read_to_string(new.join("session.json")).unwrap(), "{\"spaces\":[]}");
+            assert!(new.join("webview").join("EBWebView").join("Cookies").exists());
+            assert!(!local.path().join(name).exists());
+            assert_eq!(data_dir_in(local.path()), new);
+            // Второй раз переносить нечего.
+            assert!(!migrate_in(local.path()).unwrap());
+        }
     }
 
     #[test]
-    fn migration_never_overwrites_existing_seyro_data() {
+    fn newest_old_folder_wins() {
+        // Есть и Seyro, и совсем старый Drift — переносится Seyro, Drift не трогается.
         let local = tempfile::tempdir().unwrap();
-        old_drift_data(local.path());
+        old_data(local.path(), "Drift");
+        old_data(local.path(), "Seyro");
+        assert!(migrate_in(local.path()).unwrap());
+        assert!(!local.path().join("Seyro").exists());
+        assert!(local.path().join("Drift").exists());
+    }
+
+    #[test]
+    fn migration_never_overwrites_existing_jiyda_data() {
+        let local = tempfile::tempdir().unwrap();
+        old_data(local.path(), "Seyro");
         let new = local.path().join(DATA_DIR);
         std::fs::create_dir_all(&new).unwrap();
         std::fs::write(new.join("session.json"), "new").unwrap();
         assert!(!migrate_in(local.path()).unwrap());
         assert_eq!(std::fs::read_to_string(new.join("session.json")).unwrap(), "new");
-        assert!(local.path().join(OLD_DATA_DIR).exists());
+        assert!(local.path().join("Seyro").exists());
         assert_eq!(data_dir_in(local.path()), new);
     }
 
     #[test]
-    fn fresh_install_uses_seyro_folder() {
+    fn fresh_install_uses_jiyda_folder() {
         let local = tempfile::tempdir().unwrap();
         assert!(!migrate_in(local.path()).unwrap());
         assert_eq!(data_dir_in(local.path()), local.path().join(DATA_DIR));
@@ -374,14 +391,14 @@ mod tests {
     fn falls_back_to_old_folder_when_not_migrated() {
         // Перенос не удался (папка занята) — работаем со старыми данными, а не с пустыми.
         let local = tempfile::tempdir().unwrap();
-        old_drift_data(local.path());
-        assert_eq!(data_dir_in(local.path()), local.path().join(OLD_DATA_DIR));
+        old_data(local.path(), "Seyro");
+        assert_eq!(data_dir_in(local.path()), local.path().join("Seyro"));
     }
 
     #[test]
     fn old_name_as_a_file_is_ignored() {
         let local = tempfile::tempdir().unwrap();
-        std::fs::write(local.path().join(OLD_DATA_DIR), "not a folder").unwrap();
+        std::fs::write(local.path().join("Seyro"), "not a folder").unwrap();
         assert!(!migrate_in(local.path()).unwrap());
         assert_eq!(data_dir_in(local.path()), local.path().join(DATA_DIR));
     }

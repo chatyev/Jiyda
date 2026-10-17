@@ -1,7 +1,7 @@
-//! Один экземпляр Seyro и ссылки из других программ.
+//! Один экземпляр Jiyda и ссылки из других программ.
 //!
-//! Когда Seyro — браузер по умолчанию, Windows запускает `seyro.exe <адрес>` на каждую
-//! ссылку. Если Seyro уже работает, новый процесс не открывает второе окно (два окна
+//! Когда Jiyda — браузер по умолчанию, Windows запускает `jiyda.exe <адрес>` на каждую
+//! ссылку. Если Jiyda уже работает, новый процесс не открывает второе окно (два окна
 //! на одной папке данных WebView2 — путь к её порче), а передаёт адреса работающему
 //! через именованный канал и сразу завершается. Работающий открывает их во вкладках
 //! и выходит на передний план. Пустое сообщение — просто «покажись» (повторный
@@ -14,7 +14,7 @@ const MAX_URLS: usize = 50;
 const MAX_URL_LEN: usize = 8 * 1024;
 
 /// Адрес из аргумента командной строки: ссылка как есть, путь к файлу — как file:///,
-/// голый домен (`seyro.exe example.com`) — как https. Флаги и прочее — None.
+/// голый домен (`jiyda.exe example.com`) — как https. Флаги и прочее — None.
 pub fn arg_to_url(arg: &str, cwd: &Path) -> Option<String> {
     let arg = arg.trim().trim_matches('"');
     if arg.is_empty() || arg.starts_with('-') {
@@ -67,9 +67,9 @@ fn pipe_name() -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
-    // Seyro с отдельной папкой данных (SEYRO_DATA_DIR) — отдельный экземпляр.
+    // Jiyda с отдельной папкой данных (JIYDA_DATA_DIR) — отдельный экземпляр.
     let alt = if crate::config::data_dir_override().is_some() { "-alt" } else { "" };
-    format!(r"\\.\pipe\seyro-{user}{alt}")
+    format!(r"\\.\pipe\jiyda-{user}{alt}")
 }
 
 #[cfg(windows)]
@@ -77,7 +77,7 @@ fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// Передать адреса уже работающему Seyro. false — он не запущен, запускаемся сами.
+/// Передать адреса уже работающему Jiyda. false — он не запущен, запускаемся сами.
 #[cfg(windows)]
 pub fn send_to_running(urls: &[String]) -> bool {
     use windows::Win32::Foundation::{CloseHandle, ERROR_PIPE_BUSY, GENERIC_WRITE};
@@ -104,7 +104,7 @@ pub fn send_to_running(urls: &[String]) -> bool {
     unsafe {
         let handle = match open() {
             Ok(h) => h,
-            // Работающий Seyro как раз обслуживает другой запуск — подождём.
+            // Работающий Jiyda как раз обслуживает другой запуск — подождём.
             Err(e)
                 if e.code() == ERROR_PIPE_BUSY.to_hresult()
                     && WaitNamedPipeW(PCWSTR(name.as_ptr()), 2000).as_bool() =>
@@ -213,11 +213,11 @@ pub fn listen(on_message: impl Fn(Vec<String>) + Send + 'static) {
 #[cfg(not(windows))]
 pub fn listen(_on_message: impl Fn(Vec<String>) + Send + 'static) {}
 
-/// Имя, под которым установщик регистрирует Seyro в списке браузеров Windows
-/// (HKCU\Software\RegisteredApplications, см. installer/seyro.iss).
+/// Имя, под которым установщик регистрирует Jiyda в списке браузеров Windows
+/// (HKCU\Software\RegisteredApplications, см. installer/jiyda.iss).
 const REGISTERED_NAME: &str = "Seyro";
 
-/// Зарегистрирован ли Seyro как браузер — это делает установщик.
+/// Зарегистрирован ли Jiyda как браузер — это делает установщик.
 #[cfg(windows)]
 pub fn registered_as_browser() -> bool {
     use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_SZ, RegGetValueW};
@@ -235,7 +235,7 @@ pub fn registered_as_browser() -> bool {
     false
 }
 
-/// Открыть в «Параметрах» страницу Seyro в «Приложениях по умолчанию». Назначить себя
+/// Открыть в «Параметрах» страницу Jiyda в «Приложениях по умолчанию». Назначить себя
 /// браузером по умолчанию молча Windows 10/11 не дают — выбор делает пользователь.
 /// Через ShellExecute: `explorer ms-settings:...` «Параметры» не открывает.
 #[cfg(windows)]
@@ -323,7 +323,7 @@ mod tests {
     #[test]
     fn pipe_name_is_safe() {
         let n = pipe_name();
-        assert!(n.starts_with(r"\\.\pipe\seyro-"));
+        assert!(n.starts_with(r"\\.\pipe\jiyda-"));
         assert!(n[r"\\.\pipe\".len()..].chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
     }
 }

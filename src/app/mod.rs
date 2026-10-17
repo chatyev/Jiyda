@@ -56,8 +56,8 @@ mod updates;
 
 const TAB_JS: &str = include_str!("../tab.js");
 const FIND_JS: &str = include_str!("../find.js");
-/// Знак Seyro для интерфейса (передаётся как data: URI).
-const LOGO_PNG: &[u8] = include_bytes!("../../assets/seyro-mark-128.png");
+/// Знак Jiyda для интерфейса (передаётся как data: URI).
+const LOGO_PNG: &[u8] = include_bytes!("../../assets/jiyda-mark-128.png");
 
 /// Сессия и история пишутся на диск не сразу, а через эту паузу после изменения.
 const SAVE_DELAY: Duration = Duration::from_secs(2);
@@ -140,7 +140,7 @@ pub enum UserEvent {
     },
     /// Settings → Shortcuts: нажатое сочетание для записи.
     KeyRecorded(String),
-    /// Адреса из командной строки или от нового запуска seyro.exe (см. instance.rs).
+    /// Адреса из командной строки или от нового запуска jiyda.exe (см. instance.rs).
     External {
         urls: Vec<String>,
     },
@@ -178,7 +178,7 @@ pub enum UserEvent {
         id: u64,
         on: bool,
     },
-    /// Текст страницы для Ask Seyro.
+    /// Текст страницы для Ask Jiyda.
     PageText {
         req: u64,
         id: u64,
@@ -285,7 +285,7 @@ impl Updates {
     }
 }
 
-/// Вопрос к Ask Seyro, для которого собираются тексты страниц.
+/// Вопрос к Ask Jiyda, для которого собираются тексты страниц.
 struct AiJob {
     prompt: String,
     selection: String,
@@ -371,7 +371,7 @@ fn common<'a>(b: WebViewBuilder<'a>, cfg: &Config, paths: &Paths, theme: &str, d
     #[cfg(windows)]
     let b = {
         use wry::WebViewBuilderExtWindows;
-        // Сайты, которые умеют светлую и тёмную тему, показываются в теме Seyro.
+        // Сайты, которые умеют светлую и тёмную тему, показываются в теме Jiyda.
         let b = b.with_browser_extensions_enabled(cfg.extensions).with_theme(page_theme(theme));
         if cfg.extensions { b.with_extensions_path(paths.extensions.clone()) } else { b }
     };
@@ -380,7 +380,7 @@ fn common<'a>(b: WebViewBuilder<'a>, cfg: &Config, paths: &Paths, theme: &str, d
     b
 }
 
-/// Тема для страниц (CSS prefers-color-scheme): как выбрано в Seyro.
+/// Тема для страниц (CSS prefers-color-scheme): как выбрано в Jiyda.
 #[cfg(windows)]
 fn page_theme(theme: &str) -> wry::Theme {
     match theme {
@@ -472,7 +472,7 @@ fn js_string_result(json: &str) -> String {
     serde_json::from_str::<String>(json).unwrap_or_default()
 }
 
-/// Скрипт, который отдаёт видимый текст страницы для Ask Seyro.
+/// Скрипт, который отдаёт видимый текст страницы для Ask Jiyda.
 const PAGE_TEXT_JS: &str = "(() => { try { return (document.body ? document.body.innerText : '').slice(0, 400000); } catch (e) { return ''; } })()";
 
 #[cfg(test)]

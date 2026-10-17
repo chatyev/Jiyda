@@ -1,4 +1,4 @@
-//! Журнал в %LOCALAPPDATA%\Seyro\seyro.log (+ консоль в отладочной сборке).
+//! Журнал в %LOCALAPPDATA%\Jiyda\jiyda.log (+ консоль в отладочной сборке).
 
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -7,7 +7,7 @@ use simplelog::{
     ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, SharedLogger, TermLogger, TerminalMode, WriteLogger,
 };
 
-/// Больше этого размера журнал при запуске переносится в seyro.old.log.
+/// Больше этого размера журнал при запуске переносится в jiyda.old.log.
 const MAX_LOG_SIZE: u64 = 1024 * 1024;
 
 /// Для вызовов, ошибка которых не мешает работе (страница закрылась, WebView занят),
@@ -50,5 +50,5 @@ pub fn init(path: &Path) {
         log::error!("паника: {info}");
     }));
 
-    log::info!("Seyro {} запущен", env!("CARGO_PKG_VERSION"));
+    log::info!("Jiyda {} запущен", env!("CARGO_PKG_VERSION"));
 }

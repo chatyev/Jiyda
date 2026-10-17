@@ -2,10 +2,10 @@
 // воспроизведение звука и показывает панель над выделенным текстом.
 // Горячие клавиши браузера ловит hotkeys.rs, не страница.
 (function () {
-  if (window.__seyro) return;
-  window.__seyro = true;
+  if (window.__jiyda) return;
+  window.__jiyda = true;
 
-  const cfg = window.__SEYRO_PAGE || { selection: true, lang: 'en' };
+  const cfg = window.__JIYDA_PAGE || { selection: true, lang: 'en' };
   const post = (m) => { try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) {} };
   const isTop = window.top === window;
 
@@ -48,18 +48,18 @@
     ['search', RU ? 'Найти' : 'Search'],
     ['explain', RU ? 'Объяснить' : 'Explain'],
     ['translate', RU ? 'Перевести' : 'Translate'],
-    ['ask', 'Ask Seyro'],
+    ['ask', 'Ask Jiyda'],
   ];
   let enabled = cfg.selection !== false;
   let host = null, root = null, bar = null, current = '';
-  window.__seyroSel = (on) => { enabled = !!on; if (!enabled) hide(); };
+  window.__jiydaSel = (on) => { enabled = !!on; if (!enabled) hide(); };
 
   function build() {
-    host = document.createElement('seyro-selection');
+    host = document.createElement('jiyda-selection');
     host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;left:0;top:0;';
     root = host.attachShadow({ mode: 'closed' });
     // Цвета — те же, что в ui/styles.css (--s2, --text, --line-2, --hover, --accent, --shadow-pop).
-    // Тема страницы совпадает с темой Seyro (ядро задаёт её WebView), и при смене панель перекрашивается сама.
+    // Тема страницы совпадает с темой Jiyda (ядро задаёт её WebView), и при смене панель перекрашивается сама.
     root.innerHTML = `<style>
       :host{--bg:#ffffff;--fg:#10151C;--line:rgba(15,23,42,.12);--hover:rgba(15,23,42,.06);--accent:#1F6FD1;
         --shadow:0 6px 16px rgba(15,23,42,.14),0 1px 3px rgba(15,23,42,.10)}

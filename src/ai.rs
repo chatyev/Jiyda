@@ -1,4 +1,4 @@
-//! Ask Seyro: вопросы к Claude о странице, выделенном тексте и открытых страницах.
+//! Ask Jiyda: вопросы к Claude о странице, выделенном тексте и открытых страницах.
 //!
 //! Выключено, пока пользователь не введёт свой ключ Anthropic API (Settings → AI
 //! Assistant). Ключ хранится в диспетчере учётных данных Windows, а не в config.json.
@@ -14,9 +14,12 @@ const MODEL: &str = "claude-opus-5-5";
 /// с пометкой, чтобы запрос не стал огромным; пользователь видит это в ответе.
 pub const CONTEXT_LIMIT: usize = 120_000;
 /// Где лежит ключ в диспетчере учётных данных Windows.
-const CREDENTIAL: &str = "Seyro/Anthropic API key";
+const CREDENTIAL: &str = "Jiyda/Anthropic API key";
+/// Так он назывался, пока браузер был Seyro (до 0.6.0); при первом чтении переносится.
+#[cfg(windows)]
+const OLD_CREDENTIAL: &str = "Seyro/Anthropic API key";
 
-const SYSTEM: &str = "You are Ask Seyro, the assistant built into the Seyro web browser. \
+const SYSTEM: &str = "You are Ask Jiyda, the assistant built into the Jiyda web browser. \
 You help with the pages the user has open: summarizing, explaining, translating, comparing and finding things. \
 Answer in the language the user writes in (if they only pressed an action button, use the language of the browser interface given below). \
 Be concise and concrete; use short paragraphs or bullet lists. Plain text with simple Markdown (bold, lists) only. \
@@ -121,9 +124,31 @@ pub fn ask(key: &str, r: &Request) -> Result<String, String> {
 
 #[cfg(windows)]
 pub fn load_key() -> Option<String> {
+    if let Some(key) = read_credential(CREDENTIAL) {
+        return Some(key);
+    }
+    // Ключ, сохранённый ещё в Seyro: перекладываем под новое имя, старый удаляем.
+    let key = read_credential(OLD_CREDENTIAL)?;
+    match save_key(&key) {
+        Ok(()) => delete_credential(OLD_CREDENTIAL),
+        Err(e) => log::warn!("ключ Seyro не перенесён: {e}"),
+    }
+    Some(key)
+}
+
+#[cfg(windows)]
+fn delete_credential(name: &str) {
+    use windows::Win32::Security::Credentials::{CRED_TYPE_GENERIC, CredDeleteW};
+    let target: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+    // SAFETY: строка живёт до конца вызова.
+    let _ = unsafe { CredDeleteW(windows::core::PCWSTR(target.as_ptr()), CRED_TYPE_GENERIC, None) };
+}
+
+#[cfg(windows)]
+fn read_credential(name: &str) -> Option<String> {
     use windows::Win32::Security::Credentials::{CRED_TYPE_GENERIC, CREDENTIALW, CredFree, CredReadW};
     use windows::core::PCWSTR;
-    let target: Vec<u16> = CREDENTIAL.encode_utf16().chain(std::iter::once(0)).collect();
+    let target: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let mut cred: *mut CREDENTIALW = std::ptr::null_mut();
     // SAFETY: CredReadW выделяет структуру, мы читаем её и освобождаем CredFree.
     unsafe {
@@ -140,16 +165,16 @@ pub fn load_key() -> Option<String> {
 #[cfg(windows)]
 pub fn save_key(key: &str) -> Result<(), String> {
     use windows::Win32::Security::Credentials::{
-        CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC, CREDENTIALW, CredDeleteW, CredWriteW,
+        CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC, CREDENTIALW, CredWriteW,
     };
     use windows::core::PWSTR;
+    if key.is_empty() {
+        delete_credential(CREDENTIAL);
+        return Ok(());
+    }
     let mut target: Vec<u16> = CREDENTIAL.encode_utf16().chain(std::iter::once(0)).collect();
     // SAFETY: строки и буфер живут до конца вызова.
     unsafe {
-        if key.is_empty() {
-            let _ = CredDeleteW(windows::core::PCWSTR(target.as_ptr()), CRED_TYPE_GENERIC, None);
-            return Ok(());
-        }
         let mut blob = key.as_bytes().to_vec();
         let cred = CREDENTIALW {
             Type: CRED_TYPE_GENERIC,

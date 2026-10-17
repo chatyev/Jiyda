@@ -2,19 +2,19 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<title>Seyro</title>
+<title>Jiyda</title>
 <!--
-  Интерфейс Seyro. Этот WebView прозрачный и лежит поверх страниц; окно обрезает его
+  Интерфейс Jiyda. Этот WebView прозрачный и лежит поверх страниц; окно обрезает его
   регионом (src/frame.rs), поэтому мышь он получает только там, где что-то рисует.
   Ядро отдаёт этот файл, стили (ui/styles.css) и модули (ui/js/*.js) по адресу
-  seyro://ui/… (src/app/ui_assets.rs). Протокол с ядром — src/ipc.rs и ui/js/core.js.
+  jiyda://ui/… (src/app/ui_assets.rs). Протокол с ядром — src/ipc.rs и ui/js/core.js.
 -->
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- Верхняя панель: Space, назад/вперёд, адрес, Ask Seyro, меню. Кнопки окна справа рисует само окно. -->
+<!-- Верхняя панель: Space, назад/вперёд, адрес, Ask Jiyda, меню. Кнопки окна справа рисует само окно. -->
 <header id="chrome" class="chrome" role="toolbar" aria-label="Browser">
   <div class="chrome-left">
     <button id="space-btn" class="space-btn no-drag" aria-haspopup="menu" aria-expanded="false">

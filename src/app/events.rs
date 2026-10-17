@@ -55,7 +55,7 @@ impl App {
                     && self.pages.active() == Some(id)
                     && let Some((n, i)) = parse_find_result(&json)
                 {
-                    self.eval_ui(&format!("window.seyro && seyro.findResult({})", json!({ "n": n, "i": i })));
+                    self.eval_ui(&format!("window.jiyda && jiyda.findResult({})", json!({ "n": n, "i": i })));
                 }
             }
             // Клавиши приходят от WebView2, а не от страницы, но фокус может остаться
@@ -88,7 +88,7 @@ impl App {
             }
             UserEvent::Preview { id, jpeg } => {
                 self.eval_ui(&format!(
-                    "window.seyro && seyro.preview({id}, 'data:image/jpeg;base64,{}')",
+                    "window.jiyda && jiyda.preview({id}, 'data:image/jpeg;base64,{}')",
                     base64(&jpeg)
                 ));
             }

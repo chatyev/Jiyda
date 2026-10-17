@@ -34,13 +34,13 @@ impl App {
         let proxy = event_loop.create_proxy();
 
         let builder = WindowBuilder::new()
-            .with_title("Seyro")
+            .with_title("Jiyda")
             .with_inner_size(tao::dpi::LogicalSize::new(1360.0, 860.0))
             .with_min_inner_size(tao::dpi::LogicalSize::new(720.0, 480.0))
             .with_theme(window_theme(&theme))
             .with_decorations(!cfg.custom_titlebar);
         // Без рамки Windows всё равно рисует тень, скругляет углы и даёт тянуть края.
-        // Значок окна и панели задач — тот же, что встроен в seyro.exe (ресурс 1, см. build.rs).
+        // Значок окна и панели задач — тот же, что встроен в jiyda.exe (ресурс 1, см. build.rs).
         #[cfg(windows)]
         let builder = {
             use tao::platform::windows::{IconExtWindows, WindowBuilderExtWindows};
@@ -63,7 +63,7 @@ impl App {
             &theme,
             theme_is_dark(&theme, &window),
         );
-        // Интерфейс — с https-адреса (https://seyro.ui/): защищённый источник.
+        // Интерфейс — с https-адреса (https://jiyda.ui/): защищённый источник.
         #[cfg(windows)]
         let ui_builder = {
             use wry::WebViewBuilderExtWindows;
@@ -72,12 +72,12 @@ impl App {
         let ui = ui_builder
             .with_transparent(true)
             .with_background_color((0, 0, 0, 0))
-            // Файлы интерфейса — изнутри seyro.exe по адресу seyro://ui/ (ui_assets.rs).
+            // Файлы интерфейса — изнутри jiyda.exe по адресу jiyda://ui/ (ui_assets.rs).
             .with_custom_protocol(ui_assets::SCHEME.into(), |_, req| ui_assets::respond(&req))
             .with_url(ui_assets::INDEX_URL)
             .with_bounds(rect(0.0, 0.0, size.width, size.height))
             .with_initialization_script(format!(
-                "window.SEYRO_CONFIG = {};",
+                "window.JIYDA_CONFIG = {};",
                 json!({
                     "frameless": cfg.custom_titlebar,
                     "lang": i18n::code(),
