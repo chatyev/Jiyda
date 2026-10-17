@@ -104,6 +104,19 @@ public static class SmokeWin {
     }
 }
 '@
+        # Стеки всех потоков зависшего процесса (cdb из Windows SDK есть на серверах GitHub).
+        $cdb = @("${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe",
+            "$env:ProgramFiles\Windows Kits\10\Debuggers\x64\cdb.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if ($cdb -and -not $proc.HasExited) {
+            $sym = "$(Split-Path -Parent (Resolve-Path $Exe));srv*$env:TEMP\symbols*https://msdl.microsoft.com/download/symbols"
+            Write-Host "--- стеки потоков ($label) ---"
+            $out = Join-Path $data 'stacks.txt'
+            $p = Start-Process -FilePath $cdb -PassThru -NoNewWindow -RedirectStandardOutput $out `
+                -ArgumentList @('-pv', '-p', $proc.Id, '-y', "`"$sym`"", '-c', '"~* kn 40; qd"')
+            if (-not $p.WaitForExit(120000)) { Stop-Process -Id $p.Id -Force; Write-Host '(cdb не уложился в 2 минуты)' }
+            Get-Content $out -ErrorAction SilentlyContinue | Where-Object { $_ -notmatch '^ModLoad|^\*\*\*|^Symbol search|^Executable search|^\s*$' } |
+                ForEach-Object { Write-Host $_ }
+        } elseif (-not $cdb) { Write-Host '(cdb не найден — стеки не сняты)' }
         Write-Host "--- окна Seyro ($label) ---"
         [SmokeWin]::List([uint32]$proc.Id) | ForEach-Object { Write-Host $_ }
         Add-Type -AssemblyName System.Windows.Forms, System.Drawing
