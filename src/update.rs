@@ -80,6 +80,25 @@ pub fn release_from_location(location: &str) -> Option<Release> {
     Some(Release { version: version.to_string(), url: format!("{DOWNLOAD_PREFIX}{tag}/JiydaSetup-{version}.exe") })
 }
 
+/// Файл JiydaSetup-<версия>.exe.sha256 (его выкладывает CI): «<64 hex>  <имя>» или просто хэш.
+pub fn parse_sha256(text: &str) -> Option<[u8; 32]> {
+    let hex = text.split_whitespace().next()?;
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (i, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(hex.get(i * 2..i * 2 + 2)?, 16).ok()?;
+    }
+    Some(out)
+}
+
+/// Совпадает ли SHA-256 скачанного с опубликованным.
+pub fn sha256_matches(data: &[u8], expected: &[u8; 32]) -> bool {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(data).as_slice() == expected
+}
+
 /// Похоже ли скачанное на установщик: размер в разумных пределах и заголовок exe.
 pub fn looks_like_installer(data: &[u8]) -> bool {
     (MIN_INSTALLER..=MAX_INSTALLER).contains(&data.len()) && data.starts_with(b"MZ")
@@ -101,14 +120,21 @@ pub fn check() -> Result<Option<Release>, CheckError> {
     Ok(is_newer(&release.version, CURRENT).then_some(release))
 }
 
-/// Скачать установщик в `dir` и вернуть путь к нему.
+/// Скачать установщик в `dir` и вернуть путь к нему. Сначала — его SHA-256 из того же
+/// выпуска: повреждённый или подменённый при скачивании файл не запустится. (От взлома
+/// самого GitHub-аккаунта защитит только подпись установщика — сертификат подписи кода.)
 pub fn download(release: &Release, dir: &Path) -> Result<PathBuf, String> {
     if !release.url.to_ascii_lowercase().starts_with(DOWNLOAD_PREFIX) {
         return Err("адрес установщика не с GitHub Releases Jiyda".into());
     }
+    let sum = http_get(&format!("{}.sha256", release.url), 4 * 1024)?;
+    let expected = parse_sha256(&String::from_utf8_lossy(&sum)).ok_or("в выпуске нет контрольной суммы установщика")?;
     let data = http_get(&release.url, MAX_INSTALLER)?;
     if !looks_like_installer(&data) {
         return Err(format!("скачанный файл не похож на установщик ({} байт)", data.len()));
+    }
+    if !sha256_matches(&data, &expected) {
+        return Err("контрольная сумма установщика не совпала — файл повреждён или подменён".into());
     }
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let path = dir.join(format!("JiydaSetup-{}.exe", release.version));
@@ -197,6 +223,21 @@ mod tests {
         let mut html = vec![b' '; MIN_INSTALLER];
         html[..5].copy_from_slice(b"<html");
         assert!(!looks_like_installer(&html));
+    }
+
+    #[test]
+    fn checksum_file_parses_and_matches() {
+        // SHA-256 пустой строки и строки «abc» — известные значения.
+        let empty = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let abc = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
+        let e = parse_sha256(&format!("{empty}  JiydaSetup-0.6.2.exe\r\n")).unwrap();
+        assert!(sha256_matches(b"", &e));
+        assert!(!sha256_matches(b"x", &e));
+        // Регистр и «только хэш» тоже годятся (Get-FileHash пишет заглавными).
+        assert!(sha256_matches(b"abc", &parse_sha256(abc).unwrap()));
+        for bad in ["", "abc", &empty[..63], &format!("{}zz", &empty[..62]), "<html>not found</html>"] {
+            assert_eq!(parse_sha256(bad), None, "{bad}");
+        }
     }
 
     #[test]

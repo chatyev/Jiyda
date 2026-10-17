@@ -71,12 +71,24 @@ jobs:
         shell: pwsh
         run: ./installer/build.ps1
 
+      # Контрольная сумма рядом с установщиком: Jiyda сверяет её перед запуском обновления
+      # (src/update.rs). Формат как у sha256sum: «<хэш>  <имя файла>».
+      - name: SHA-256 установщика
+        shell: pwsh
+        run: |
+          Get-ChildItem target/installer/JiydaSetup-*.exe | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            Set-Content -Path "$($_.FullName).sha256" -Value "$hash  $($_.Name)" -NoNewline -Encoding ascii
+            Write-Host "$hash  $($_.Name)"
+          }
+
       - uses: actions/upload-artifact@v7
         with:
           name: jiyda-windows
           path: |
             target/release/jiyda.exe
             target/installer/JiydaSetup-*.exe
+            target/installer/JiydaSetup-*.exe.sha256
 
       - name: Релиз
         if: startsWith(github.ref, 'refs/tags/v')
@@ -86,4 +98,7 @@ jobs:
           body_path: docs/releases/${{ github.ref_name }}.md
           # Seyro 0.5.0 обновляется через отдельный репозиторий-мост chatyev/seyro (релиз 0.6.0
           # с SeyroSetup-0.6.0.exe): адреса этого репозитория он не принимает.
-          files: target/installer/JiydaSetup-*.exe
+          # Без .sha256 Jiyda 0.6.2+ обновление не установит.
+          files: |
+            target/installer/JiydaSetup-*.exe
+            target/installer/JiydaSetup-*.exe.sha256
