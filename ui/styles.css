@@ -190,13 +190,10 @@ kbd {
   display: flex; align-items: center; gap: 8px;
   padding-left: 8px;
   background: var(--bg);
-  /* Пустое место панели тянет окно (WebView2: перенос, Snap, двойной клик, системное меню). */
-  app-region: drag;
   z-index: 30;
   transition: transform var(--t-large) var(--ease), opacity var(--t) var(--ease);
 }
 .chrome::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--line); pointer-events: none; }
-.no-drag, .chrome button, .chrome input { app-region: no-drag; }
 .chrome-left, .chrome-right { display: flex; align-items: center; gap: 2px; flex: none; }
 .chrome-right { margin-left: auto; }
 .caption-space { width: calc(var(--caption-w) * 3); height: 100%; flex: none; }

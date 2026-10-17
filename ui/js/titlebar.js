@@ -7,6 +7,23 @@ import { S } from './core.js';
   const chrome = S.$('#chrome');
   const spaceBtn = S.$('#space-btn');
 
+  // Пустое место панели — как заголовок окна Windows: потянуть — перенести окно (с прилипанием
+  // к краям), двойной щелчок — развернуть или восстановить, правый щелчок — системное меню.
+  // Делает ядро: CSS app-region в WebView2 может остановить главный поток (см. frame.rs).
+  const interactive = 'button, input, textarea, select, a, [role="button"], .no-drag';
+  const empty = (e) => !e.target.closest(interactive);
+  chrome.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || !empty(e)) return;
+    e.preventDefault();
+    if (e.detail === 2) S.cmd('win_max');
+    else if (e.detail === 1) S.post({ type: 'window_drag' });
+  });
+  chrome.addEventListener('contextmenu', (e) => {
+    if (!empty(e)) return;
+    e.preventDefault();
+    S.post({ type: 'window_menu' });
+  });
+
   // Подписи и подсказки с текущими сочетаниями клавиш.
   function labels() {
     const set = (el, label, cmd) => { const l = S.withKey(label, cmd); el.title = l; el.setAttribute('aria-label', l); };

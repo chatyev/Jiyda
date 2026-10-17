@@ -405,6 +405,10 @@ impl App {
                     self.ui_command("close_pops", Value::Null);
                 }
             }
+            // Развёрнутое окно тоже тянется: Windows восстановит его под курсором, как обычное.
+            UiMsg::WindowDrag if !self.fullscreen => self.window.drag_window().or_log("drag_window"),
+            UiMsg::WindowDrag => {}
+            UiMsg::WindowMenu => frame::show_system_menu(&self.window),
             UiMsg::Log { msg } => log::warn!("интерфейс: {}", msg.chars().take(500).collect::<String>()),
             UiMsg::Unknown => {}
         }

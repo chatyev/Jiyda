@@ -104,7 +104,7 @@ impl App {
                 }
             })
             .build_as_child(&window)?;
-        frame::enable_drag_regions(&ui);
+        frame::configure_ui(&ui);
 
         let keys = Rc::new(Keys::default());
         *keys.map.borrow_mut() = Keymap::new(&cfg.shortcuts);

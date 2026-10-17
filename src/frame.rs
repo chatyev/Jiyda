@@ -8,9 +8,10 @@
 //! Кнопки окна (свернуть, развернуть, закрыть) рисует само окно, а не интерфейс:
 //! на `WM_NCHITTEST` оно отвечает HTMINBUTTON / HTMAXBUTTON / HTCLOSE — так Windows 11
 //! показывает Snap Layouts при наведении на «Развернуть», как у обычных окон.
-//! Перетаскивание окна за пустое место верхней панели делает сам WebView2
-//! (CSS `app-region: drag`, см. `enable_drag_regions`): прилипание к краям,
-//! двойной клик и системное меню работают как в Windows.
+//! Пустое место верхней панели тянет окно: интерфейс сообщает о нажатии, ядро запускает
+//! перетаскивание Windows (с прилипанием к краям); двойной щелчок разворачивает окно,
+//! правый — открывает системное меню (`show_system_menu`). CSS `app-region` не
+//! используется — почему, см. `configure_ui`.
 
 /// Высота верхней панели в логических пикселях (`--chrome-h` в ui/styles.css).
 pub const CHROME_H: f64 = 46.0;
@@ -485,6 +486,42 @@ mod win {
         }
     }
 
+    /// Системное меню окна у курсора (правый щелчок по пустому месту верхней панели),
+    /// как у заголовка обычного окна: пункты включены по состоянию окна.
+    pub fn show_system_menu(window: &tao::window::Window) {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            EnableMenuItem, GetCursorPos, GetSystemMenu, MENU_ITEM_FLAGS, MF_BYCOMMAND, MF_ENABLED, MF_GRAYED,
+            SC_CLOSE, SC_MAXIMIZE, SC_MINIMIZE, SC_MOVE, SC_RESTORE, SC_SIZE, SetMenuDefaultItem, TPM_RETURNCMD,
+            TPM_RIGHTBUTTON, TrackPopupMenu, WM_SYSCOMMAND,
+        };
+        let hwnd = hwnd_of(window);
+        // SAFETY: системное меню своего окна; меню принадлежит окну, освобождать его не нужно.
+        unsafe {
+            let menu = GetSystemMenu(hwnd, false);
+            if menu.is_invalid() {
+                return;
+            }
+            let maximized = IsZoomed(hwnd).as_bool();
+            let state = |on: bool| MF_BYCOMMAND | if on { MF_ENABLED } else { MF_GRAYED };
+            let set = |cmd: u32, on: bool| {
+                let _ = EnableMenuItem(menu, cmd, state(on) as MENU_ITEM_FLAGS);
+            };
+            set(SC_RESTORE, maximized);
+            set(SC_MOVE, !maximized);
+            set(SC_SIZE, !maximized);
+            set(SC_MINIMIZE, true);
+            set(SC_MAXIMIZE, !maximized);
+            set(SC_CLOSE, true);
+            let _ = SetMenuDefaultItem(menu, SC_CLOSE, 0);
+            let mut p = POINT::default();
+            let _ = GetCursorPos(&mut p);
+            let cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, p.x, p.y, Some(0), hwnd, None);
+            if cmd.0 != 0 {
+                let _ = PostMessageW(Some(hwnd), WM_SYSCOMMAND, WPARAM(cmd.0 as usize), LPARAM(0));
+            }
+        }
+    }
+
     /// Поднять интерфейс над страницами (новые WebView создаются поверх).
     pub fn raise(ui: &wry::WebView) {
         use wry::WebViewExtWindows;
@@ -546,24 +583,18 @@ mod win {
         }
     }
 
-    /// Настройки WebView интерфейса: CSS `app-region: drag` (перетаскивание окна, двойной
-    /// клик и системное меню за пустое место верхней панели делает WebView2); без своих
-    /// клавиш WebView (Ctrl+P, F5, Ctrl+F…) и масштаба — у интерфейса они не нужны,
-    /// а клавиши Seyro по-прежнему приходят в AcceleratorKeyPressed.
-    pub fn enable_drag_regions(ui: &wry::WebView) {
-        use webview2_com::Microsoft::Web::WebView2::Win32::{ICoreWebView2Settings3, ICoreWebView2Settings9};
+    /// Настройки WebView интерфейса: без своих клавиш WebView (Ctrl+P, F5, Ctrl+F…) и
+    /// масштаба — у интерфейса они не нужны, а клавиши Seyro по-прежнему приходят в
+    /// AcceleratorKeyPressed.
+    ///
+    /// CSS `app-region: drag` (SetIsNonClientRegionSupportEnabled) не включаем: пересчитывая
+    /// области перетаскивания, WebView2 синхронно двигает своё окно (UpdateDraggableRegions →
+    /// SetWindowPos), и это может навсегда остановить главный поток — так зависал Seyro на CI.
+    /// Окно тянет ядро по сообщению интерфейса (UiMsg::WindowDrag, titlebar.js).
+    pub fn configure_ui(ui: &wry::WebView) {
+        use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
         use windows::core::Interface;
         use wry::WebViewExtWindows;
-        // SAFETY: настройки живого WebView; интерфейс Settings9 есть в WebView2 1.0.2420+.
-        let res = unsafe {
-            ui.webview()
-                .Settings()
-                .and_then(|s| s.cast::<ICoreWebView2Settings9>())
-                .and_then(|s| s.SetIsNonClientRegionSupportEnabled(true))
-        };
-        if let Err(e) = res {
-            log::warn!("WebView2 без app-region (старый Runtime?): {e}");
-        }
         // SAFETY: настройки живого WebView.
         unsafe {
             if let Ok(s) = ui.webview().Settings() {
@@ -603,7 +634,9 @@ pub fn set_ui_region(
 ) {
 }
 #[cfg(not(windows))]
-pub fn enable_drag_regions(_ui: &wry::WebView) {}
+pub fn configure_ui(_ui: &wry::WebView) {}
+#[cfg(not(windows))]
+pub fn show_system_menu(_window: &tao::window::Window) {}
 
 /// «#0b0f14» → (11, 15, 20).
 pub fn parse_hex(s: &str) -> Option<(u8, u8, u8)> {

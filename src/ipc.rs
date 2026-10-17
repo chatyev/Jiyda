@@ -211,6 +211,12 @@ pub enum UiMsg {
     /// Интерфейс потерял фокус: ядро решает, ушёл ли пользователь (тогда закрыть панели).
     UiBlur,
 
+    /// Нажатие на пустое место верхней панели: перетаскивать окно (с прилипанием к краям).
+    WindowDrag,
+
+    /// Правый щелчок по пустому месту верхней панели: системное меню окна у курсора.
+    WindowMenu,
+
     /// Ошибка в скрипте интерфейса — в журнал seyro.log.
     Log {
         msg: String,
@@ -257,6 +263,8 @@ mod tests {
             Some(UiMsg::Region { full: false, rects: vec![[0.0, 0.0, 10.0, 10.0]], holes: vec![] })
         );
         assert_eq!(UiMsg::parse(r#"{"type":"split_swap"}"#), Some(UiMsg::SplitSwap));
+        assert_eq!(UiMsg::parse(r#"{"type":"window_drag"}"#), Some(UiMsg::WindowDrag));
+        assert_eq!(UiMsg::parse(r#"{"type":"window_menu"}"#), Some(UiMsg::WindowMenu));
         assert_eq!(
             UiMsg::parse(r#"{"type":"setting","key":"sleep_minutes","value":30}"#),
             Some(UiMsg::Setting(crate::settings::SettingChange::SleepMinutes(30)))
