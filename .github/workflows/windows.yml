@@ -19,7 +19,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Форматирование
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+      - name: Проверка интерфейса (открыть и закрыть каждый слой, без ошибок JS)
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          cargo build
+          ./scripts/ui-smoke.ps1
 
       - name: Версия из метки совпадает с Cargo.toml, release notes написаны
         if: startsWith(github.ref, 'refs/tags/v')

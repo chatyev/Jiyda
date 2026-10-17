@@ -1,0 +1,3 @@
+# Стиль кода: длинные строки, как во всём проекте. Проверяется в CI (cargo fmt --check).
+max_width = 120
+use_small_heuristics = "Max"
