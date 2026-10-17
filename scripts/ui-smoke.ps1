@@ -120,7 +120,11 @@ public static class SmokeWin {
 
 $env:SEYRO_AUTOMATION = '1'
 $env:SEYRO_DATA_DIR = $data
-$proc = Start-Process -FilePath $Exe -PassThru
+# Отладочный seyro.exe — консольная программа и пишет журнал ещё и в консоль. Без перенаправления
+# Start-Process открывает ей окно терминала; на сервере CI терминал перестаёт читать вывод, запись
+# в консоль блокируется — и вместе с ней главный поток. Поэтому вывод — в файлы.
+$proc = Start-Process -FilePath $Exe -PassThru -NoNewWindow `
+    -RedirectStandardOutput (Join-Path $data 'stdout.txt') -RedirectStandardError (Join-Path $data 'stderr.txt')
 $failure = $null
 try {
     # Интерфейс готов, когда выполнил первый скрипт. Метка — в конце строки: иначе совпадёт
