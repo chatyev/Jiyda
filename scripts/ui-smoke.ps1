@@ -24,7 +24,16 @@ $driver = @'
   const steps = [['palette', 'palette'], ['orbit', 'orbit'], ['spaces', 'spaces'], ['history', 'history'],
     ['closed', 'closed'], ['ask', 'ask'], ['settings', 'settings'], ['shortcuts', 'settings'], ['downloads', 'downloads']];
   const failed = [], times = [];
+  /* Для разбора сбоев: сколько сообщений ушло в ядро и пришло из него за шаг. */
+  let cnt = {};
+  const bump = (k) => { cnt[k] = (cnt[k] || 0) + 1; };
+  S.watchPosts((m) => bump('>' + m.type));
+  for (const k of ['render', 'command', 'data']) {
+    const f = window.seyro[k];
+    window.seyro[k] = (...a) => { bump('<' + (k === 'render' ? k : k + ':' + a[0])); return f.apply(window.seyro, a); };
+  }
   for (const [cmd, layer] of steps) {
+    cnt = {};
     const t0 = Date.now();
     S.cmd(cmd);
     if (!(await until(() => S.layers.isOpen(layer), 15000))) failed.push(cmd + ' did not open');
@@ -33,6 +42,7 @@ $driver = @'
     if (!(await until(() => !S.layers.isOpen(layer), 15000))) failed.push(cmd + ' did not close');
     await wait(300);
     times.push(cmd + ' ' + (t1 - t0) + 'ms');
+    S.post({ type: 'log', msg: 'SMOKE step ' + cmd + ' ' + (t1 - t0) + 'ms ' + JSON.stringify(cnt) });
   }
   S.cmd('theme'); await wait(300); S.cmd('theme'); await wait(300);
   S.post({ type: 'log', msg: 'SMOKE times: ' + times.join(', ') });

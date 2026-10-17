@@ -18,7 +18,12 @@ const S = (() => {
   root.lang = cfg.lang;
   if (!cfg.frameless) document.body.classList.add('no-caption');
 
-  const post = (m) => { try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) { /* вне Seyro */ } };
+  // onPost — для проверки интерфейса (scripts/ui-smoke.ps1): видеть сообщения в ядро.
+  let onPost = null;
+  const post = (m) => {
+    if (onPost) onPost(m);
+    try { window.ipc.postMessage(JSON.stringify(m)); } catch (_) { /* вне Seyro */ }
+  };
   // Ошибки интерфейса — в журнал ядра (seyro.log): DevTools у пользователя не открыты.
   addEventListener('error', (e) => post({ type: 'log', msg: `${e.message} @ ${e.lineno}:${e.colno}` }));
   addEventListener('unhandledrejection', (e) => post({ type: 'log', msg: 'promise: ' + String(e.reason) }));
@@ -312,6 +317,7 @@ const S = (() => {
     layers, holdKeyboard, placeAt, show, hide, afterMotion, activeOption,
     host, splitUrl, ago, size, time, fav, titleOf, keyOf, withKey, nowSec,
     cmd: (k) => post({ type: 'cmd', k }),
+    watchPosts: (fn) => { onPost = fn; },
     applyTheme,
   };
 })();
