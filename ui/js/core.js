@@ -85,7 +85,13 @@ const S = (() => {
   // ---------- События ----------
   const handlers = {};
   const on = (ev, fn) => { (handlers[ev] = handlers[ev] || []).push(fn); };
-  const emit = (ev, ...args) => { for (const fn of handlers[ev] || []) { try { fn(...args); } catch (e) { console.error(ev, e); } } };
+  // Ошибка одного обработчика не мешает остальным, но и не теряется: уходит в журнал ядра
+  // (иначе сломанная отрисовка слоя видна только в DevTools, а тесты её не замечают).
+  const emit = (ev, ...args) => {
+    for (const fn of handlers[ev] || []) {
+      try { fn(...args); } catch (e) { console.error(ev, e); post({ type: 'log', msg: `${ev}: ${e && e.stack || e}` }); }
+    }
+  };
 
   // ---------- Состояние ----------
   let state = {

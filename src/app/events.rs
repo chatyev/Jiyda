@@ -110,6 +110,12 @@ impl App {
             }
             UserEvent::PageFullscreen { id, on } => self.on_page_fullscreen(id, on),
             UserEvent::PageText { req, id, text } => self.on_page_text(req, id, text),
+            #[cfg(debug_assertions)]
+            UserEvent::E2eResult { req, json } => {
+                // JSON от WebView кладём как есть: это уже значение (или null).
+                let value: Value = serde_json::from_str(&json).unwrap_or(Value::Null);
+                self.ui_data("e2e", json!({ "req": req, "value": value }));
+            }
             UserEvent::AiAnswer { req, result } => match result {
                 Ok(text) => self.ui_data("ai", json!({ "req": req, "text": text })),
                 Err(e) => self.ui_data("ai", json!({ "req": req, "error": e })),
@@ -410,6 +416,22 @@ impl App {
             UiMsg::WindowDrag => {}
             UiMsg::WindowMenu => frame::show_system_menu(&self.window),
             UiMsg::Log { msg } => log::warn!("интерфейс: {}", msg.chars().take(500).collect::<String>()),
+            #[cfg(debug_assertions)]
+            UiMsg::E2eEval { req, id, code } => {
+                if std::env::var_os("JIYDA_AUTOMATION").is_none() {
+                    return;
+                }
+                let id = if id == 0 { self.pages.active() } else { Some(id) };
+                let p = self.proxy.clone();
+                match id.and_then(|id| self.page_any(id)).and_then(|t| t.view.as_ref()) {
+                    Some(wv) => wv
+                        .evaluate_script_with_callback(&code, move |json| {
+                            let _ = p.send_event(UserEvent::E2eResult { req, json });
+                        })
+                        .or_log("e2e eval"),
+                    None => self.ui_data("e2e", json!({ "req": req, "error": "нет загруженной страницы" })),
+                }
+            }
             UiMsg::Unknown => {}
         }
     }

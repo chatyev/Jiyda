@@ -161,6 +161,11 @@ impl App {
                     Err(e) => log::warn!("automation: {e}"),
                 },
                 "js" => self.eval_ui(rest),
+                // Целый файл JS — сценарии E2E (tests/e2e): в одну строку они не помещаются.
+                "jsfile" => match std::fs::read_to_string(rest) {
+                    Ok(code) => self.eval_ui(&code),
+                    Err(e) => log::warn!("automation: {rest}: {e}"),
+                },
                 "size" => {
                     let mut it = rest.split_whitespace().filter_map(|n| n.parse::<f64>().ok());
                     if let (Some(w), Some(h)) = (it.next(), it.next()) {

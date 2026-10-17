@@ -30,22 +30,22 @@ jobs:
       - name: Зависимости
         run: cargo deny check
       - run: cargo test
-      - name: Проверка интерфейса (открыть и закрыть каждый слой, без ошибок JS)
+      - name: E2E (настоящий браузер, tests/e2e)
         shell: pwsh
-        timeout-minutes: 14
+        timeout-minutes: 30
         run: |
           cargo build
-          # Обе рамки окна: обычная Windows и своя (frame.rs); итог — после обеих.
-          $shots = Join-Path $env:RUNNER_TEMP 'smoke-shots'
-          ./scripts/ui-smoke.ps1 -NativeFrame -TimeoutSec 150 -ShotDir $shots; $native = $LASTEXITCODE
-          ./scripts/ui-smoke.ps1 -TimeoutSec 150 -ShotDir $shots; $own = $LASTEXITCODE
-          if ($native -or $own) { exit 1 }
-      - name: Снимки экрана при сбое проверки интерфейса
-        if: failure()
+          # Обе рамки окна: своя (frame.rs) и обычная Windows; итог — после обеих.
+          $out = Join-Path $env:RUNNER_TEMP 'e2e'
+          ./tests/e2e/run.ps1 -Report "$out/junit-jiyda-frame.xml" -ShotDir "$out/shots"; $own = $LASTEXITCODE
+          ./tests/e2e/run.ps1 -NativeFrame -Port 8766 -Report "$out/junit-native-frame.xml" -ShotDir "$out/shots"; $native = $LASTEXITCODE
+          if ($own -or $native) { exit 1 }
+      - name: Отчёт E2E и снимки экрана
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ui-smoke-shots
-          path: ${{ runner.temp }}/smoke-shots
+          name: e2e-report
+          path: ${{ runner.temp }}/e2e
           if-no-files-found: ignore
 
       - name: Версия из метки совпадает с Cargo.toml, release notes написаны
