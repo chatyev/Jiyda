@@ -1,6 +1,6 @@
 [package]
 name = "jiyda"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2024"
 description = "Jiyda — Arc-подобный браузер на Rust поверх WebView2"
 
