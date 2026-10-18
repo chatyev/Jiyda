@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security — Jiyda</title>
+<meta name="description" content="How Jiyda is built, how updates are protected, and how to report a vulnerability.">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" hreflang="ru" href="../ru/security.html">
+<link rel="alternate" hreflang="uz" href="../uz/security.html">
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
+  <nav aria-label="Site">
+    <a href="./#features">Features</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="security.html" aria-current="page">Security</a>
+    <span class="langs" aria-label="Language"><a href="../uz/security.html" hreflang="uz" lang="uz">Oʻz</a><a href="../ru/security.html" hreflang="ru" lang="ru">Ру</a><a href="security.html" aria-current="true">En</a></span>
+  </nav>
+</header>
+
+<main class="wrap doc">
+  <h1>Security</h1>
+  <p class="date">Updated 18 October 2026</p>
+
+  <h2>How Jiyda is built</h2>
+  <ul>
+    <li><strong>The engine is Microsoft Edge WebView2,</strong> based on Chromium. Microsoft keeps it up to date through Windows (the “Evergreen” runtime), so security fixes in the page engine arrive without waiting for a Jiyda release.</li>
+    <li><strong>Jiyda’s own code is written in Rust,</strong> a language that rules out whole classes of memory errors. Its interface runs in a separate, isolated origin from the websites you visit.</li>
+    <li><strong>Spaces are isolated.</strong> Each Space has its own browser profile: cookies, logins, cache and storage are not shared between Spaces.</li>
+  </ul>
+
+  <h2>Protection while you browse</h2>
+  <ul>
+    <li>Sites with invalid certificates are blocked, and pages without HTTPS are marked in the address bar.</li>
+    <li>Known trackers and ad networks are blocked by default. The block lists are built into Jiyda; nothing is downloaded or sent to check them.</li>
+    <li>Sites must ask before using the camera, microphone, location, notifications and other sensitive features. “Allow once” is never remembered; remembered decisions can be reviewed and reset in Settings.</li>
+    <li>A page cannot open an unlimited number of new pages: Jiyda stops pages that try.</li>
+  </ul>
+
+  <h2>Updates</h2>
+  <ul>
+    <li>New versions are published on <a href="https://github.com/chatyev/jiyda/releases">GitHub Releases</a> and downloaded over HTTPS only from that address.</li>
+    <li>Each installer is published with its SHA-256 checksum. Before running an update, Jiyda checks the downloaded file against it and refuses to run a file that was damaged or altered.</li>
+    <li>Updates are installed only after you confirm. Automatic checks can be turned off in Settings.</li>
+    <li>Jiyda is not yet signed with a code-signing certificate, so Windows SmartScreen may warn about the installer. Signing is planned before the public release.</li>
+  </ul>
+
+  <h2>How the code is checked</h2>
+  <ul>
+    <li>Every change is built and tested automatically: formatting and lint checks with warnings treated as errors, more than 250 unit tests, and over 100 end-to-end tests that drive the real browser.</li>
+    <li>Every build checks all Rust dependencies against the RustSec vulnerability database and verifies their licenses and sources (<code>cargo-deny</code>).</li>
+  </ul>
+
+  <h2>Data</h2>
+  <p>Jiyda does not collect your browsing history, addresses, searches or page contents, and has no analytics or crash reporting. Details are in the <a href="privacy.html">Privacy Policy</a>.</p>
+
+  <h2>Reporting a vulnerability</h2>
+  <p>If you find a security problem in Jiyda, please write to <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a> with “Security” in the subject. Please include:</p>
+  <ul>
+    <li>the Jiyda version (Settings → Advanced) and your Windows version;</li>
+    <li>steps to reproduce, and what an attacker could achieve;</li>
+    <li>a proof of concept, if you have one.</li>
+  </ul>
+  <p>We will reply within 7 days, keep you informed while we fix it, and credit you in the release notes if you wish. Please give us reasonable time to release a fix before you share details publicly, and do not access other people’s data while testing. We do not take legal action against good-faith research that follows these rules. We do not offer a paid bug bounty yet.</p>
+  <p>Problems in the page engine itself (WebView2 / Chromium) should also be reported to <a href="https://msrc.microsoft.com/">Microsoft</a>.</p>
+  <p>Machine-readable contact: <a href="../.well-known/security.txt">security.txt</a>.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="security.html">Security</a>
+    <a href="https://github.com/chatyev/jiyda/releases">Release notes</a>
+    <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>
+    <span class="made">© 2026 Jiyda</span>
+  </div>
+</footer>
+</body>
+</html>

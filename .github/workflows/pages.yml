@@ -1,0 +1,54 @@
+# Сайт Jiyda (папка site/) на GitHub Pages: https://chatyev.github.io/jiyda/
+# Публикуется при изменениях в site/ на main. Пока GitHub Pages не включены в настройках
+# репозитория (или в текстах осталась метка PUBLISHER_NAME), сайт не публикуется — сборка
+# сообщает об этом и завершается без ошибки.
+name: site
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Тексты готовы, Pages включены
+        id: ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if grep -rln PUBLISHER_NAME site/; then
+            echo "::notice::В site/ осталась метка PUBLISHER_NAME — сайт не публикуется."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          elif ! gh api "repos/$GITHUB_REPOSITORY/pages" > /dev/null 2>&1; then
+            echo "::notice::GitHub Pages в репозитории не включены (Settings → Pages → GitHub Actions) — сайт не публикуется."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.ready.outputs.ok == 'true'
+        uses: actions/configure-pages@v5
+      - if: steps.ready.outputs.ok == 'true'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+          # .well-known/security.txt — скрытая папка, без этого она не попадёт на сайт.
+          include-hidden-files: true
+      - if: steps.ready.outputs.ok == 'true'
+        id: deploy
+        uses: actions/deploy-pages@v4

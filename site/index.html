@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jiyda</title>
+<meta name="description" content="Jiyda — a calm, minimal browser for Windows from Uzbekistan.">
+<link rel="icon" href="favicon.ico">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="alternate" hreflang="uz" href="uz/">
+<link rel="alternate" hreflang="ru" href="ru/">
+<link rel="alternate" hreflang="en" href="en/">
+<link rel="alternate" hreflang="x-default" href="uz/">
+<script>
+  // Язык браузера посетителя: русский или английский, остальным (и узбекскому) — узбекский.
+  (function () {
+    var l = (navigator.languages && navigator.languages[0] || navigator.language || '').toLowerCase();
+    var to = l.indexOf('ru') === 0 ? 'ru/' : l.indexOf('en') === 0 ? 'en/' : 'uz/';
+    location.replace(to + location.hash);
+  })();
+</script>
+</head>
+<body>
+<main class="wrap hero">
+  <img src="assets/mark.png" alt="" width="64" height="64" style="margin:0 auto 20px">
+  <h1>Jiyda</h1>
+  <p class="cta"><a class="btn ghost" href="uz/" lang="uz">Oʻzbekcha</a> <a class="btn ghost" href="ru/" lang="ru">Русский</a> <a class="btn ghost" href="en/" lang="en">English</a></p>
+</main>
+</body>
+</html>

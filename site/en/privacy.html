@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Jiyda</title>
+<meta name="description" content="What Jiyda stores, what it sends over the internet, and what it never collects.">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" hreflang="ru" href="../ru/privacy.html">
+<link rel="alternate" hreflang="uz" href="../uz/privacy.html">
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
+  <nav aria-label="Site">
+    <a href="./#features">Features</a>
+    <a href="privacy.html" aria-current="page">Privacy</a>
+    <a href="security.html">Security</a>
+    <span class="langs" aria-label="Language"><a href="../uz/privacy.html" hreflang="uz" lang="uz">Oʻz</a><a href="../ru/privacy.html" hreflang="ru" lang="ru">Ру</a><a href="privacy.html" aria-current="true">En</a></span>
+  </nav>
+</header>
+
+<main class="wrap doc">
+  <h1>Privacy Policy</h1>
+  <p class="date">Effective 18 October 2026 · Applies to Jiyda 0.6.3 and later and to this website</p>
+
+  <div class="summary"><p><strong>In short:</strong> Jiyda does not collect your browsing history, the addresses you visit, your searches or the contents of pages. Everything Jiyda keeps about your browsing stays on your computer. Jiyda itself talks to the internet only to check for updates and, if you set it up, to answer your questions with Ask Jiyda. Websites you visit and Microsoft WebView2, the engine that shows pages, have their own rules, described below.</p></div>
+
+  <h2>Who we are</h2>
+  <p>Jiyda is developed and published by Dmitriy Chatiev, Republic of Uzbekistan (“we”). For anything about privacy, write to <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>.</p>
+
+  <h2>What Jiyda stores on your computer</h2>
+  <p>To work as a browser, Jiyda keeps the following in its data folder, <code>%LOCALAPPDATA%\Jiyda</code>, on your computer only. We have no copy of it.</p>
+  <ul>
+    <li><strong>Pages and Spaces:</strong> the pages you have open, in Later and in Archive, your Spaces and Split View.</li>
+    <li><strong>History, bookmarks and downloads list</strong>, and small icons of the sites you visit.</li>
+    <li><strong>Settings</strong>, including your search engine and site permissions you chose to remember (for example, “always allow the camera on this site”).</li>
+    <li><strong>Website data</strong> that sites save through the browser: cookies, logins, cache and site storage, separately for each Space.</li>
+    <li><strong>A log file</strong> (<code>jiyda.log</code>) with technical messages that help diagnose problems. It stays on your computer; we only see it if you choose to send it to us.</li>
+    <li>If you use Ask Jiyda, your <strong>Anthropic API key</strong> is kept in Windows Credential Manager, not in Jiyda’s files.</li>
+  </ul>
+
+  <h2>What Jiyda sends over the internet</h2>
+  <div class="table-wrap"><table>
+    <tr><th>When</th><th>To whom</th><th>What is sent</th></tr>
+    <tr><td>Checking for updates: about 10 seconds after start and then every 12 hours. You can turn it off in Settings.</td><td>GitHub (Microsoft)</td><td>A normal web request for the latest version page. Like any web server, GitHub sees your IP address and the time. No information about your browsing is sent.</td></tr>
+    <tr><td>Installing an update you accepted</td><td>GitHub (Microsoft)</td><td>The download request for the installer and its checksum.</td></tr>
+    <tr><td>Ask Jiyda, only after you add your own API key and only when you ask a question or press an action</td><td>Anthropic</td><td>Your question and the context you chose: the text of the current page, selected text, or titles and addresses of pages. Anthropic processes it under its own terms for API customers.</td></tr>
+    <tr><td>You search from the address bar</td><td>Your search engine (Google by default; you can change it)</td><td>Your search query, as on that search engine’s own website.</td></tr>
+  </table></div>
+  <p>That is the complete list for Jiyda itself. There is no account, no sign-in, no analytics, no advertising and no crash reporting service.</p>
+
+  <h2>What Jiyda does not collect</h2>
+  <ul>
+    <li>The addresses or titles of pages you visit, and your history</li>
+    <li>Search queries and anything you type into pages</li>
+    <li>Page contents, cookies, passwords and form data</li>
+    <li>Names of files you download</li>
+    <li>Usage statistics, device identifiers or crash reports</li>
+  </ul>
+  <p>If we ever add optional usage statistics, they will be off until you turn them on, they will never include the items above, and this policy will describe them before they ship.</p>
+
+  <h2>Microsoft WebView2</h2>
+  <p>Jiyda shows web pages with <strong>Microsoft Edge WebView2</strong>, a component of Windows made by Microsoft and based on Chromium. Microsoft installs and updates it through Windows. Like other parts of Windows, WebView2 may send diagnostic data to Microsoft according to your Windows diagnostic data settings and the <a href="https://www.microsoft.com/privacy/privacystatement">Microsoft Privacy Statement</a>. Jiyda does not control that. You can limit it in Windows Settings → Privacy &amp; security → Diagnostics &amp; feedback.</p>
+  <p>Jiyda does not turn on Microsoft Defender SmartScreen inside its pages, so the addresses you visit are not sent to Microsoft for reputation checks by Jiyda.</p>
+
+  <h2>Websites you visit</h2>
+  <p>The sites you open receive your IP address and what any browser sends them, and may use cookies and their own analytics under their own privacy policies. Jiyda blocks known trackers and ad networks by default, and each Space has its own cookies, so sites in one Space cannot see your logins in another. You can clear cookies, cache and saved passwords of a Space in Settings → Privacy &amp; Security.</p>
+
+  <h2>Importing from Chrome and Edge</h2>
+  <p>When you choose to import, Jiyda reads bookmarks, history and site icons from the Chrome or Edge folder on your computer and copies them into its own data folder. The data never leaves your computer. Passwords and cookies are not read.</p>
+
+  <h2>This website</h2>
+  <p>This site is hosted on GitHub Pages. It sets no cookies and loads no analytics, fonts or scripts from other companies. GitHub, as the host, receives your IP address and may keep server logs under the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
+
+  <h2>When you write to us</h2>
+  <p>If you email us, we receive your address and whatever you include, for example a log file. We use it only to answer you and fix problems, keep it no longer than needed for that (at most two years), and delete it earlier if you ask.</p>
+
+  <h2>Where data is processed</h2>
+  <p>Data stored by Jiyda stays on your computer. GitHub, Microsoft and Anthropic are companies based in the United States and may process the requests described above outside Uzbekistan.</p>
+
+  <h2>Your choices and deleting data</h2>
+  <ul>
+    <li>Clear history: Settings → Privacy &amp; Security, or the History panel.</li>
+    <li>Clear cookies, cache and saved passwords of a Space: Settings → Privacy &amp; Security.</li>
+    <li>Turn off update checks: Settings → General.</li>
+    <li>Remove the Ask Jiyda key: Settings → AI Assistant.</li>
+    <li>Remove everything: uninstall Jiyda and delete the folder <code>%LOCALAPPDATA%\Jiyda</code>.</li>
+  </ul>
+  <p>Because we do not hold data about your browsing, there is nothing about it for us to send you or delete. For emails you sent us, write and we will delete them.</p>
+
+  <h2>Children</h2>
+  <p>Jiyda is a general-purpose browser and does not knowingly collect information from anyone, including children.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, we will publish the new version here with a new date and mention important changes in the release notes. Changes never apply silently to data we did not collect before.</p>
+
+  <h2>Contact</h2>
+  <p>Dmitriy Chatiev · <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a></p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="security.html">Security</a>
+    <a href="https://github.com/chatyev/jiyda/releases">Release notes</a>
+    <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>
+    <span class="made">© 2026 Jiyda</span>
+  </div>
+</footer>
+</body>
+</html>

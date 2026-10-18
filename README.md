@@ -187,6 +187,7 @@ src/recovery.rs    — восстановление после сбоя: мет�
 src/tab.js         — скрипт в каждой странице: клики по ссылкам, Peek, панель выделенного текста, иконки, звук
 src/find.js        — поиск по странице с подсветкой
 ui/index.html      — каркас интерфейса; ui/styles.css — токены темы и стили
+site/              — сайт (GitHub Pages): лендинг, Privacy, Terms, Security на uz/ru/en; публикует .github/workflows/pages.yml
 ui/js/*.js         — компоненты: core (связь с ядром, слои), region, titlebar, addressbar, spaces, edge, orbit,
                      palette, security, permission, history, closed, ai, downloads, focus, split, find, peek,
                      home, settings, menu, toast, i18n, icons, app

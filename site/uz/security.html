@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xavfsizlik — Jiyda</title>
+<meta name="description" content="Jiyda qanday tuzilgan, yangilanishlar qanday himoyalangan va zaiflik haqida qanday xabar berish kerak.">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" hreflang="en" href="../en/security.html">
+<link rel="alternate" hreflang="ru" href="../ru/security.html">
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
+  <nav aria-label="Sayt">
+    <a href="./#features">Imkoniyatlar</a>
+    <a href="privacy.html">Maxfiylik</a>
+    <a href="security.html" aria-current="page">Xavfsizlik</a>
+    <span class="langs" aria-label="Til"><a href="security.html" aria-current="true">Oʻz</a><a href="../ru/security.html" hreflang="ru" lang="ru">Ру</a><a href="../en/security.html" hreflang="en" lang="en">En</a></span>
+  </nav>
+</header>
+
+<main class="wrap doc">
+  <h1>Xavfsizlik</h1>
+  <p class="date">2026-yil 18-oktabrda yangilangan</p>
+
+  <h2>Jiyda qanday tuzilgan</h2>
+  <ul>
+    <li><strong>Dvigatel — Chromium asosidagi Microsoft Edge WebView2.</strong> Microsoft uni Windows orqali yangilab turadi (“Evergreen” muhiti), shuning uchun dvigatelning xavfsizlik tuzatishlari Jiydaning yangi versiyasini kutmasdan keladi.</li>
+    <li><strong>Jiydaning oʻz kodi Rustda yozilgan</strong> — xotira bilan ishlashdagi butun bir xatolar sinfini istisno qiladigan tilda. Interfeys saytlardan alohida, izolyatsiyalangan manbada ishlaydi.</li>
+    <li><strong>Spaces izolyatsiyalangan.</strong> Har bir Spacening oʻz brauzer profili bor: cookie-fayllar, loginlar, kesh va xotira Spaces oʻrtasida umumiy emas.</li>
+  </ul>
+
+  <h2>Internetdagi himoya</h2>
+  <ul>
+    <li>Sertifikati haqiqiy boʻlmagan saytlar bloklanadi, HTTPS ishlatmaydigan sahifalar manzil satrida belgilanadi.</li>
+    <li>Maʼlum trekerlar va reklama tarmoqlari sukut boʻyicha bloklanadi. Roʻyxatlar Jiydaga oʻrnatilgan: tekshirish uchun hech narsa yuklab olinmaydi va yuborilmaydi.</li>
+    <li>Saytlar kamera, mikrofon, joylashuv, bildirishnomalar va boshqa nozik funksiyalardan foydalanishdan oldin ruxsat soʻrashi shart. “Bir marta ruxsat berish” eslab qolinmaydi; eslab qolingan qarorlarni Sozlamalarda koʻrish va bekor qilish mumkin.</li>
+    <li>Sahifa cheksiz miqdorda yangi sahifa ocha olmaydi: Jiyda bunday urinishlarni toʻxtatadi.</li>
+  </ul>
+
+  <h2>Yangilanishlar</h2>
+  <ul>
+    <li>Yangi versiyalar <a href="https://github.com/chatyev/jiyda/releases">GitHub Releases</a>da eʼlon qilinadi va faqat shu manzildan HTTPS orqali yuklab olinadi.</li>
+    <li>Har bir oʻrnatuvchi SHA-256 nazorat summasi bilan birga eʼlon qilinadi. Yangilanishni ishga tushirishdan oldin Jiyda yuklab olingan faylni u bilan solishtiradi va shikastlangan yoki oʻzgartirilgan faylni ishga tushirmaydi.</li>
+    <li>Yangilanish faqat siz tasdiqlaganingizdan keyin oʻrnatiladi. Avtomatik tekshirishni Sozlamalarda oʻchirish mumkin.</li>
+    <li>Jiyda hali kod imzolash sertifikati bilan imzolanmagan, shuning uchun Windows SmartScreen oʻrnatuvchi haqida ogohlantirishi mumkin. Imzolash ommaviy chiqarilishdan oldin rejalashtirilgan.</li>
+  </ul>
+
+  <h2>Kod qanday tekshiriladi</h2>
+  <ul>
+    <li>Har bir oʻzgarish avtomatik ravishda yigʻiladi va sinovdan oʻtkaziladi: formatlash va ogohlantirishlarni xato deb hisoblaydigan tahlilchi, 250 dan ortiq modul testlari va haqiqiy brauzerni boshqaradigan 100 dan ortiq uchdan-uchgacha testlar.</li>
+    <li>Har bir yigʻish barcha Rust bogʻliqliklarini RustSec zaifliklar bazasi boʻyicha tekshiradi, ularning litsenziyalari va manbalarini ham tekshiradi (<code>cargo-deny</code>).</li>
+  </ul>
+
+  <h2>Maʼlumotlar</h2>
+  <p>Jiyda tarix, manzillar, qidiruv soʻrovlari va sahifalar mazmunini toʻplamaydi, unda analitika va nosozlik hisobotlari yoʻq. Batafsil — <a href="privacy.html">Maxfiylik siyosati</a>da.</p>
+
+  <h2>Zaiflik haqida qanday xabar berish kerak</h2>
+  <p>Jiydada xavfsizlik muammosini topsangiz, <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a> manziliga “Security” mavzusi bilan yozing. Quyidagilarni koʻrsating:</p>
+  <ul>
+    <li>Jiyda versiyasi (“Sozlamalar → Qoʻshimcha”) va Windows versiyasi;</li>
+    <li>takrorlash qadamlari va tajovuzkor nimaga erishishi mumkinligi;</li>
+    <li>agar boʻlsa, konsepsiya isboti.</li>
+  </ul>
+  <p>Biz 7 kun ichida javob beramiz, tuzatish jarayoni haqida xabardor qilib turamiz va xohlasangiz, versiya tavsifida sizni eslatib oʻtamiz. Iltimos, tafsilotlarni eʼlon qilishdan oldin bizga tuzatishni chiqarish uchun oqilona vaqt bering va tekshirish paytida boshqalarning maʼlumotlariga kirmang. Ushbu qoidalarga amal qiladigan halol tadqiqotlarga qarshi biz huquqiy choralar koʻrmaymiz. Pullik mukofot dasturi hozircha yoʻq.</p>
+  <p>Dvigatelning oʻzidagi (WebView2 / Chromium) zaifliklar haqida <a href="https://msrc.microsoft.com/">Microsoftga</a> ham xabar bering.</p>
+  <p>Mashina oʻqiy oladigan aloqa: <a href="../.well-known/security.txt">security.txt</a>.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="privacy.html">Maxfiylik</a>
+    <a href="terms.html">Shartlar</a>
+    <a href="security.html">Xavfsizlik</a>
+    <a href="https://github.com/chatyev/jiyda/releases">Yangiliklar</a>
+    <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>
+    <span class="made">© 2026 Jiyda</span>
+  </div>
+</footer>
+</body>
+</html>

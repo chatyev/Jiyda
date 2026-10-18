@@ -1,0 +1,5 @@
+Contact: mailto:d.chatyev@gmail.com
+Expires: 2027-10-18T00:00:00.000Z
+Preferred-Languages: en, ru, uz
+Policy: https://chatyev.github.io/jiyda/en/security.html
+Canonical: https://chatyev.github.io/jiyda/.well-known/security.txt
