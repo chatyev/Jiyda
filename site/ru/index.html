@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jiyda — спокойный браузер</title>
-<meta name="description" content="Jiyda — спокойный минималистичный браузер для Windows из Узбекистана. Приватный по умолчанию, помогает сосредоточиться, бесплатный.">
+<title>Jiyda — каждая страница на своём месте</title>
+<meta name="description" content="Jiyda — бесплатный браузер для Windows, написанный на Rust в Узбекистане. Spaces и Orbit вместо полосы вкладок, New Page, которая продолжает с того места, где вы остановились, и никакой слежки.">
 <link rel="icon" href="../favicon.ico">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="alternate" hreflang="en" href="../en/">
@@ -16,6 +16,7 @@
   <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
   <nav aria-label="Сайт">
     <a href="#features">Возможности</a>
+    <a href="#rust">Rust</a>
     <a href="privacy.html">Приватность</a>
     <a href="security.html">Безопасность</a>
     <span class="langs" aria-label="Язык"><a href="../uz/" hreflang="uz" lang="uz">Oʻz</a><a href="./" aria-current="true">Ру</a><a href="../en/" hreflang="en" lang="en">En</a></span>
@@ -25,16 +26,16 @@
 
 <main>
   <div class="wrap hero">
-    <h1>Интернет — спокойнее.</h1>
-    <p class="lead">Jiyda — тихий браузер для Windows. Приватный по умолчанию, помогает сосредоточиться и не мешает, когда вы просто читаете.</p>
+    <h1>Каждая страница — на своём месте.</h1>
+    <p class="lead">Jiyda — браузер для Windows, написанный на Rust. Вместо полосы вкладок — Spaces для каждой части жизни и Orbit, где видно всё сразу. New Page продолжает с того места, где вы остановились, а история не покидает ваш компьютер.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/chatyev/jiyda/releases/latest/download/JiydaSetup.exe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
         Скачать для Windows</a>
       <a class="btn ghost" href="#privacy">Как Jiyda обращается с данными</a>
     </div>
-    <p class="meta">Бесплатно · Windows 10 и 11 · Oʻzbekcha, Русский, English</p>
-    <img class="shot" src="../assets/app-ru.jpg" width="1600" height="1002" alt="Окно Jiyda с новой страницей: поле поиска, несколько сайтов и надпись «Jiyda защищает вас».">
+    <p class="meta">Бесплатно · Написан на Rust · Около 4 МБ · Windows 10 и 11 · Oʻzbekcha, Русский, English</p>
+    <img class="shot" src="../assets/app-ru.jpg" width="1600" height="1002" alt="Окно Jiyda с новой страницей: поле поиска с мягкой подсветкой в цвет Space и карточки — продолжить последнюю страницу, вернуть недавние сайты, переключить Space, открыть закладки.">
   </div>
 
   <section id="features" class="wrap">
@@ -44,19 +45,34 @@
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></div>
         <h3>Spaces</h3><p>Отдельные контексты для работы, учёбы и дома. У каждого Space свои страницы, куки и логины.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-28 12 12)"/></svg></div>
-        <h3>Orbit</h3><p>Все открытые страницы, сгруппированные по смыслу. Нужная находится за секунду, без перебора вкладок.</p></div>
-      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
-        <h3>Later</h3><p>Отложите страницу, не закрывая её. Разгрузите голову сейчас — вернитесь, когда будете готовы.</p></div>
+        <h3>Orbit</h3><p>Все открытые страницы, сгруппированные по смыслу. Нужная находится за секунду, без перебора вкладок. А страницу, к которой вернётесь потом, можно отложить в Later, не закрывая.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div>
+        <h3>New Page, которая помнит, где вы остановились</h3><p>Последняя страница, недавно закрытые сайты и ваши Spaces — сразу под поиском. Без стены ярлыков: только то, что уже есть на вашем компьютере.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg></div>
         <h3>Split View</h3><p>Две страницы рядом в одном окне: читать и писать, сравнивать, делать заметки.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
         <h3>Командная палитра</h3><p>Ctrl+K — страницы, история, закладки и все команды в одном поле поиска.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
         <h3>Защита встроена</h3><p>Известные трекеры и реклама блокируются сразу. Сайты спрашивают, прежде чем включить камеру, микрофон или узнать местоположение.</p></div>
-      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.52 2.3a.53.53 0 0 1 .95 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z"/></svg></div>
-        <h3>Переезд за минуту</h3><p>Закладки и история из Chrome или Edge переносятся в пару кликов. В старом браузере ничего не удаляется.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></div>
+        <h3>Закладки под рукой</h3><p>Кнопка на верхней панели открывает папки и поиск, Ctrl+D сохраняет страницу. Закладки и историю из Chrome или Edge можно перенести за минуту.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
         <h3>«Отменить» вместо «Вы уверены?»</h3><p>Случайно закрыли страницу или удалили закладку? Нажмите «Отменить». А после сбоя все страницы на месте.</p></div>
+    </div>
+  </section>
+
+  <section id="rust" class="wrap">
+    <h2>Написан на Rust.</h2>
+    <p class="sub">Всё, что Jiyda делает сам, — Spaces, Orbit, защита, хранение истории и закладок — написано на Rust, языке, который исключает целые классы ошибок работы с памятью. Страницы показывает Microsoft WebView2 — движок Microsoft Edge.</p>
+    <div class="grid">
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></div>
+        <h3>Без Electron</h3><p>Jiyda не тащит с собой свою копию Chromium. Ядро на Rust управляет движком WebView2, который уже есть в Windows.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></div>
+        <h3>Около 4 МБ</h3><p>Столько весит весь установщик: движок страниц обычно уже есть в Windows 10 и 11, поэтому скачивать тяжёлое не нужно.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></div>
+        <h3>Движок всегда свежий</h3><p>Windows обновляет WebView2 сама, так же как Microsoft Edge, поэтому исправления безопасности движка доходят и до Jiyda.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></div>
+        <h3>Открытый код</h3><p>Исходный код Jiyda открыт на GitHub: любой может посмотреть, как он обращается с вашими страницами и данными.</p></div>
     </div>
   </section>
 
