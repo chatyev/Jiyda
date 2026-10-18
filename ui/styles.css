@@ -366,6 +366,11 @@ body.fullscreen .stage { top: 0; }
 .home-privacy.off .i { color: var(--text-3); }
 .home-privacy b { display: block; color: var(--text); font-weight: 500; font-size: 13px; }
 .home-update { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: var(--r); background: color-mix(in srgb, var(--s1) 90%, transparent); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.home-recovery { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 16px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--s1) 92%, transparent); border: 1px solid var(--line-2); box-shadow: var(--shadow-sm); font-size: 12px; color: var(--text-2); }
+.home-recovery[hidden] { display: none; }
+.home-recovery > .i { color: var(--accent); flex: none; }
+.home-recovery-text { flex: 1; min-width: 0; }
+.home-recovery-text b { display: block; color: var(--text); font-weight: 500; font-size: 13px; }
 @media (max-height: 560px) { .home-clock, .home-privacy { display: none; } }
 
 /* ----- Split View: строки над половинами и разделитель ----- */

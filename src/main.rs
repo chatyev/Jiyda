@@ -19,6 +19,7 @@ mod net;
 mod orbit;
 mod page_list;
 mod permissions;
+mod recovery;
 mod settings;
 mod shield;
 mod spaces;
@@ -66,11 +67,13 @@ fn main() {
         app.handle(UserEvent::External { urls });
     }
 
+    // Перезагрузка Windows для обновления закроет Jiyda — пусть потом откроет снова.
+    recovery::register_restart();
+
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
-                    app.shutdown();
                     *control_flow = ControlFlow::Exit;
                     return;
                 }
@@ -81,11 +84,17 @@ fn main() {
             Event::UserEvent(ev) => app.handle(ev),
             // Все события пачки обработаны — время для отложенных дел.
             Event::MainEventsCleared => app.tick(),
+            // Цикл заканчивается: окно закрыли, или Windows выключается, или установщик
+            // закрывает Jiyda (WM_ENDSESSION — после него tao сразу завершает процесс).
+            // Сохраняем здесь — это единственное место, через которое проходят все выходы.
+            Event::LoopDestroyed => {
+                app.shutdown();
+                return;
+            }
             _ => {}
         }
         // Закрыть просили не окном (команда, обновление) — выходим после любой обработки.
         if app.exit_requested() {
-            app.shutdown();
             *control_flow = ControlFlow::Exit;
             return;
         }

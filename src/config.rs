@@ -135,6 +135,8 @@ pub struct Paths {
     pub spaces: PathBuf,
     pub extensions: PathBuf,
     pub log: PathBuf,
+    /// Метка «Jiyda работает» (recovery.rs): осталась после запуска — тот оборвался.
+    pub running: PathBuf,
 }
 
 impl Paths {
@@ -155,6 +157,7 @@ impl Paths {
             spaces: base.join("spaces"),
             extensions: base.join("extensions"),
             log: base.join("jiyda.log"),
+            running: base.join("running"),
         };
         let _ = std::fs::create_dir_all(&p.webview_data);
         let _ = std::fs::create_dir_all(&p.extensions);

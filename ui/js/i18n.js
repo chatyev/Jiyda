@@ -115,6 +115,8 @@ import { S } from './core.js';
     'Add': 'Добавить', 'Quick destinations': 'Быстрый доступ', 'Jiyda protects you': 'Jiyda защищает вас', 'Tracker protection is off': 'Защита от трекеров выключена',
     '{0} trackers and ads blocked today': 'Сегодня заблокировано трекеров и рекламы: {0}', 'No trackers blocked yet today': 'Сегодня трекеров ещё не было',
     'Turn it on in Settings': 'Включите её в настройках', 'Downloading Jiyda {0}…': 'Скачиваю Jiyda {0}…', 'Jiyda {0} is available': 'Доступен Jiyda {0}', 'Update': 'Обновить',
+    'The last session ended unexpectedly': 'Прошлый сеанс завершился неожиданно', 'Your pages are saved.': 'Страницы сохранены.',
+    'Reopen pages': 'Открыть снова', 'Not now': 'Не сейчас',
     // Settings
     'General': 'Общие', 'Privacy & Security': 'Конфиденциальность и защита', 'Appearance': 'Оформление', 'AI Assistant': 'AI Assistant',
     'Shortcuts': 'Сочетания клавиш', 'Advanced': 'Дополнительно',

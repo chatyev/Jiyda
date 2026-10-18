@@ -9,6 +9,12 @@ impl App {
         // Язык — до всего, что пишет пользователю (в том числе имён пространств по умолчанию).
         let lang = i18n::init(&cfg.language);
         log::info!("язык интерфейса: {lang:?}");
+        let (run_marker, crashed) = crate::recovery::RunMarker::begin(&paths.running);
+        if crashed {
+            log::warn!(
+                "прошлый запуск Jiyda оборвался (сбой или снятие процесса): страницы восстановлены без загрузки"
+            );
+        }
         let mut session = Session::load(&paths.session);
         let theme = session
             .theme
@@ -121,6 +127,8 @@ impl App {
         let active_space = session.active_space.min(space_slots.len() - 1);
         let mut app = Self {
             writer: crate::config::Writer::new(),
+            run_marker,
+            recovery: None,
             frame,
             window,
             ui,
@@ -163,7 +171,7 @@ impl App {
         };
         app.maximized = app.window.is_maximized();
         app.apply_region();
-        app.restore(saved_spaces);
+        app.restore(saved_spaces, crashed);
         Ok(app)
     }
 }

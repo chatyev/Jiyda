@@ -329,6 +329,11 @@ struct AiJob {
 pub struct App {
     /// Запись файлов в фоне.
     writer: crate::config::Writer,
+    /// Метка «Jiyda работает»: снимается при выходе (recovery.rs).
+    run_marker: crate::recovery::RunMarker,
+    /// Прошлый запуск оборвался: страница, что была на экране, — её откроет «Открыть
+    /// снова» на New Page. None — открывать нечего или уже открыли.
+    recovery: Option<u64>,
     /// Кнопки окна, которые рисует само окно (нет — системная рамка). Стоит раньше
     /// `window`: подкласс снимается до того, как окно закроется.
     frame: Option<frame::Frame>,

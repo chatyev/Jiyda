@@ -78,6 +78,7 @@ impl App {
             "find": self.find_open,
             "update": self.updates.visible().map(|u| json!({ "version": u.version })),
             "updating": self.updates.downloading,
+            "recovery": self.recovery.is_some(),
             "home": self.home_data(),
             "shield": { "on": self.cfg.shield, "trackersToday": trackers_today, "adsToday": ads_today },
             "keys": self.keys.map.borrow().to_json(),

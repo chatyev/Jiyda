@@ -108,6 +108,8 @@ commands! {
     Theme => "theme",
     UpdateNow => "update_now",
     UpdateDismiss => "update_dismiss",
+    Recover => "recover",
+    RecoverDismiss => "recover_dismiss",
 }
 
 impl TryFrom<String> for Command {

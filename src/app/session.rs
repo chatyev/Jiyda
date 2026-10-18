@@ -5,7 +5,10 @@ use super::*;
 impl App {
     // ---------- Сессия ----------
 
-    pub(super) fn restore(&mut self, saved: Vec<SavedSpace>) {
+    /// Вернуть страницы прошлого запуска. `crashed` — тот запуск оборвался: страницы
+    /// возвращаются в список, но на экран ничего не загружается, пока не нажмут
+    /// «Открыть снова» (`recover`) или не выберут страницу сами.
+    pub(super) fn restore(&mut self, saved: Vec<SavedSpace>, crashed: bool) {
         let archive_after = self.cfg.archive_hours * 3600;
         let mut target = None;
         for (i, s) in saved.into_iter().enumerate() {
@@ -15,6 +18,9 @@ impl App {
             }
         }
         std::mem::swap(&mut self.pages, &mut self.spaces[self.active_space].pages);
+        if crashed {
+            self.recovery = target.take();
+        }
         match target {
             Some(id) => self.activate(id),
             None => {
@@ -92,11 +98,28 @@ impl App {
         }
     }
 
+    /// «Открыть снова» после сбоя: страница, что была на экране (или первая, если её
+    /// уже закрыли).
+    pub(super) fn recover(&mut self) {
+        let Some(id) = self.recovery.take() else { return };
+        let id = Some(id)
+            .filter(|id| self.pages.get(*id).is_some_and(Page::is_now))
+            .or_else(|| self.pages.now_order().first().copied());
+        match id {
+            Some(id) => self.activate(id),
+            None => self.push_state(),
+        }
+    }
+
+    /// Выход: всё на диск и снять метку запуска. Вызывается один раз (main.rs,
+    /// `Event::LoopDestroyed`).
     pub fn shutdown(&mut self) {
         self.flush_state();
         self.save_now();
         // Дождаться, пока всё ляжет на диск: дальше процесс завершится.
         self.writer.finish();
+        // Только после записи: оборвись выход раньше — следующий запуск это заметит.
+        self.run_marker.finish();
     }
 
     /// Отложенные дела: запись на диск, сон страниц, снимки, обновления.

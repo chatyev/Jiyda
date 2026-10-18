@@ -69,6 +69,8 @@ impl App {
             return;
         }
         self.home_return = None;
+        // Страницу выбрали — предлагать «Открыть снова» после сбоя больше незачем.
+        self.recovery = None;
         // Спящие страницы на экране (в том числе вторую половину пары) загружаем.
         for v in self.pages.visible() {
             self.wake(v);

@@ -47,3 +47,7 @@ E2E.test('restart/after: history and closed pages persist', async (t) => {
   const h = await new Promise((resolve) => { S.on('data:history', resolve); t.post({ type: 'get', what: 'history' }); });
   t.ok(h.some((e) => e.url === t.url('a.html')), 'A в истории после перезапуска');
 });
+
+E2E.test('restart/after: a clean exit is not treated as a crash', async (t) => {
+  t.ok(!t.state().recovery, 'нет предложения восстановить');
+});

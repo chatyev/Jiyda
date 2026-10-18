@@ -117,6 +117,11 @@ impl App {
                 self.updates.dismissed = self.updates.release.as_ref().map(|u| u.version.clone());
                 self.push_state();
             }
+            Command::Recover => self.recover(),
+            Command::RecoverDismiss => {
+                self.recovery = None;
+                self.push_state();
+            }
             Command::Space(n) => self.switch_space(n - 1),
             Command::Goto(n) => self.activate_opt(self.pages.goto_target(n)),
         }

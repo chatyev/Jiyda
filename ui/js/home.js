@@ -8,7 +8,9 @@ import { S } from './core.js';
   const input = S.h('input', { attrs: { spellcheck: 'false', autocomplete: 'off', role: 'combobox', 'aria-expanded': 'false', 'aria-controls': 'home-suggest' } });
   const search = S.h('label', { class: 'home-search' }, S.icon('search', 'i20'), input, S.h('kbd', { class: 'home-kbd' }));
   const tiles = S.h('nav', { class: 'home-tiles', attrs: { 'aria-label': 'Quick destinations' } });
-  const center = S.h('div', { class: 'home-center' }, search, tiles);
+  // После сбоя: страницы вернулись в список, но не загружены — открыть их по кнопке.
+  const recovery = S.h('div', { class: 'home-recovery', hidden: true, attrs: { role: 'status' } });
+  const center = S.h('div', { class: 'home-center' }, recovery, search, tiles);
   const time = S.h('div', { class: 'home-time' });
   const date = S.h('div', { class: 'home-date' });
   const clock = S.h('div', { class: 'home-clock', attrs: { 'aria-live': 'off' } }, time, date);
@@ -81,6 +83,16 @@ import { S } from './core.js';
     } else update.hidden = true;
   }
 
+  function drawRecovery(st) {
+    recovery.hidden = !st.recovery;
+    if (!st.recovery) return;
+    S.fill(recovery, S.icon('history', 'i20'),
+      S.h('span', { class: 'home-recovery-text' },
+        S.h('b', { text: S.t('The last session ended unexpectedly') }), S.t('Your pages are saved.')),
+      S.h('button', { class: 'btn primary', text: S.t('Reopen pages'), on: { click: () => S.cmd('recover') } }),
+      S.iconBtn('x', S.t('Not now'), () => S.cmd('recover_dismiss'), 'sm'));
+  }
+
   function draw() {
     const q = input.value;
     items = q.trim() ? S.suggest(q) : [];
@@ -128,6 +140,7 @@ import { S } from './core.js';
     tiles.setAttribute('aria-label', S.t('Quick destinations'));
     drawTiles(st.home && st.home.top);
     drawPrivacy(st);
+    drawRecovery(st);
     tick();
     // Фокус — в следующем кадре и только если к тому времени не открылся слой
     // (например, переключатель Spaces с переименованием нового Space).
