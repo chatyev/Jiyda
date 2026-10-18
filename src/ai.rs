@@ -66,7 +66,11 @@ pub fn body(r: &Request) -> Value {
         "max_tokens": 16000,
         "output_config": { "effort": "medium" },
         "fallbacks": "default",
-        "system": format!("{SYSTEM}\nBrowser interface language: {}.", if r.lang == "ru" { "Russian" } else { "English" }),
+        "system": format!("{SYSTEM}\nBrowser interface language: {}.", match r.lang {
+            "ru" => "Russian",
+            "uz" => "Uzbek (Latin script)",
+            _ => "English",
+        }),
         "messages": [{ "role": "user", "content": user }],
     })
 }

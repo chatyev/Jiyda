@@ -40,3 +40,78 @@ fn ui_urls() {
     assert!(!is_ui_url("https://jiyda.ui.evil.test/"));
     assert!(!is_ui_url("https://example.com/"));
 }
+
+// ---------- Перевод интерфейса (js/i18n.js — русский, js/i18n_uz.js — узбекский) ----------
+
+fn ui_text(path: &str) -> &'static str {
+    std::str::from_utf8(asset(path).unwrap_or_else(|| panic!("нет {path}")).0).unwrap()
+}
+
+/// Ключи словаря: строки в одинарных кавычках, за которыми идёт двоеточие.
+fn dict_keys(text: &str) -> Vec<&str> {
+    let mut keys = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find('\'') {
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('\'') else { break };
+        let (s, tail) = (&after[..end], &after[end + 1..]);
+        if tail.trim_start().starts_with(':') {
+            keys.push(s);
+        }
+        rest = tail;
+    }
+    keys
+}
+
+/// Строки интерфейса: S.t('…') с постоянным текстом (не 'wants to ' + переменная).
+fn used_keys() -> Vec<&'static str> {
+    let mut out = Vec::new();
+    for (path, data, _) in UI_FILES.iter().filter(|(p, _, _)| p.ends_with(".js") && !p.contains("i18n")) {
+        let text = std::str::from_utf8(data).unwrap();
+        for (at, _) in text.match_indices("S.t('") {
+            let rest = &text[at + 5..];
+            let Some(end) = rest.find('\'') else { panic!("{path}: незакрытая строка") };
+            if !rest[end + 1..].trim_start().starts_with('+') {
+                out.push(&rest[..end]);
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn every_ui_string_is_translated_to_russian_and_uzbek() {
+    let ru = dict_keys(ui_text("js/i18n.js"));
+    let uz = dict_keys(ui_text("js/i18n_uz.js"));
+    let used = used_keys();
+    assert!(ru.len() > 300 && used.len() > 200, "словари не разобраны: {} {}", ru.len(), used.len());
+    for key in &used {
+        assert!(ru.contains(key), "нет русского перевода: {key}");
+        assert!(uz.contains(key), "нет узбекского перевода: {key}");
+    }
+}
+
+#[test]
+fn uzbek_dictionary_has_the_same_keys_as_russian() {
+    let ru = dict_keys(ui_text("js/i18n.js"));
+    let uz = dict_keys(ui_text("js/i18n_uz.js"));
+    for key in &ru {
+        assert!(uz.contains(key), "нет узбекского перевода: {key}");
+    }
+    for key in &uz {
+        assert!(ru.contains(key), "лишний ключ в узбекском: {key}");
+    }
+    let mut seen = std::collections::HashSet::new();
+    for key in &uz {
+        assert!(seen.insert(key), "повтор в узбекском: {key}");
+    }
+}
+
+#[test]
+fn uzbek_dictionary_is_latin() {
+    let text = ui_text("js/i18n_uz.js");
+    // Кириллица допустима только в комментариях.
+    for line in text.lines().filter(|l| !l.trim_start().starts_with("//")) {
+        assert!(!line.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "кириллица: {line}");
+    }
+}

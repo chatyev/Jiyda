@@ -48,6 +48,8 @@ fn apply_validates_and_reports_restart() {
     assert_eq!(SettingChange::Devtools(false).apply(&mut c), Ok(Applied { restart: true }));
     assert_eq!(SettingChange::Language(Language::En).apply(&mut c).map(|a| a.restart), Ok(true));
     assert_eq!(c.language, "en");
+    assert_eq!(SettingChange::Language(Language::Uz).apply(&mut c).map(|a| a.restart), Ok(true));
+    assert_eq!(c.language, "uz");
     assert!(SettingChange::DownloadDir(r"Z:\no\such\dir".into()).apply(&mut c).is_err());
 }
 

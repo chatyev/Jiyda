@@ -7,7 +7,8 @@ fn russian_and_other_windows_languages() {
     assert_eq!(from_langid(0x0419), Lang::Ru); // ru-RU
     assert_eq!(from_langid(0x0819), Lang::Ru); // ru-MD
     assert_eq!(from_langid(0x0409), Lang::En); // en-US
-    assert_eq!(from_langid(0x0443), Lang::En); // uz-Latn-UZ
+    assert_eq!(from_langid(0x0443), Lang::Uz); // uz-Latn-UZ
+    assert_eq!(from_langid(0x0843), Lang::Uz); // uz-Cyrl-UZ
     assert_eq!(from_langid(0x0422), Lang::En); // uk-UA
 }
 
@@ -61,7 +62,8 @@ fn every_used_string_is_translated() {
                 let rest = &text[at + start.len()..];
                 let key = &rest[..rest.find('"').unwrap()];
                 let key = unescape(key);
-                assert!(STRINGS.iter().any(|(en, _)| *en == key), "нет перевода: {key} ({})", f.display());
+                assert!(RU.iter().any(|(en, _)| *en == key), "нет русского перевода: {key} ({})", f.display());
+                assert!(UZ.iter().any(|(en, _)| *en == key), "нет узбекского перевода: {key} ({})", f.display());
                 used += 1;
             }
         }
@@ -71,11 +73,25 @@ fn every_used_string_is_translated() {
 
 #[test]
 fn table_is_consistent() {
-    for (i, (en, ru)) in STRINGS.iter().enumerate() {
-        assert_eq!(ru.matches("{}").count(), en.matches("{}").count(), "{en}");
-        // В английском ключе нет кириллицы.
-        assert!(!ru.is_empty() && !en.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "{en}");
-        assert!(STRINGS[..i].iter().all(|(k, _)| k != en), "повтор: {en}");
+    for table in [RU, UZ] {
+        for (i, (en, t)) in table.iter().enumerate() {
+            assert_eq!(t.matches("{}").count(), en.matches("{}").count(), "{en}");
+            // В английском ключе нет кириллицы.
+            assert!(!t.is_empty() && !en.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "{en}");
+            assert!(table[..i].iter().all(|(k, _)| k != en), "повтор: {en}");
+        }
+    }
+}
+
+/// Узбекская таблица — те же ключи, что русская; латиница, без кириллицы.
+#[test]
+fn uzbek_table_matches_russian() {
+    for (en, _) in RU {
+        assert!(UZ.iter().any(|(k, _)| k == en), "нет узбекского перевода: {en}");
+    }
+    for (en, uz) in UZ {
+        assert!(RU.iter().any(|(k, _)| k == en), "лишний ключ: {en}");
+        assert!(!uz.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "кириллица в узбекском: {uz}");
     }
 }
 

@@ -12,6 +12,7 @@ import { S } from './core.js';
     ['spaces', 'Spaces', 'layers'],
     ['shortcuts', 'Shortcuts', 'keyboard'],
     ['downloads', 'Downloads', 'download'],
+    ['import', 'Import from browsers', 'star'],
     ['advanced', 'Advanced', 'wrench'],
   ];
   const COMMAND_NAMES = {
@@ -21,7 +22,7 @@ import { S } from './core.js';
     hard_reload: 'Reload without cache', find: 'Find on page', focus: 'Focus Mode', spaces: 'Switch Space',
     history: 'History', closed: 'Recently closed', downloads: 'Downloads', later: 'Move page to Later', split: 'Split View',
     ask: 'Ask Jiyda', fullscreen: 'Full screen', pin: 'Pin page', copy_url: 'Copy page link', settings: 'Settings',
-    shortcuts: 'Keyboard shortcuts', devtools: 'Developer tools',
+    shortcuts: 'Keyboard shortcuts', devtools: 'Developer tools', bookmarks: 'Bookmarks', bookmark: 'Bookmark this page',
   };
   const ENGINES = [
     ['Google', 'https://www.google.com/search?q=%s'],
@@ -80,7 +81,7 @@ import { S } from './core.js';
       card(
         row(S.t('Search engine'), S.t('Used for searches from the address bar, New Page and the palette.'), engine),
         !known ? row(S.t('Custom search address'), S.t('Use %s where the query goes.'), custom) : null,
-        row(S.t('Language'), S.t('Takes effect after restarting Jiyda.'), select('language', c.language, [['auto', S.t('Same as Windows')], ['en', 'English'], ['ru', 'Русский']], S.t('Language')))),
+        row(S.t('Language'), S.t('Takes effect after restarting Jiyda.'), select('language', c.language, [['auto', S.t('Same as Windows')], ['en', 'English'], ['ru', 'Русский'], ['uz', 'Oʻzbekcha']], S.t('Language')))),
       sub(S.t('Pages')),
       card(
         row(S.t('Put inactive pages to sleep'), S.t('Background pages you haven’t opened for a while are unloaded from memory. Pages playing sound stay awake.'),
@@ -217,6 +218,31 @@ import { S } from './core.js';
     ];
   }
 
+  // Перенос из Chrome и Edge: профили найденных браузеров, что переносить, кнопка.
+  let imp = null, impPick = { bookmarks: true, history: true };
+  S.on('data:import', (d) => { imp = d; if (S.layers.isOpen('settings') && section === 'import') draw(); });
+
+  function importSection() {
+    const sources = (imp && imp.sources) || [];
+    const check = (key, label) => S.h('label', { class: 'check' },
+      S.h('input', { type: 'checkbox', checked: impPick[key], disabled: imp && imp.busy, on: { change: (e) => { impPick[key] = e.target.checked; draw(); } } }), label);
+    const none = !impPick.bookmarks && !impPick.history;
+    const rows = sources.map((s) => row(s.profile ? `${s.name} · ${s.profile}` : s.name, null,
+      S.h('button', { class: 'btn', text: imp.busy ? S.t('Importing…') : S.t('Import'), disabled: imp.busy || none,
+        on: { click: () => S.post({ type: 'import', source: s.id, bookmarks: impPick.bookmarks, history: impPick.history }) } })));
+    const done = imp && imp.done;
+    return [
+      ...head(S.t('Import from browsers'), S.t('Bring your bookmarks and history from Google Chrome or Microsoft Edge. Nothing is removed from the other browser.')),
+      sub(S.t('What to import')),
+      card(S.h('div', { class: 'setting import-what' }, check('bookmarks', S.t('Bookmarks')), check('history', S.t('History')))),
+      sub(S.t('From')),
+      card(...(rows.length ? rows
+        : [S.h('div', { class: 'setting' }, S.h('div', { class: 'desc', text: imp ? S.t('Google Chrome and Microsoft Edge weren’t found on this computer.') : S.t('Looking for browsers…') }))])),
+      done ? S.h('div', { class: 'notice' }, S.icon('check', 'i16'), S.h('div', { text: S.t('Imported: {0} bookmarks and {1} history entries. Bookmarks are in their own folder — open them with {2}.', done.bookmarks, done.history, S.keyOf('bookmarks') || 'Ctrl Shift O') })) : null,
+      S.h('div', { class: 'notice' }, S.icon('info', 'i16'), S.h('div', { text: S.t('Passwords and site logins can’t be imported: Chrome and Edge encrypt them for themselves only. Sign in to your sites again in Jiyda.') })),
+    ];
+  }
+
   function advanced(c) {
     return [
       ...head(S.t('Advanced'), S.t('Changes here take effect after restarting Jiyda.')),
@@ -240,7 +266,7 @@ import { S } from './core.js';
     el.setAttribute('aria-label', S.t('Settings'));
     if (!cfg) { S.fill(main, S.h('div', { class: 'settings-content' })); return; }
     const c = cfg;
-    const body = { general: () => general(c), privacy: () => privacy(c, st), appearance: () => appearance(c), ai: () => ai(c), spaces: () => spaces(st), shortcuts: () => shortcuts(c), downloads: () => downloads(c), advanced: () => advanced(c) }[section]();
+    const body = { general: () => general(c), privacy: () => privacy(c, st), appearance: () => appearance(c), ai: () => ai(c), spaces: () => spaces(st), shortcuts: () => shortcuts(c), downloads: () => downloads(c), import: importSection, advanced: () => advanced(c) }[section]();
     const close = S.h('div', { style: { position: 'absolute', right: '20px', top: '16px' } }, S.iconBtn('x', S.t('Close settings (Esc)'), () => S.layers.close('settings')));
     S.fill(main, close, S.h('div', { class: 'settings-content', attrs: { role: 'tabpanel' } }, ...body));
   }
@@ -267,6 +293,8 @@ import { S } from './core.js';
       highlightOrigin = a.origin || '';
       el.hidden = false;
       S.post({ type: 'get', what: 'settings' });
+      if (imp) imp.done = null;
+      S.post({ type: 'get', what: 'import' });
       draw();
       requestAnimationFrame(() => { el.classList.add('open'); const b = S.$('[aria-selected="true"]', nav); if (b) b.focus(); });
     },

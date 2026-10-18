@@ -67,6 +67,8 @@ function Invoke-Session([string]$data, [string[]]$specFiles, [string]$runCall, [
     }
     $env:JIYDA_AUTOMATION = '1'
     $env:JIYDA_DATA_DIR = $data
+    # Свой «Chrome» и «Edge» для переноса закладок (src/import.rs), а не браузеры этой машины.
+    $env:JIYDA_IMPORT_ROOT = Join-Path $here 'import'
     # Вывод — в файлы: окно терминала на сервере CI может перестать читать его и остановить Jiyda.
     $file = $name -replace '[\\/:]', '-'
     $script:proc = Start-Process -FilePath $Exe -PassThru -NoNewWindow `

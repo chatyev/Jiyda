@@ -28,6 +28,9 @@ import { S } from './core.js';
     { t: 'Switch Space', icon: 'layers', key: 'spaces', fn: () => S.layers.open('spaces', {}) },
     { t: 'Show shortcuts', icon: 'keyboard', key: 'shortcuts', fn: () => S.layers.open('settings', { section: 'shortcuts' }) },
     { t: 'Open history', icon: 'history', key: 'history', fn: () => S.layers.open('history') },
+    { t: 'Open bookmarks', icon: 'star', key: 'bookmarks', cmd: 'bookmarks' },
+    { t: 'Bookmark this page', icon: 'star', key: 'bookmark', when: () => page() && !S.state.bookmarked, cmd: 'bookmark' },
+    { t: 'Import bookmarks and history', icon: 'download', fn: () => S.layers.open('settings', { section: 'import' }) },
     { t: 'Split current page', icon: 'columns', key: 'split', when: page, fn: () => open('split') },
     { t: 'Move page to Later', icon: 'inbox', key: 'later', when: page, cmd: 'later' },
     { t: 'Restore recently closed', icon: 'undo', key: 'closed', fn: () => S.layers.open('closed') },
@@ -108,6 +111,7 @@ import { S } from './core.js';
     add(S.t('Commands'), cmds.slice(0, 6).map(cmdRow));
     const spaces = S.state.spaces.map((s, i) => ({ s, i })).filter(({ s, i }) => i !== S.state.activeSpace && s.name.toLowerCase().includes(ql));
     add(S.t('Spaces'), spaces.map(({ s, i }) => ({ kind: 'space', title: s.name, icon: 'layers', meta: i < 9 ? `Ctrl Shift ${i + 1}` : '', dot: s.color, run: () => S.post({ type: 'space', index: i }) })));
+    add(S.t('Bookmarks'), sug.filter((r) => r.kind === 'bookmark').map((r) => ({ ...r, run: () => S.pickSuggestion(r, 'new') })));
     add(S.t('History'), sug.filter((r) => r.kind === 'history').map((r) => ({ ...r, run: () => S.pickSuggestion(r, 'new') })));
     return out;
   }
@@ -127,7 +131,7 @@ import { S } from './core.js';
       if (!r.run) return S.h('div', { class: 'group-label', text: r.label });
       k++;
       const i = k;
-      const ico = r.page ? S.fav(r.page) : r.kind === 'history' ? S.fav({ url: r.url, title: r.title, favicon: r.favicon })
+      const ico = r.page ? S.fav(r.page) : r.kind === 'history' || r.kind === 'bookmark' ? S.fav({ url: r.url, title: r.title, favicon: r.favicon })
         : r.dot ? S.h('span', { class: 'ico' }, S.h('span', { class: 'space-dot', style: { '--space': S.colorOf(r.dot) } }))
         : S.h('span', { class: 'ico' }, S.icon(r.icon || 'globe', 'i16'));
       const el = S.h('button', { class: 'row' + (i === sel ? ' sel' : '') + (r.danger ? ' danger' : ''), attrs: { role: 'option', 'aria-selected': i === sel ? 'true' : 'false', tabindex: '-1' } },

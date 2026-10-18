@@ -44,6 +44,9 @@ impl App {
         if let Some(s) = self.history.take_changes() {
             self.writer.write(&self.paths.history, s);
         }
+        if let Some(s) = self.bookmarks.take_changes() {
+            self.writer.write(&self.paths.bookmarks, s);
+        }
         if let Some(s) = self.favicons.take_changes() {
             self.writer.write(&self.paths.favicons, s);
         }

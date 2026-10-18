@@ -266,6 +266,41 @@ impl History {
         self.dirty = true;
     }
 
+    /// Перенести историю другого браузера. Адрес уже есть — берётся больше посещений и
+    /// более позднее время; всего остаётся не больше HISTORY_LIMIT, свежие. Возвращает,
+    /// сколько адресов добавлено.
+    pub fn import(&mut self, entries: Vec<HistEntry>) -> usize {
+        let mut index: std::collections::HashMap<String, usize> =
+            self.entries.iter().enumerate().map(|(i, e)| (e.url.clone(), i)).collect();
+        let mut added = 0;
+        for e in entries {
+            if !e.url.starts_with("http") {
+                continue;
+            }
+            match index.get(&e.url) {
+                Some(&i) => {
+                    let mine = &mut self.entries[i];
+                    mine.visits = mine.visits.max(e.visits);
+                    mine.ts = mine.ts.max(e.ts);
+                    if mine.title.is_empty() {
+                        mine.title = e.title;
+                    }
+                }
+                None => {
+                    index.insert(e.url.clone(), self.entries.len());
+                    self.entries.push(e);
+                    added += 1;
+                }
+            }
+        }
+        if self.entries.len() > HISTORY_LIMIT {
+            self.entries.sort_by_key(|e| std::cmp::Reverse(e.ts));
+            self.entries.truncate(HISTORY_LIMIT);
+        }
+        self.dirty = true;
+        added
+    }
+
     /// Записи, открытые в пределах `window` секунд от `ts` (кроме самой `url`),
     /// новые первыми: «Restore context» в истории.
     pub fn around(&self, url: &str, ts: u64, window: u64, n: usize) -> Vec<&HistEntry> {
@@ -452,6 +487,18 @@ impl Favicons {
 
     pub fn get(&self, host: &str) -> Option<&str> {
         self.items.iter().find(|(h, _)| h == host).map(|(_, u)| u.as_str())
+    }
+
+    /// Значок из другого браузера: только если своего нет и есть место. Встаёт как самый
+    /// старый — свои значки он не вытесняет, а сам уходит первым.
+    pub fn set_if_missing(&mut self, host: &str, uri: &str) {
+        if host.is_empty() || !uri.starts_with("data:image/") || self.items.len() >= FAVICONS_LIMIT {
+            return;
+        }
+        if self.get(host).is_none() {
+            self.items.insert(0, (host.to_string(), uri.to_string()));
+            self.dirty = true;
+        }
     }
 
     /// Запомнить значок сайта. Принимается только data:image/ — никаких адресов в сети.

@@ -61,6 +61,7 @@ commands! {
     Spaces => "spaces",
     History => "history",
     Closed => "closed",
+    Bookmarks => "bookmarks",
     Ask => "ask",
     Settings => "settings",
     Shortcuts => "shortcuts",
@@ -78,6 +79,7 @@ commands! {
     PrevSeq => "prev_seq",
     Later => "later",
     Pin => "pin",
+    Bookmark => "bookmark",
     Back => "back",
     Forward => "forward",
     Reload => "reload",
@@ -110,6 +112,7 @@ commands! {
     UpdateDismiss => "update_dismiss",
     Recover => "recover",
     RecoverDismiss => "recover_dismiss",
+    ImportDismiss => "import_dismiss",
 }
 
 impl TryFrom<String> for Command {

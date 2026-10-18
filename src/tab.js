@@ -42,12 +42,15 @@
 
   // ---------- Панель над выделенным текстом ----------
   // В закрытом shadow DOM: стили страницы её не трогают, а страница её не видит.
-  const RU = cfg.lang === 'ru';
+  const L = {
+    ru: ['Копировать', 'Найти', 'Объяснить', 'Перевести'],
+    uz: ['Nusxa olish', 'Qidirish', 'Tushuntirish', 'Tarjima qilish'],
+  }[cfg.lang] || ['Copy', 'Search', 'Explain', 'Translate'];
   const ACTIONS = [
-    ['copy', RU ? 'Копировать' : 'Copy'],
-    ['search', RU ? 'Найти' : 'Search'],
-    ['explain', RU ? 'Объяснить' : 'Explain'],
-    ['translate', RU ? 'Перевести' : 'Translate'],
+    ['copy', L[0]],
+    ['search', L[1]],
+    ['explain', L[2]],
+    ['translate', L[3]],
     ['ask', 'Ask Jiyda'],
   ];
   let enabled = cfg.selection !== false;

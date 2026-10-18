@@ -25,6 +25,7 @@ impl App {
         let saved_spaces: Vec<SavedSpace> =
             spaces::normalize(session.take_spaces()).into_iter().filter(|s| !deleted_spaces.contains(&s.id)).collect();
         let history = History::load(&paths.history);
+        let bookmarks = crate::bookmarks::Bookmarks::load(&paths.bookmarks);
         let downloads = Downloads::load(&paths.downloads);
         let favicons = Favicons::load(&paths.favicons);
         let proxy = event_loop.create_proxy();
@@ -164,6 +165,9 @@ impl App {
             state_dirty: Cell::new(false),
             home_return: None,
             removed_history: Vec::new(),
+            bookmarks,
+            removed_bookmarks: Vec::new(),
+            import: bookmark_ops::ImportState::scan(),
             capture_due: Vec::new(),
             ai_key,
             ai_jobs: HashMap::new(),

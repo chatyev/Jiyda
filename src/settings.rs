@@ -40,6 +40,7 @@ pub enum Language {
     Auto,
     Ru,
     En,
+    Uz,
 }
 
 /// Новое сочетание для команды ("" — без сочетания).
@@ -116,6 +117,7 @@ impl SettingChange {
                     Language::Auto => "auto",
                     Language::Ru => "ru",
                     Language::En => "en",
+                    Language::Uz => "uz",
                 }
                 .into();
                 restart = true;

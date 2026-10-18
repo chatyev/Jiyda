@@ -3,6 +3,7 @@
 import './core.js';
 import './icons.js';
 import './i18n.js';
+import './i18n_uz.js';
 import './region.js';
 import './menu.js';
 import './toast.js';
@@ -15,6 +16,7 @@ import './palette.js';
 import './security.js';
 import './permission.js';
 import './history.js';
+import './bookmarks.js';
 import './closed.js';
 import './ai.js';
 import './downloads.js';

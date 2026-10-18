@@ -464,3 +464,52 @@ fn download_name_from_path_or_url() {
     let names: Vec<_> = d.items.iter().map(Download::name).collect();
     assert_eq!(names, ["report.pdf", "archive.zip", "x"]);
 }
+
+// ---------- Перенос из другого браузера ----------
+
+#[test]
+fn history_import_merges_known_urls_and_adds_new() {
+    let mut h = history(vec![HistEntry { url: "https://a.test/".into(), title: String::new(), ts: 100, visits: 2 }]);
+    let added = h.import(vec![
+        HistEntry { url: "https://a.test/".into(), title: "A".into(), ts: 50, visits: 9 },
+        HistEntry { url: "https://b.test/".into(), title: "B".into(), ts: 70, visits: 1 },
+        HistEntry { url: "file:///C:/x".into(), title: "X".into(), ts: 80, visits: 1 },
+    ]);
+    assert_eq!(added, 1);
+    assert!(h.is_dirty());
+    let a = h.entries.iter().find(|e| e.url == "https://a.test/").unwrap();
+    // Больше посещений, своё (более позднее) время, заголовок — раз своего не было.
+    assert_eq!((a.visits, a.ts, a.title.as_str()), (9, 100, "A"));
+    assert_eq!(h.entries.len(), 2, "file: не переносится");
+}
+
+#[test]
+fn history_import_keeps_newest_within_limit() {
+    let mut h = history(vec![entry("https://mine.test/", 10_000_000)]);
+    let many: Vec<HistEntry> =
+        (0..HISTORY_LIMIT as u64 + 10).map(|i| entry(&format!("https://x.test/{i}"), i)).collect();
+    h.import(many);
+    assert_eq!(h.entries.len(), HISTORY_LIMIT);
+    assert!(h.entries.iter().any(|e| e.url == "https://mine.test/"));
+    assert!(!h.entries.iter().any(|e| e.url == "https://x.test/0"), "самые старые отброшены");
+}
+
+#[test]
+fn imported_favicons_never_replace_or_push_out_own() {
+    let mut f = Favicons { items: vec![("a.test".into(), "data:image/png;base64,MINE".into())], dirty: false };
+    f.set_if_missing("a.test", "data:image/png;base64,THEIRS");
+    f.set_if_missing("b.test", "data:image/png;base64,B");
+    f.set_if_missing("c.test", "https://c.test/icon.png");
+    assert_eq!(f.get("a.test"), Some("data:image/png;base64,MINE"));
+    assert_eq!(f.get("b.test"), Some("data:image/png;base64,B"));
+    assert_eq!(f.get("c.test"), None);
+    // Перенесённый значок — самый старый: он уйдёт первым.
+    assert_eq!(f.items[0].0, "b.test");
+    // Места нет — не добавляется.
+    let mut full = Favicons {
+        items: (0..FAVICONS_LIMIT).map(|i| (format!("s{i}"), "data:image/png;base64,x".into())).collect(),
+        dirty: false,
+    };
+    full.set_if_missing("new.test", "data:image/png;base64,N");
+    assert_eq!(full.get("new.test"), None);
+}

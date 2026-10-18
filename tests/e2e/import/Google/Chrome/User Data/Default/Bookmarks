@@ -1,0 +1,16 @@
+{
+  "checksum": "e2e",
+  "roots": {
+    "bookmark_bar": { "type": "folder", "name": "Bookmarks bar", "children": [
+      { "type": "url", "name": "Fixture Docs", "url": "https://docs.fixture.test/", "date_added": "13370000000000000" },
+      { "type": "folder", "name": "Work", "children": [
+        { "type": "url", "name": "Fixture Wiki", "url": "https://wiki.fixture.test/" }
+      ]}
+    ]},
+    "other": { "type": "folder", "name": "Other bookmarks", "children": [
+      { "type": "url", "name": "Fixture Other", "url": "https://other.fixture.test/" }
+    ]},
+    "synced": { "type": "folder", "name": "Mobile bookmarks", "children": [] }
+  },
+  "version": 1
+}

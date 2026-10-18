@@ -17,6 +17,12 @@ impl App {
             | Command::Settings
             | Command::Shortcuts
             | Command::Focus => self.ui_command(&cmd.to_string(), Value::Null),
+            Command::Bookmarks => {
+                self.push_bookmarks();
+                self.ui_command("bookmarks", Value::Null);
+            }
+            Command::Bookmark => self.toggle_bookmark(),
+            Command::ImportDismiss => self.dismiss_import_offer(),
             Command::Downloads => {
                 self.push_downloads();
                 self.ui_command("downloads", Value::Null);

@@ -9,8 +9,10 @@ import { S } from './core.js';
   const search = S.h('label', { class: 'home-search' }, S.icon('search', 'i20'), input, S.h('kbd', { class: 'home-kbd' }));
   const tiles = S.h('nav', { class: 'home-tiles', attrs: { 'aria-label': 'Quick destinations' } });
   // После сбоя: страницы вернулись в список, но не загружены — открыть их по кнопке.
-  const recovery = S.h('div', { class: 'home-recovery', hidden: true, attrs: { role: 'status' } });
-  const center = S.h('div', { class: 'home-center' }, recovery, search, tiles);
+  const recovery = S.h('div', { class: 'home-card home-recovery', hidden: true, attrs: { role: 'status' } });
+  // Первый запуск: найден Chrome или Edge — предложить перенести закладки и историю.
+  const offer = S.h('div', { class: 'home-card home-import', hidden: true, attrs: { role: 'status' } });
+  const center = S.h('div', { class: 'home-center' }, recovery, offer, search, tiles);
   const time = S.h('div', { class: 'home-time' });
   const date = S.h('div', { class: 'home-date' });
   const clock = S.h('div', { class: 'home-clock', attrs: { 'aria-live': 'off' } }, time, date);
@@ -87,10 +89,21 @@ import { S } from './core.js';
     recovery.hidden = !st.recovery;
     if (!st.recovery) return;
     S.fill(recovery, S.icon('history', 'i20'),
-      S.h('span', { class: 'home-recovery-text' },
+      S.h('span', { class: 'home-card-text' },
         S.h('b', { text: S.t('The last session ended unexpectedly') }), S.t('Your pages are saved.')),
       S.h('button', { class: 'btn primary', text: S.t('Reopen pages'), on: { click: () => S.cmd('recover') } }),
       S.iconBtn('x', S.t('Not now'), () => S.cmd('recover_dismiss'), 'sm'));
+  }
+
+  function drawOffer(st) {
+    const o = !st.recovery && st.importOffer;
+    offer.hidden = !o;
+    if (!o) return;
+    S.fill(offer, S.icon('star', 'i20'),
+      S.h('span', { class: 'home-card-text' },
+        S.h('b', { text: S.t('Bring your bookmarks and history from {0}?', o.browsers.join(S.t(' or '))) }), S.t('Passwords stay in the other browser.')),
+      S.h('button', { class: 'btn primary', text: S.t('Import'), on: { click: () => S.layers.open('settings', { section: 'import' }) } }),
+      S.iconBtn('x', S.t('Not now'), () => S.cmd('import_dismiss'), 'sm'));
   }
 
   function draw() {
@@ -141,6 +154,7 @@ import { S } from './core.js';
     drawTiles(st.home && st.home.top);
     drawPrivacy(st);
     drawRecovery(st);
+    drawOffer(st);
     tick();
     // Фокус — в следующем кадре и только если к тому времени не открылся слой
     // (например, переключатель Spaces с переименованием нового Space).

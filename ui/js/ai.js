@@ -25,7 +25,7 @@ import { S } from './core.js';
     { id: 'summarize', icon: 'file-text', label: 'Summarize this page', needs: () => !!S.activePage(), run: () => ask(S.t('Summarize this page.'), { kind: 'page' }) },
     { id: 'explain', icon: 'book', label: 'Explain selected text', needs: () => !!ctx.selection, run: () => ask(S.t('Explain the selected text in simple terms.'), { kind: 'selection' }) },
     { id: 'translate', icon: 'translate', label: 'Translate', needs: () => !!ctx.selection || !!S.activePage(), run: () => {
-      const into = S.cfg.lang === 'ru' ? 'Russian (if it is already in Russian, into English)' : 'English (if it is already in English, into Russian)';
+      const into = { ru: 'Russian (if it is already in Russian, into English)', uz: 'Uzbek in Latin script (if it is already in Uzbek, into English)' }[S.cfg.lang] || 'English (if it is already in English, into Russian)';
       ask(ctx.selection ? `Translate the selected text into ${into}.` : `Translate the main content of this page into ${into}.`, { kind: ctx.selection ? 'selection' : 'page' });
     } },
     { id: 'compare', icon: 'compare', label: 'Compare pages', needs: () => comparePages().length >= 2, run: () => ask(S.t('Compare these pages: key similarities, differences and which is better for what.'), { kind: 'pages', pages: comparePages() }) },

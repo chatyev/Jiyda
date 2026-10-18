@@ -33,6 +33,8 @@ const DEFAULTS: &[(Command, &[&str])] = &[
     (Command::Spaces, &["Ctrl+Shift+Space"]),
     (Command::History, &["Ctrl+H"]),
     (Command::Closed, &["Ctrl+Shift+H"]),
+    (Command::Bookmarks, &["Ctrl+Shift+O"]),
+    (Command::Bookmark, &["Ctrl+Shift+D"]),
     (Command::Downloads, &["Ctrl+J"]),
     (Command::Later, &["Ctrl+Shift+L"]),
     (Command::Split, &["Ctrl+Shift+S"]),

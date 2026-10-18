@@ -36,6 +36,7 @@ use tao::window::{Fullscreen, Window, WindowBuilder};
 
 // Методы `App` по темам. Структура и общие помощники — здесь, в mod.rs.
 mod ask;
+mod bookmark_ops;
 mod commands;
 mod data;
 mod events;
@@ -193,6 +194,11 @@ pub enum UserEvent {
     AiAnswer {
         req: u64,
         result: Result<String, String>,
+    },
+    /// Профиль другого браузера прочитан (import.rs) — перенести в Jiyda.
+    Imported {
+        label: String,
+        data: Box<crate::import::Imported>,
     },
 }
 
@@ -389,6 +395,11 @@ pub struct App {
     home_return: Option<u64>,
     /// Удалённые из истории записи — для Undo.
     removed_history: Vec<HistEntry>,
+    /// Закладки (bookmarks.json) и удалённые из них — для Undo.
+    bookmarks: crate::bookmarks::Bookmarks,
+    removed_bookmarks: Vec<crate::bookmarks::Removed>,
+    /// Перенос из Chrome и Edge.
+    import: bookmark_ops::ImportState,
     /// Снимки страниц, которые нужно сделать: (страница, когда).
     capture_due: Vec<(u64, Instant)>,
     ai_key: Option<String>,

@@ -79,6 +79,8 @@ impl App {
             "update": self.updates.visible().map(|u| json!({ "version": u.version })),
             "updating": self.updates.downloading,
             "recovery": self.recovery.is_some(),
+            "importOffer": self.import_offer(),
+            "bookmarked": self.pages.active_page().is_some_and(|t| self.bookmarks.contains(&t.url)),
             "home": self.home_data(),
             "shield": { "on": self.cfg.shield, "trackersToday": trackers_today, "adsToday": ads_today },
             "keys": self.keys.map.borrow().to_json(),

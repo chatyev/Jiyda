@@ -11,10 +11,24 @@ import { S } from './core.js';
   const reload = S.$('#addr-reload');
   const hint = S.$('#addr-hint');
 
+  const star = S.$('#addr-star');
+
   // ---------- Подсказки ----------
-  let history = [];
+  let history = [], bookmarks = [];
   S.on('data:history', (h) => { history = h || []; });
-  S.loadHistory = () => S.post({ type: 'get', what: 'history' });
+  // Закладки для подсказок — плоским списком, с путём папок.
+  S.on('data:bookmarks', (b) => {
+    bookmarks = [];
+    const walk = (nodes, path) => {
+      for (const n of nodes || []) {
+        if (n.children) walk(n.children, path ? `${path} › ${n.title}` : n.title);
+        else bookmarks.push({ title: n.title, url: n.url, path });
+      }
+    };
+    walk(b && b.items, '');
+  });
+  // Данные для подсказок: история и закладки.
+  S.loadHistory = () => { S.post({ type: 'get', what: 'history' }); S.post({ type: 'get', what: 'bookmarks' }); };
 
   function looksLikeUrl(q) {
     return /^[a-z][a-z0-9+.-]*:\/\//i.test(q) || /^(about|edge|view-source):/i.test(q)
@@ -24,7 +38,7 @@ import { S } from './core.js';
   S.looksLikeUrl = looksLikeUrl;
 
   // Подсказки для запроса q: [{ kind: 'go'|'search'|'page'|'history', title, sub, url, id }].
-  S.suggest = (q, { pages = 5, hist = 6, exclude = null } = {}) => {
+  S.suggest = (q, { pages = 5, bms = 4, hist = 6, exclude = null } = {}) => {
     q = q.trim();
     const ql = q.toLowerCase();
     const out = [];
@@ -38,6 +52,13 @@ import { S } from './core.js';
       out.push({ kind: 'page', title: S.titleOf(p), sub: other ? `${p.domain} · ${other.name}` : p.domain, id: p.id, page: p, meta: S.t('Switch to page') });
     }
     const openUrls = new Set(S.state.pages.map((p) => p.url));
+    const marks = bookmarks.filter((b) => !openUrls.has(b.url) && (match(b.title) || match(b.url)));
+    marks.sort((a, b) => S.host(b.url).startsWith(ql) - S.host(a.url).startsWith(ql));
+    const icons = new Map(history.map((h) => [S.host(h.url), h.favicon]));
+    for (const b of marks.slice(0, bms)) {
+      openUrls.add(b.url);
+      out.push({ kind: 'bookmark', title: b.title || b.url, sub: b.path ? `${S.host(b.url)} · ${b.path}` : S.host(b.url), text: b.url, url: b.url, favicon: icons.get(S.host(b.url)), meta: S.t('Bookmark') });
+    }
     const hits = history.filter((h) => !openUrls.has(h.url) && (match(h.title) || match(h.url)));
     hits.sort((a, b) => (S.host(b.url).startsWith(ql) - S.host(a.url).startsWith(ql)) || (b.visits - a.visits));
     for (const h of hits.slice(0, hist)) out.push({ kind: 'history', title: h.title || h.url, sub: S.host(h.url), text: h.url, url: h.url, favicon: h.favicon, meta: S.ago(h.ts) });
@@ -46,7 +67,7 @@ import { S } from './core.js';
 
   // Строка подсказки (общая для адреса, New Page и палитры).
   S.suggestRow = (r, selected, onPick) => {
-    const ico = r.page ? S.fav(r.page) : r.kind === 'history' ? S.fav({ url: r.url, title: r.title, favicon: r.favicon }) : S.h('span', { class: 'ico' }, S.icon(r.icon || 'globe', 'i16'));
+    const ico = r.page ? S.fav(r.page) : r.kind === 'history' || r.kind === 'bookmark' ? S.fav({ url: r.url, title: r.title, favicon: r.favicon }) : S.h('span', { class: 'ico' }, S.icon(r.icon || 'globe', 'i16'));
     const el = S.h('button', { class: 'row' + (selected ? ' sel' : ''), attrs: { role: 'option', 'aria-selected': selected ? 'true' : 'false', tabindex: '-1' } },
       ico,
       S.h('span', { class: 'row-main' },
@@ -74,6 +95,11 @@ import { S } from './core.js';
     view.title = act ? act.url : '';
     box.classList.toggle('loading', !!(act && act.loading));
     reload.hidden = !act;
+    // Звёздочка — только у сайтов: закладка на служебную страницу не нужна.
+    star.hidden = !(act && /^https?:/.test(act.url));
+    star.classList.toggle('on', !!st.bookmarked);
+    const sl = S.withKey(st.bookmarked ? S.t('Remove from bookmarks') : S.t('Add to bookmarks'), 'bookmark');
+    star.title = sl; star.setAttribute('aria-label', sl); star.setAttribute('aria-pressed', st.bookmarked ? 'true' : 'false');
     S.fill(reload, S.icon(act && act.loading ? 'x' : 'rotate-cw', 'i16'));
     const rl = act && act.loading ? S.t('Stop') : S.withKey(S.t('Reload'), 'reload');
     reload.title = rl; reload.setAttribute('aria-label', rl);
@@ -159,6 +185,7 @@ import { S } from './core.js';
   view.addEventListener('click', () => S.layers.open('address'));
   view.addEventListener('dblclick', (e) => e.stopPropagation());
   hint.addEventListener('click', () => S.layers.open('palette'));
+  star.addEventListener('click', () => S.cmd('bookmark'));
   reload.addEventListener('click', () => { const act = S.activePage(); S.cmd(act && act.loading ? 'stop' : 'reload'); });
   privacy.addEventListener('click', () => S.layers.toggle('security', { anchor: privacy }));
 

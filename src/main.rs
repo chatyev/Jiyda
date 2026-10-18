@@ -3,12 +3,14 @@
 
 mod ai;
 mod app;
+mod bookmarks;
 mod command;
 mod config;
 mod engine;
 mod frame;
 mod hotkeys;
 mod i18n;
+mod import;
 mod input;
 mod instance;
 mod ipc;

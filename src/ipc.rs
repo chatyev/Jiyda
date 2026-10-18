@@ -127,6 +127,45 @@ pub enum UiMsg {
         ts: u64,
     },
 
+    // ----- Закладки -----
+    BookmarkRemove {
+        id: u64,
+    },
+    BookmarkUndo,
+    /// Переименовать (и у ссылки — сменить адрес).
+    BookmarkEdit {
+        id: u64,
+        title: String,
+        #[serde(default)]
+        url: Option<String>,
+    },
+    /// Перенести в папку `parent` (None — верхний уровень) на место `index` (None — в конец).
+    BookmarkMove {
+        id: u64,
+        #[serde(default)]
+        parent: Option<u64>,
+        #[serde(default)]
+        index: Option<usize>,
+    },
+    BookmarkFolder {
+        #[serde(default)]
+        parent: Option<u64>,
+        #[serde(default)]
+        title: String,
+    },
+    /// Открыть все ссылки папки.
+    BookmarkOpenAll {
+        id: u64,
+    },
+    /// Перенести из другого браузера: профиль `source` ("chrome:Default").
+    Import {
+        source: String,
+        #[serde(default)]
+        bookmarks: bool,
+        #[serde(default)]
+        history: bool,
+    },
+
     // ----- Окно и интерфейс -----
     /// Где интерфейс должен получать мышь (см. frame::UiRegion).
     Region {

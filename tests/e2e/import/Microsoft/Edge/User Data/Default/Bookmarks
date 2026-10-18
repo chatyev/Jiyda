@@ -1,0 +1,3 @@
+{ "roots": { "bookmark_bar": { "type": "folder", "children": [
+  { "type": "url", "name": "Edge Favorite", "url": "https://edge.fixture.test/" }
+] } }, "version": 1 }

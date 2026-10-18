@@ -76,6 +76,7 @@ impl App {
             UserEvent::External { urls } => self.open_external(urls),
             UserEvent::UpdateChecked { result, manual } => self.on_update_checked(result, manual),
             UserEvent::UpdateDownloaded { result } => self.on_update_downloaded(result),
+            UserEvent::Imported { label, data } => self.on_imported(label, *data),
             UserEvent::Favicon { id, png } => {
                 let uri = format!("data:image/png;base64,{}", base64(&png));
                 let url = self.page_mut_any(id).map(|t| {
@@ -308,6 +309,15 @@ impl App {
             UiMsg::ClearClosed => self.command(Command::ClearClosed),
             UiMsg::HistoryRemove { url } => self.remove_history(&url),
             UiMsg::HistoryUndo => self.undo_history_remove(),
+            UiMsg::BookmarkRemove { id } => self.remove_bookmark(id),
+            UiMsg::BookmarkUndo => self.undo_bookmark_remove(),
+            UiMsg::BookmarkEdit { id, title, url } => self.edit_bookmark(id, &title, url.as_deref()),
+            UiMsg::BookmarkMove { id, parent, index } => self.move_bookmark(id, parent, index),
+            UiMsg::BookmarkFolder { parent, title } => self.new_bookmark_folder(parent, &title),
+            UiMsg::BookmarkOpenAll { id } => self.open_bookmark_folder(id),
+            UiMsg::Import { source, bookmarks, history } => {
+                self.start_import(&source, crate::import::What { bookmarks, history })
+            }
             UiMsg::HistoryContext { url, ts } => self.history_context(&url, ts),
             UiMsg::Region { full, rects, holes } => {
                 let conv = |v: Vec<[f64; 4]>| {
@@ -363,6 +373,13 @@ impl App {
             },
             UiMsg::Get { what } => match what.as_str() {
                 "history" => self.ui_data("history", self.history_json()),
+                "bookmarks" => self.push_bookmarks(),
+                "import" => {
+                    if !self.import.busy {
+                        self.import = bookmark_ops::ImportState::scan();
+                    }
+                    self.ui_data("import", self.import_json());
+                }
                 "downloads" => self.push_downloads(),
                 "settings" => self.ui_data("settings", self.settings_json()),
                 "security" => self.ui_data("security", self.security_json()),

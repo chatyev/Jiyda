@@ -72,7 +72,7 @@ pub struct Config {
     pub custom_titlebar: bool,
     /// Проверять новые версии на GitHub (при запуске и раз в 12 часов) и предлагать обновиться.
     pub check_updates: bool,
-    /// Язык интерфейса: "auto" (как в Windows), "ru" или "en".
+    /// Язык интерфейса: "auto" (как в Windows), "ru", "en" или "uz" (узбекский, латиница).
     pub language: String,
     /// Переназначенные горячие клавиши: команда → «Ctrl+Shift+K» ("" — без клавиш).
     pub shortcuts: BTreeMap<String, String>,
@@ -92,6 +92,8 @@ pub struct Config {
     pub ai: bool,
     /// Папка загрузок; пусто — как в Windows.
     pub download_dir: String,
+    /// Перенос из Chrome и Edge уже предлагали на New Page (или уже переносили).
+    pub import_offered: bool,
 }
 
 impl Default for Config {
@@ -114,6 +116,7 @@ impl Default for Config {
             motion: "system".into(),
             ai: false,
             download_dir: String::new(),
+            import_offered: false,
         }
     }
 }
@@ -122,6 +125,7 @@ pub struct Paths {
     pub config: PathBuf,
     pub session: PathBuf,
     pub history: PathBuf,
+    pub bookmarks: PathBuf,
     pub downloads: PathBuf,
     /// Значки сайтов (store::Favicons).
     pub favicons: PathBuf,
@@ -149,6 +153,7 @@ impl Paths {
             config: base.join("config.json"),
             session: base.join("session.json"),
             history: base.join("history.json"),
+            bookmarks: base.join("bookmarks.json"),
             downloads: base.join("downloads.json"),
             favicons: base.join("favicons.json"),
             permissions: base.join("permissions.json"),
