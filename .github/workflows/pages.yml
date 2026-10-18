@@ -42,13 +42,13 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.ready.outputs.ok == 'true'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - if: steps.ready.outputs.ok == 'true'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
           # .well-known/security.txt — скрытая папка, без этого она не попадёт на сайт.
           include-hidden-files: true
       - if: steps.ready.outputs.ok == 'true'
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
