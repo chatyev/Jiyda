@@ -1,6 +1,6 @@
 [package]
 name = "jiyda"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 # Не публикуется на crates.io (и cargo-deny не требует лицензии у самого Jiyda).
 publish = false
