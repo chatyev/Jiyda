@@ -97,6 +97,7 @@ const RU: &[(&str, &str)] = &[
     // Закладки и перенос из других браузеров.
     ("Added to bookmarks", "Добавлено в закладки"),
     ("Removed from bookmarks", "Удалено из закладок"),
+    ("Bookmark saved", "Закладка сохранена"),
     ("Folder deleted", "Папка удалена"),
     ("Bookmark address must start with http:// or https://", "Адрес закладки должен начинаться с http:// или https://"),
     ("New folder", "Новая папка"),
@@ -189,6 +190,7 @@ const UZ: &[(&str, &str)] = &[
     // Закладки и перенос из других браузеров.
     ("Added to bookmarks", "Xatchoʻplarga qoʻshildi"),
     ("Removed from bookmarks", "Xatchoʻplardan olib tashlandi"),
+    ("Bookmark saved", "Xatchoʻp saqlandi"),
     ("Folder deleted", "Jild oʻchirildi"),
     (
         "Bookmark address must start with http:// or https://",

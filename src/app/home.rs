@@ -22,18 +22,24 @@ impl App {
         self.save();
     }
 
-    /// Плитки New Page — только когда она видна.
+    /// Данные карточек New Page — только когда она видна. «Недавние» — последние сайты из
+    /// истории, кроме открытых страниц (их показывает «Продолжить») и недавно закрытых
+    /// (они в `closed` и открываются вместе со своей историей).
     pub(super) fn home_data(&self) -> Value {
         if self.pages.active().is_some() {
             return Value::Null;
         }
-        let top: Vec<Value> = self
+        let mut skip: std::collections::HashSet<&str> = self.pages.closed().iter().map(|c| c.url.as_str()).collect();
+        for i in 0..self.spaces.len() {
+            skip.extend(self.space_pages(i).iter().map(|t| t.url.as_str()));
+        }
+        let recent: Vec<Value> = self
             .history
-            .top_sites(HOME_TILES)
+            .recent_where(HOME_RECENT, |e| !skip.contains(e.url.as_str()))
             .into_iter()
-            .map(|s| json!({ "host": s.host, "url": s.url, "favicon": self.favicons.get(&s.host).unwrap_or("") }))
+            .map(|e| json!({ "title": e.title, "url": e.url, "ts": e.ts, "favicon": self.icon_for(&e.url, "") }))
             .collect();
-        json!({ "top": top, "canReturn": self.home_return.is_some() })
+        json!({ "recent": recent, "canReturn": self.home_return.is_some(), "returnTo": self.home_return })
     }
 
     pub(super) fn make_default_browser(&self) {

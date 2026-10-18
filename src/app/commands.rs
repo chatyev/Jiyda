@@ -24,7 +24,7 @@ impl App {
                 self.push_bookmarks();
                 self.ui_command("bookmarks", Value::Null);
             }
-            Command::Bookmark => self.toggle_bookmark(),
+            Command::Bookmark => self.bookmark_page(),
             Command::ImportDismiss => self.dismiss_import_offer(),
             Command::Onboarding => {
                 self.onboarding = true;

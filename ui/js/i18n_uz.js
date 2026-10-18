@@ -114,7 +114,7 @@ import { S } from './core.js';
     'Previous (Shift+Enter)': 'Oldingi (Shift+Enter)', 'Next (Enter)': 'Keyingi (Enter)', 'Close (Esc)': 'Yopish (Esc)', '{0} of {1}': '{0} / {1}', 'No matches': 'Mos kelmadi',
     'Open as page': 'Sahifa sifatida ochish', 'Link preview': 'Havolani oldindan koʻrish',
     // New Page
-    'Add': 'Qoʻshish', 'Quick destinations': 'Tezkor oʻtishlar', 'Jiyda protects you': 'Jiyda sizni himoya qiladi', 'Tracker protection is off': 'Trekerlardan himoya oʻchirilgan',
+    'Jiyda protects you': 'Jiyda sizni himoya qiladi', 'Tracker protection is off': 'Trekerlardan himoya oʻchirilgan',
     '{0} trackers and ads blocked today': 'Bugun {0} ta treker va reklama bloklandi', 'No trackers blocked yet today': 'Bugun hali treker bloklanmadi',
     'Turn it on in Settings': 'Uni Sozlamalarda yoqing', 'Downloading Jiyda {0}…': 'Jiyda {0} yuklab olinmoqda…', 'Jiyda {0} is available': 'Jiyda {0} mavjud', 'Update': 'Yangilash',
     'The last session ended unexpectedly': 'Oldingi seans kutilmaganda tugadi', 'Your pages are saved.': 'Sahifalaringiz saqlangan.',
@@ -136,13 +136,19 @@ import { S } from './core.js';
     'Search pages, history, bookmarks and commands': 'Sahifalar, tarix, xatchoʻplar va buyruqlardan qidirish', 'Orbit: all your open pages, grouped': 'Orbit: barcha ochiq sahifalar guruhlarda',
     'Start browsing': 'Boshlash',
     // Закладки
-    'Bookmarks': 'Xatchoʻplar', 'Bookmark': 'Xatchoʻp', 'Add to bookmarks': 'Xatchoʻplarga qoʻshish', 'Remove from bookmarks': 'Xatchoʻplardan olib tashlash',
+    'Bookmarks': 'Xatchoʻplar', 'Bookmark': 'Xatchoʻp', 'Add to bookmarks': 'Xatchoʻplarga qoʻshish',
     'Open bookmarks': 'Xatchoʻplarni ochish', 'Bookmark this page': 'Sahifani xatchoʻplarga qoʻshish', 'Import bookmarks and history': 'Xatchoʻplar va tarixni koʻchirish',
     'Untitled folder': 'Nomsiz jild', 'Name': 'Nomi', 'Address': 'Manzil', 'Save': 'Saqlash',
-    'Top level': 'Yuqori daraja', 'Move up': 'Yuqoriga', 'Move down': 'Pastga', 'Move to folder': 'Jildga', 'Move': 'Koʻchirish',
-    'Open all': 'Hammasini ochish', 'Open in background': 'Fonda ochish', 'Edit': 'Tahrirlash', 'New folder': 'Yangi jild', 'Import…': 'Koʻchirish…',
+    'Top level': 'Yuqori daraja', 'Move up': 'Yuqoriga', 'Move down': 'Pastga', 'Move to folder': 'Jildga',
+    'Open all': 'Hammasini ochish', 'Open in background': 'Fonda ochish', 'Edit': 'Tahrirlash', 'New folder': 'Yangi jild',
     'Try a different word.': 'Boshqa soʻzni sinab koʻring.', 'No bookmarks yet': 'Hali xatchoʻplar yoʻq',
-    'Press ☆ in the address bar or {0} to bookmark a page.': 'Sahifani xatchoʻplarga qoʻshish uchun manzil satridagi ☆ ni yoki {0} ni bosing.',
+    'Close bookmarks': 'Xatchoʻplarni yopish', 'Add bookmark': 'Yangi xatchoʻp', 'Edit bookmark': 'Xatchoʻpni tahrirlash', 'Folder': 'Jild',
+    'Add current page': 'Joriy sahifani qoʻshish', 'Edit bookmark for this page': 'Bu sahifa xatchoʻpini tahrirlash', 'More actions': 'Yana',
+    'Open in new page': 'Yangi sahifada ochish', 'Press {0} on any site to bookmark it.': 'Istalgan saytni xatchoʻplarga qoʻshish uchun {0} ni bosing.',
+    'Save this page — or press {0} on any site.': 'Bu sahifani saqlang — yoki istalgan saytda {0} ni bosing.',
+    // New Page: карточки
+    'Continue where you left off': 'Davom ettirish', 'Recent': 'Yaqinda', 'Actions': 'Amallar', 'All open pages': 'Barcha ochiq sahifalar', 'Open pages: {0}': 'Ochiq sahifalar: {0}',
+    'Current': 'Joriy', 'All Spaces': 'Barcha Spaces', 'Separate logins and pages for work or home': 'Ish va uy uchun alohida kirishlar va sahifalar',
     'Import from Chrome or Edge': 'Chrome yoki Edgedan koʻchirish', 'This folder is empty': 'Bu jild boʻsh', 'Search bookmarks…': 'Xatchoʻplardan qidirish…',
     // Перенос из браузеров
     'Import from browsers': 'Brauzerlardan koʻchirish', 'Importing…': 'Koʻchirilmoqda…', 'What to import': 'Nimani koʻchirish', 'From': 'Qayerdan',

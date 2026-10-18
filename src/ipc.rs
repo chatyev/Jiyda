@@ -128,6 +128,15 @@ pub enum UiMsg {
     },
 
     // ----- Закладки -----
+    /// Сохранить страницу в папку `parent` (None — верхний уровень); адрес уже в
+    /// закладках — меняются название и папка прежней.
+    BookmarkAdd {
+        url: String,
+        #[serde(default)]
+        title: String,
+        #[serde(default)]
+        parent: Option<u64>,
+    },
     BookmarkRemove {
         id: u64,
     },

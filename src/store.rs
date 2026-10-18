@@ -116,16 +116,6 @@ impl Session {
     }
 }
 
-/// Сайт для плитки домашней страницы.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TopSite {
-    /// Домен без «www.».
-    pub host: String,
-    pub url: String,
-    pub visits: u32,
-    pub last: u64,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistEntry {
     pub url: String,
@@ -212,31 +202,18 @@ impl History {
         v
     }
 
-    /// Самые посещаемые сайты для плиток домашней страницы: посещения страниц
-    /// одного сайта складываются; адрес плитки — главная страница сайта.
-    pub fn top_sites(&self, n: usize) -> Vec<TopSite> {
-        let mut sites: Vec<TopSite> = Vec::new();
-        for e in &self.entries {
-            let Ok(u) = url::Url::parse(&e.url) else { continue };
-            let (Some(host), "http" | "https") = (u.host_str(), u.scheme()) else { continue };
-            let host = host.strip_prefix("www.").unwrap_or(host);
-            match sites.iter_mut().find(|s| s.host == host) {
-                Some(s) => {
-                    s.visits += e.visits;
-                    s.last = s.last.max(e.ts);
-                }
-                None => sites.push(TopSite {
-                    host: host.to_string(),
-                    url: format!("{}://{}/", u.scheme(), u.host_str().unwrap_or(host)),
-                    visits: e.visits,
-                    last: e.ts,
-                }),
+    /// Последние `n` записей, которые проходят `keep` (New Page, «Недавние»: без открытых
+    /// страниц). За один проход, без сортировки всей истории: New Page перерисовывается часто.
+    pub fn recent_where(&self, n: usize, keep: impl Fn(&HistEntry) -> bool) -> Vec<&HistEntry> {
+        let mut out: Vec<&HistEntry> = Vec::with_capacity(n + 1);
+        for e in self.entries.iter().filter(|e| keep(e)) {
+            let at = out.partition_point(|x| x.ts >= e.ts);
+            if at < n {
+                out.insert(at, e);
+                out.truncate(n);
             }
         }
-        // Чаще — выше; при равенстве — то, что открывали недавно.
-        sites.sort_by(|a, b| b.visits.cmp(&a.visits).then(b.last.cmp(&a.last)));
-        sites.truncate(n);
-        sites
+        out
     }
 
     pub fn clear(&mut self) {

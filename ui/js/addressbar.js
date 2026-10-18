@@ -98,8 +98,8 @@ import { S } from './core.js';
     // Звёздочка — только у сайтов: закладка на служебную страницу не нужна.
     star.hidden = !(act && /^https?:/.test(act.url));
     star.classList.toggle('on', !!st.bookmarked);
-    const sl = S.withKey(st.bookmarked ? S.t('Remove from bookmarks') : S.t('Add to bookmarks'), 'bookmark');
-    star.title = sl; star.setAttribute('aria-label', sl); star.setAttribute('aria-pressed', st.bookmarked ? 'true' : 'false');
+    const sl = S.withKey(st.bookmarked ? S.t('Edit bookmark') : S.t('Add to bookmarks'), 'bookmark');
+    star.title = sl; star.setAttribute('aria-label', sl); star.setAttribute('aria-haspopup', 'dialog');
     S.fill(reload, S.icon(act && act.loading ? 'x' : 'rotate-cw', 'i16'));
     const rl = act && act.loading ? S.t('Stop') : S.withKey(S.t('Reload'), 'reload');
     reload.title = rl; reload.setAttribute('aria-label', rl);

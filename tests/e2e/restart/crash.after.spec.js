@@ -14,11 +14,11 @@ E2E.test('crash/after: nothing loads by itself, New Page offers to reopen', asyn
   t.ok(t.state().recovery, 'ядро предлагает восстановление');
   t.eq(t.state().active, null, 'активной страницы нет');
   t.ok(t.state().pages.every((p) => p.asleep), 'ни одна страница не загружена');
-  await t.waitFor(() => !t.$('#home').hidden && !t.$('.home-recovery').hidden, 'карточка на New Page');
+  await t.waitFor(() => !t.$('#home').hidden && t.$('.home .hc-continue .btn.primary'), 'карточка на New Page');
 });
 
 E2E.test('crash/after: "Reopen pages" opens the page that was on screen', async (t) => {
-  t.$('.home-recovery .btn.primary').click();
+  t.$('.home .hc-continue .btn.primary').click();
   await t.waitFor(() => t.active() && t.active().url === t.url('a.html'), 'активна A');
   await t.waitFor(() => !t.active().asleep && !t.active().loading && t.active().title === 'Page A', 'A загрузилась');
   t.ok(!t.state().recovery, 'предложение снято');

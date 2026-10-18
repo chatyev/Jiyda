@@ -315,6 +315,7 @@ impl App {
             UiMsg::BookmarkMove { id, parent, index } => self.move_bookmark(id, parent, index),
             UiMsg::BookmarkFolder { parent, title } => self.new_bookmark_folder(parent, &title),
             UiMsg::BookmarkOpenAll { id } => self.open_bookmark_folder(id),
+            UiMsg::BookmarkAdd { url, title, parent } => self.add_bookmark(&url, &title, parent),
             UiMsg::Import { source, bookmarks, history } => {
                 self.start_import(&source, crate::import::What { bookmarks, history })
             }

@@ -1,4 +1,5 @@
-// titlebar.js — верхняя панель: Space, назад/вперёд, Ask Jiyda, меню браузера.
+// titlebar.js — верхняя панель: Space, назад/вперёд, Ask Jiyda, меню браузера. Кнопку
+// закладок между ✦ и ⋯ ведёт bookmarks.js.
 // Адресная строка — addressbar.js. Кнопки окна справа рисует само окно (src/frame.rs),
 // здесь под них только оставлено место (.caption-space).
 import { S } from './core.js';
@@ -58,7 +59,8 @@ import { S } from './core.js';
       { label: S.t('Orbit'), icon: 'orbit', kbd: k('orbit'), action: () => S.layers.open('orbit') },
       { label: S.t('Command palette'), icon: 'command', kbd: k('palette'), action: () => S.layers.open('palette') },
       'sep',
-      { label: S.t('Bookmarks'), icon: 'star', kbd: k('bookmarks'), action: () => S.cmd('bookmarks') },
+      { label: S.t('Bookmarks'), icon: 'bookmark', kbd: k('bookmarks'), action: () => S.cmd('bookmarks') },
+      { label: S.t('Bookmark this page'), icon: 'star', kbd: k('bookmark'), disabled: !(act && /^https?:/i.test(act.url)), action: () => S.cmd('bookmark') },
       { label: S.t('History'), icon: 'history', kbd: k('history'), action: () => S.layers.open('history') },
       { label: S.t('Recently closed'), icon: 'undo', kbd: k('closed'), action: () => S.layers.open('closed') },
       { label: S.t('Downloads'), icon: 'download', kbd: k('downloads'), action: () => S.cmd('downloads') },

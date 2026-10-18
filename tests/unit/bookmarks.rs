@@ -196,3 +196,25 @@ fn changes_are_written_once() {
     assert!(b.take_changes().is_some());
     assert!(b.take_changes().is_none());
 }
+
+#[test]
+fn save_page_adds_once_and_then_edits_in_place() {
+    let (mut b, work, a, _) = sample();
+    let (id, new) = b.save_page(None, " Dev ", "https://dev.test/", 5);
+    assert!(new);
+    assert_eq!(b.get(id).unwrap().title, "Dev");
+    assert_eq!(titles(b.items()), ["Work", "C", "Dev"]);
+    // Тот же адрес ещё раз — не вторая закладка, а новое название и папка у прежней.
+    let (again, new) = b.save_page(Some(work), "Dev docs", "https://dev.test/", 6);
+    assert_eq!((again, new), (id, false));
+    assert_eq!(b.len(), 3);
+    assert_eq!(titles(b.items()), ["Work", "C"]);
+    assert_eq!(titles(b.get(work).unwrap().children.as_ref().unwrap()), ["A", "Dev docs"]);
+    // Папка та же — порядок не меняется.
+    b.save_page(Some(work), "A2", "https://a.test/", 7);
+    assert_eq!(titles(b.get(work).unwrap().children.as_ref().unwrap()), ["A2", "Dev docs"]);
+    // Папки нет или это ссылка — на верхний уровень.
+    let (x, _) = b.save_page(Some(999), "X", "https://x.test/", 8);
+    let (y, _) = b.save_page(Some(a), "Y", "https://y.test/", 9);
+    assert!(b.items().iter().any(|n| n.id == x) && b.items().iter().any(|n| n.id == y));
+}

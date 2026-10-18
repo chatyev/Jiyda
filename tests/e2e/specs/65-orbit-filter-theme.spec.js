@@ -91,16 +91,14 @@ E2E.test('space color: changing the color repaints top bar and New Page', async 
   t.post({ type: 'space_color', index: 0, color: 'violet' });
 });
 
-E2E.test('space color: gradients shimmer unless motion is reduced', async (t) => {
+E2E.test('space color: top bar shimmers unless motion is reduced; New Page stays still', async (t) => {
   await t.waitFor(() => homeShown(t), 'New Page');
   const top = getComputedStyle(t.$('#chrome'), '::before').animationName;
-  const home = getComputedStyle(t.$('.home')).animationName;
-  if (reducedMotion()) {
-    t.eq([top, home], ['none', 'none'], 'при «меньше движения» перелива нет');
-  } else {
-    t.ok(top && top !== 'none', `перелив верхней панели (animation-name: ${top})`);
-    t.ok(home && home !== 'none', `перелив New Page (animation-name: ${home})`);
-  }
+  if (reducedMotion()) t.eq(top, 'none', 'при «меньше движения» перелива нет');
+  else t.ok(top && top !== 'none', `перелив верхней панели (animation-name: ${top})`);
+  // New Page в покое не перерисовывается: ни фон, ни свечение поиска не анимируются по кругу.
+  const running = document.getAnimations().filter((a) => t.$('#home').contains(a.effect && a.effect.target) && a.effect.getTiming().iterations === Infinity);
+  t.eq(running.length, 0, 'на New Page нет бесконечных анимаций');
 });
 
 E2E.test('space color: switching spaces changes the window color', async (t) => {

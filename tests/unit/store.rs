@@ -282,30 +282,6 @@ fn now_is_after_2020() {
 }
 
 #[test]
-fn top_sites_sum_visits_per_site() {
-    let mut a = entry("https://github.com/rust-lang", 10);
-    a.visits = 3;
-    let mut b = entry("https://www.github.com/", 20);
-    b.visits = 2;
-    let mut c = entry("https://example.com/a", 30);
-    c.visits = 4;
-    let h = history(vec![a, b, c, entry("about:blank", 40), entry("file:///C:/x.html", 50), entry("not a url", 60)]);
-    let top = h.top_sites(10);
-    let hosts: Vec<_> = top.iter().map(|s| (s.host.as_str(), s.visits)).collect();
-    assert_eq!(hosts, [("github.com", 5), ("example.com", 4)]);
-    assert_eq!(top[0].url, "https://github.com/");
-    assert_eq!(top[0].last, 20);
-}
-
-#[test]
-fn top_sites_ties_go_to_recent_and_respect_limit() {
-    let h = history(vec![entry("https://a.test/", 1), entry("https://b.test/", 5), entry("https://c.test/", 3)]);
-    let hosts: Vec<_> = h.top_sites(2).into_iter().map(|s| s.host).collect();
-    assert_eq!(hosts, ["b.test", "c.test"]);
-    assert!(history(vec![]).top_sites(5).is_empty());
-}
-
-#[test]
 fn remove_and_restore_history_entry() {
     let mut h = history(vec![entry("https://a/", 1), entry("https://b/", 2)]);
     let e = h.remove("https://a/").unwrap();
@@ -512,4 +488,23 @@ fn imported_favicons_never_replace_or_push_out_own() {
     };
     full.set_if_missing("new.test", "data:image/png;base64,N");
     assert_eq!(full.get("new.test"), None);
+}
+
+#[test]
+fn recent_where_keeps_the_newest_matching_entries() {
+    let h = history(vec![
+        entry("https://a.test/", 5),
+        entry("https://b.test/", 9),
+        entry("https://open.test/", 12),
+        entry("https://c.test/", 1),
+        entry("https://d.test/", 7),
+    ]);
+    let urls = |v: Vec<&HistEntry>| v.into_iter().map(|e| e.url.clone()).collect::<Vec<_>>();
+    assert_eq!(
+        urls(h.recent_where(3, |e| e.url != "https://open.test/")),
+        ["https://b.test/", "https://d.test/", "https://a.test/"]
+    );
+    assert_eq!(urls(h.recent_where(10, |_| true)).len(), 5);
+    assert!(h.recent_where(0, |_| true).is_empty());
+    assert!(history(vec![]).recent_where(3, |_| true).is_empty());
 }

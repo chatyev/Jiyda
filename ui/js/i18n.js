@@ -112,7 +112,7 @@ import { S } from './core.js';
     // Peek
     'Open as page': 'Открыть страницей', 'Link preview': 'Предпросмотр ссылки',
     // New Page
-    'Add': 'Добавить', 'Quick destinations': 'Быстрый доступ', 'Jiyda protects you': 'Jiyda защищает вас', 'Tracker protection is off': 'Защита от трекеров выключена',
+    'Jiyda protects you': 'Jiyda защищает вас', 'Tracker protection is off': 'Защита от трекеров выключена',
     '{0} trackers and ads blocked today': 'Сегодня заблокировано трекеров и рекламы: {0}', 'No trackers blocked yet today': 'Сегодня трекеров ещё не было',
     'Turn it on in Settings': 'Включите её в настройках', 'Downloading Jiyda {0}…': 'Скачиваю Jiyda {0}…', 'Jiyda {0} is available': 'Доступен Jiyda {0}', 'Update': 'Обновить',
     'The last session ended unexpectedly': 'Прошлый сеанс завершился неожиданно', 'Your pages are saved.': 'Страницы сохранены.',
@@ -134,13 +134,19 @@ import { S } from './core.js';
     'Search pages, history, bookmarks and commands': 'Поиск страниц, истории, закладок и команд', 'Orbit: all your open pages, grouped': 'Orbit: все открытые страницы по группам',
     'Start browsing': 'Начать',
     // Закладки
-    'Bookmarks': 'Закладки', 'Bookmark': 'Закладка', 'Add to bookmarks': 'Добавить в закладки', 'Remove from bookmarks': 'Убрать из закладок',
+    'Bookmarks': 'Закладки', 'Bookmark': 'Закладка', 'Add to bookmarks': 'Добавить в закладки',
     'Open bookmarks': 'Открыть закладки', 'Bookmark this page': 'Добавить страницу в закладки', 'Import bookmarks and history': 'Перенести закладки и историю',
     'Untitled folder': 'Папка без названия', 'Name': 'Название', 'Address': 'Адрес', 'Save': 'Сохранить',
-    'Top level': 'Верхний уровень', 'Move up': 'Выше', 'Move down': 'Ниже', 'Move to folder': 'В папку', 'Move': 'Переместить',
-    'Open all': 'Открыть все', 'Open in background': 'Открыть в фоне', 'Edit': 'Изменить', 'New folder': 'Новая папка', 'Import…': 'Перенести…',
+    'Top level': 'Верхний уровень', 'Move up': 'Выше', 'Move down': 'Ниже', 'Move to folder': 'В папку',
+    'Open all': 'Открыть все', 'Open in background': 'Открыть в фоне', 'Edit': 'Изменить', 'New folder': 'Новая папка',
     'Try a different word.': 'Попробуйте другое слово.', 'No bookmarks yet': 'Закладок пока нет',
-    'Press ☆ in the address bar or {0} to bookmark a page.': 'Нажмите ☆ в адресной строке или {0}, чтобы добавить страницу.',
+    'Close bookmarks': 'Закрыть закладки', 'Add bookmark': 'Новая закладка', 'Edit bookmark': 'Изменить закладку', 'Folder': 'Папка',
+    'Add current page': 'Добавить текущую страницу', 'Edit bookmark for this page': 'Изменить закладку этой страницы', 'More actions': 'Ещё',
+    'Open in new page': 'Открыть новой страницей', 'Press {0} on any site to bookmark it.': 'Нажмите {0} на любом сайте, чтобы добавить его в закладки.',
+    'Save this page — or press {0} on any site.': 'Сохраните эту страницу — или нажмите {0} на любом сайте.',
+    // New Page: карточки
+    'Continue where you left off': 'Продолжить', 'Recent': 'Недавние', 'Actions': 'Действия', 'All open pages': 'Все открытые страницы', 'Open pages: {0}': 'Открытых страниц: {0}',
+    'Current': 'Текущий', 'All Spaces': 'Все Spaces', 'Separate logins and pages for work or home': 'Отдельные входы и страницы для работы или дома',
     'Import from Chrome or Edge': 'Перенести из Chrome или Edge', 'This folder is empty': 'Папка пуста', 'Search bookmarks…': 'Поиск по закладкам…',
     // Перенос из браузеров
     'Import from browsers': 'Перенос из браузеров', 'Importing…': 'Переношу…', 'What to import': 'Что перенести', 'From': 'Откуда',

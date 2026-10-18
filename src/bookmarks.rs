@@ -196,6 +196,26 @@ impl Bookmarks {
         self.changed();
     }
 
+    /// Сохранить страницу (окно Ctrl+D): адрес уже в закладках — второй не появляется,
+    /// у существующей меняются название и папка. Папки `parent` нет — на верхний уровень.
+    /// Возвращает номер закладки и была ли она новой.
+    pub fn save_page(&mut self, parent: Option<u64>, title: &str, url: &str, added: u64) -> (u64, bool) {
+        let parent = parent.filter(|p| self.get(*p).is_some_and(Node::is_folder));
+        let title = match title.trim() {
+            "" => url,
+            t => t,
+        };
+        if let Some(id) = self.find_url(url) {
+            self.edit(id, title, None);
+            if locate(&self.items, None, id).is_some_and(|(p, _)| p != parent) {
+                self.move_to(id, parent, None);
+            }
+            return (id, false);
+        }
+        let id = self.add(parent, title, url, added).expect("папка проверена выше");
+        (id, true)
+    }
+
     /// Изменить название и (у ссылки) адрес.
     pub fn edit(&mut self, id: u64, title: &str, url: Option<&str>) -> bool {
         let Some(n) = find_mut(&mut self.items, id) else { return false };

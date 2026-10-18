@@ -72,8 +72,8 @@ const PANE_H: f64 = 30.0;
 /// Первая проверка обновлений — чуть позже запуска, чтобы не мешать загрузке страниц.
 const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(10);
 const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(12 * 3600);
-/// Плитки New Page.
-const HOME_TILES: usize = 6;
+/// «Недавние» на New Page: столько сайтов из истории.
+const HOME_RECENT: usize = 3;
 /// Ctrl+Tab, нажатый вскоре после предыдущего, идёт дальше по списку последних страниц.
 const MRU_WALK: Duration = Duration::from_millis(1500);
 /// Снимок страницы для Orbit — через столько после загрузки.

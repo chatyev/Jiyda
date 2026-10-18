@@ -35,21 +35,30 @@ impl App {
         self.push_state();
     }
 
-    /// Звёздочка: страница в закладках — убрать (с Undo), нет — добавить на верхний уровень.
-    pub(super) fn toggle_bookmark(&mut self) {
+    /// Ctrl+D и звёздочка: окно закладки для текущей страницы — новой (название, папка;
+    /// сохраняется только по «Сохранить») или уже сохранённой (изменить, удалить).
+    pub(super) fn bookmark_page(&mut self) {
         let Some(t) = self.pages.active_page() else { return };
-        if !t.url.starts_with("http") {
+        if !is_web_url(&t.url) {
             return;
         }
-        let (url, title) = (t.url.clone(), if t.title.is_empty() { t.url.clone() } else { t.title.clone() });
-        match self.bookmarks.find_url(&url) {
-            Some(id) => self.remove_bookmark(id),
-            None => {
-                self.bookmarks.add(None, &title, &url, now());
-                self.bookmarks_changed();
-                self.toast(i18n::tr("Added to bookmarks"));
-            }
+        let page = json!({ "url": t.url, "title": if t.title.is_empty() { &t.url } else { &t.title } });
+        // Окну нужны папки и сама закладка, если она есть, — данные раньше команды.
+        self.push_bookmarks();
+        self.ui_command("bookmark_page", page);
+    }
+
+    /// Сохранить страницу в закладки (окно Ctrl+D, «Добавить текущую страницу» в панели).
+    /// Адрес уже в закладках — второй не появится: у прежней меняются название и папка.
+    pub(super) fn add_bookmark(&mut self, url: &str, title: &str, parent: Option<u64>) {
+        let url = url.trim();
+        if !is_web_url(url) {
+            self.toast(i18n::tr("Bookmark address must start with http:// or https://"));
+            return;
         }
+        let (_, new) = self.bookmarks.save_page(parent, title, url, now());
+        self.bookmarks_changed();
+        self.toast(i18n::tr(if new { "Added to bookmarks" } else { "Bookmark saved" }));
     }
 
     pub(super) fn remove_bookmark(&mut self, id: u64) {
@@ -69,7 +78,7 @@ impl App {
 
     pub(super) fn edit_bookmark(&mut self, id: u64, title: &str, url: Option<&str>) {
         // Адрес — только сайта: закладка не должна открывать javascript: или файлы.
-        if url.is_some_and(|u| !u.trim().is_empty() && !u.trim().starts_with("http")) {
+        if url.is_some_and(|u| !u.trim().is_empty() && !is_web_url(u.trim())) {
             self.toast(i18n::tr("Bookmark address must start with http:// or https://"));
             self.push_bookmarks();
             return;
@@ -220,4 +229,10 @@ impl App {
         self.ui_data("history", self.history_json());
         self.push_state();
     }
+}
+
+/// Закладка — только на сайт: не javascript:, не файл и не служебная страница.
+fn is_web_url(url: &str) -> bool {
+    let lower = url.get(..8).unwrap_or(url).to_ascii_lowercase();
+    lower.starts_with("http://") || lower.starts_with("https://")
 }
