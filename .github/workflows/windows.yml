@@ -25,7 +25,8 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny
+          # cargo-about — уведомления о лицензиях для установщика (about.toml).
+          tool: cargo-deny,cargo-about
       # Уязвимости (база RustSec, как cargo audit), лицензии и источники зависимостей — deny.toml.
       - name: Зависимости
         run: cargo deny check

@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// Лицензии сторонних библиотек на сайте (если рядом с jiyda.exe их нет).
+const LICENSES_URL: &str = "https://chatyev.github.io/jiyda/licenses.html";
+
 impl App {
     // ---------- Команды ----------
 
@@ -107,6 +110,17 @@ impl App {
                 }
             }
             Command::OpenDataFolder => self.open_folder(self.paths.base()),
+            Command::Licenses => {
+                // Установщик кладёт лицензии рядом с jiyda.exe; без него (сборка для
+                // разработки) — та же страница на сайте.
+                let local = std::env::current_exe()
+                    .ok()
+                    .and_then(|exe| exe.parent().map(|d| d.join("third-party-licenses.html")))
+                    .filter(|p| p.is_file())
+                    .and_then(|p| url::Url::from_file_path(p).ok());
+                let url = local.map_or_else(|| LICENSES_URL.to_string(), |u| u.to_string());
+                self.open_tab(url, false, None);
+            }
             Command::ClearHistory => self.clear_history(),
             Command::ClearData => self.clear_site_data(),
             Command::ClearClosed => {

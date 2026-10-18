@@ -19,6 +19,10 @@ Push-Location $root
 try {
     cargo build --release
     if ($LASTEXITCODE -ne 0) { throw "cargo build завершился с ошибкой" }
+    # Лицензии библиотек внутри jiyda.exe — рядом с ним (их требуют сами лицензии).
+    # Нужен cargo-about: cargo install cargo-about --locked --features cli
+    cargo about generate about.hbs -o target\third-party-licenses.html
+    if ($LASTEXITCODE -ne 0) { throw "cargo about завершился с ошибкой" }
     & $iscc "/DAppVersion=$version" "installer\jiyda.iss"
     if ($LASTEXITCODE -ne 0) { throw "ISCC завершился с ошибкой" }
 } finally {

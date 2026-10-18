@@ -102,6 +102,7 @@ commands! {
     SpaceNew => "space_new",
     OpenDownloadsFolder => "open_downloads_folder",
     OpenDataFolder => "open_data_folder",
+    Licenses => "licenses",
     ClearHistory => "clear_history",
     ClearData => "clear_data",
     ClearClosed => "clear_closed",

@@ -191,6 +191,6 @@ import { S } from './core.js';
       'Своя верхняя панель с кнопками Windows и Snap Layouts. Выключите, чтобы использовать обычную рамку Windows.',
     'Extensions': 'Расширения', 'Load unpacked extensions from the extensions folder in Jiyda’s data folder.': 'Загружать распакованные расширения из папки extensions в папке данных Jiyda.',
     'Allow F12 and Ctrl+Shift+I.': 'Разрешить F12 и Ctrl+Shift+I.', 'About': 'О программе', 'Rust core, WebView2 engine.': 'Ядро на Rust, движок WebView2.',
-    'Data folder': 'Папка данных', 'Close settings (Esc)': 'Закрыть настройки (Esc)',
+    'Data folder': 'Папка данных', 'Third-party licenses': 'Сторонние лицензии', 'Open-source components Jiyda is built with.': 'Компоненты с открытым кодом, из которых собран Jiyda.', 'Close settings (Esc)': 'Закрыть настройки (Esc)',
   });
 })();

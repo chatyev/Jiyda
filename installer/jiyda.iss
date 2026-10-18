@@ -49,6 +49,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\target\release\jiyda.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Лицензии сторонних библиотек внутри jiyda.exe (cargo-about, см. about.toml).
+Source: "..\target\third-party-licenses.html"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
 ; Остатки Seyro (до 0.6.0): программа, ярлыки. Его данные Jiyda переносит сам при запуске.

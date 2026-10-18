@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Third-party licenses — Jiyda</title>
+<meta name="description" content="Licenses of the open-source components included in Jiyda.">
+<link rel="icon" href="favicon.ico">
+<style>
+  :root { --bg: #0b0f14; --s1: #121821; --line: rgba(255,255,255,.08); --text: #e8edf2; --text-2: #aab4bf; --accent: #9ccb7b; color-scheme: dark; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f6f7f4; --s1: #fff; --line: rgba(10,20,30,.1); --text: #10161d; --text-2: #45505c; --accent: #4f8a2c; color-scheme: light; } }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Segoe UI", system-ui, sans-serif; }
+  main { width: min(860px, 100% - 32px); margin: 0 auto; padding: 40px 0 64px; }
+  h1 { font-size: 34px; margin: 0 0 8px; } h2 { font-size: 20px; margin: 40px 0 8px; }
+  p, li { color: var(--text-2); } a { color: var(--accent); }
+  .overview { columns: 2 260px; padding-left: 20px; }
+  .used { padding-left: 20px; columns: 2 260px; font-size: 14px; }
+  pre { white-space: pre-wrap; background: var(--s1); border: 1px solid var(--line); border-radius: 12px; padding: 16px; font: 12.5px/1.5 Consolas, ui-monospace, monospace; color: var(--text-2); overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Third-party licenses</h1>
+  <p>Jiyda is built with the open-source components listed below. We are grateful to their authors. Each component is used under its license, reproduced in full on this page.</p>
+  <p>Jiyda shows web pages with <a href="https://developer.microsoft.com/microsoft-edge/webview2/">Microsoft Edge WebView2</a>, which is part of Windows and is licensed by Microsoft separately; it is not included in Jiyda’s installer. The SQLite library compiled into Jiyda is in the <a href="https://sqlite.org/copyright.html">public domain</a>.</p>
+
+  <h2>Licenses used</h2>
+  <ul class="overview">
+    {{#each overview}}<li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+    {{/each}}
+  </ul>
+
+  {{#each licenses}}
+  <h2 id="{{id}}">{{name}}</h2>
+  <p>Used by:</p>
+  <ul class="used">
+    {{#each used_by}}<li><a href="{{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}}">{{crate.name}} {{crate.version}}</a></li>
+    {{/each}}
+  </ul>
+  <pre>{{text}}</pre>
+  {{/each}}
+</main>
+</body>
+</html>

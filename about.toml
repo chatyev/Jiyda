@@ -1,0 +1,13 @@
+# Уведомления о сторонних лицензиях (cargo-about): тексты лицензий всех библиотек,
+# вшитых в jiyda.exe. Их требуют сами лицензии (MIT, Apache-2.0 …) при распространении
+# программы. Собирается в CI (лежит рядом с jiyda.exe в установщике) и для сайта:
+#   cargo about generate about.hbs -o site/licenses.html
+# Список разрешённых лицензий — тот же, что в deny.toml.
+accepted = ["Apache-2.0", "CC0-1.0", "MIT", "MIT-0", "MPL-2.0", "Unicode-3.0", "Unlicense", "Zlib"]
+targets = ["x86_64-pc-windows-msvc"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# Сам Jiyda — не сторонний компонент.
+[private]
+ignore = true

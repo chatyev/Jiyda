@@ -193,6 +193,6 @@ import { S } from './core.js';
       'Windows tugmalari va Snap Layouts bilan Jiydaning oʻz yuqori paneli. Oddiy Windows ramkasidan foydalanish uchun oʻchiring.',
     'Extensions': 'Kengaytmalar', 'Load unpacked extensions from the extensions folder in Jiyda’s data folder.': 'Jiyda maʼlumotlar jildidagi extensions jildidan ochilgan kengaytmalarni yuklash.',
     'Allow F12 and Ctrl+Shift+I.': 'F12 va Ctrl+Shift+I ga ruxsat berish.', 'About': 'Dastur haqida', 'Rust core, WebView2 engine.': 'Rust yadrosi, WebView2 dvigateli.',
-    'Data folder': 'Maʼlumotlar jildi', 'Close settings (Esc)': 'Sozlamalarni yopish (Esc)',
+    'Data folder': 'Maʼlumotlar jildi', 'Third-party licenses': 'Uchinchi tomon litsenziyalari', 'Open-source components Jiyda is built with.': 'Jiyda tarkibidagi ochiq kodli komponentlar.', 'Close settings (Esc)': 'Sozlamalarni yopish (Esc)',
   });
 })();

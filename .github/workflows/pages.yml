@@ -7,7 +7,7 @@ name: site
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'Cargo.lock', 'about.toml', 'about.hbs', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -41,6 +41,13 @@ jobs:
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
+      # Лицензии сторонних библиотек — по текущему Cargo.lock, чтобы страница не отставала.
+      - if: steps.ready.outputs.ok == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about
+      - if: steps.ready.outputs.ok == 'true'
+        run: cargo about generate about.hbs -o site/licenses.html
       - if: steps.ready.outputs.ok == 'true'
         uses: actions/configure-pages@v6
       - if: steps.ready.outputs.ok == 'true'

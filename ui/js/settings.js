@@ -253,7 +253,8 @@ import { S } from './core.js';
       sub(S.t('About')),
       card(
         row('Jiyda ' + c.version, S.t('Rust core, WebView2 engine.'), S.h('button', { class: 'btn ghost', text: S.t('Check for updates'), on: { click: () => S.cmd('check_updates') } })),
-        row(S.t('Data folder'), c.data_dir, S.h('button', { class: 'btn', text: S.t('Open folder'), on: { click: () => S.cmd('open_data_folder') } }))),
+        row(S.t('Data folder'), c.data_dir, S.h('button', { class: 'btn', text: S.t('Open folder'), on: { click: () => S.cmd('open_data_folder') } })),
+        row(S.t('Third-party licenses'), S.t('Open-source components Jiyda is built with.'), S.h('button', { class: 'btn', text: S.t('Open'), on: { click: () => { S.layers.close('settings'); S.cmd('licenses'); } } }))),
     ];
   }
 
