@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jiyda — a calmer way to browse</title>
-<meta name="description" content="Jiyda is a calm, minimal browser for Windows from Uzbekistan. Private by default, designed for focus, free.">
+<title>Jiyda — every page in its place</title>
+<meta name="description" content="Jiyda is a free Windows browser written in Rust and made in Uzbekistan. Spaces and Orbit instead of a tab strip, a New Page that picks up where you left off, and no tracking.">
 <link rel="icon" href="../favicon.ico">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="alternate" hreflang="en" href="../en/">
@@ -16,6 +16,7 @@
   <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
   <nav aria-label="Site">
     <a href="#features">Features</a>
+    <a href="#rust">Rust</a>
     <a href="privacy.html">Privacy</a>
     <a href="security.html">Security</a>
     <span class="langs" aria-label="Language"><a href="../uz/" hreflang="uz" lang="uz">Oʻz</a><a href="../ru/" hreflang="ru" lang="ru">Ру</a><a href="./" aria-current="true">En</a></span>
@@ -25,16 +26,16 @@
 
 <main>
   <div class="wrap hero">
-    <h1>A calmer way to browse.</h1>
-    <p class="lead">Jiyda is a quiet browser for Windows. Private by default, designed for focus, and out of your way when you just want to read.</p>
+    <h1>Every page in its place.</h1>
+    <p class="lead">Jiyda is a browser for Windows written in Rust. Instead of a row of tabs there are Spaces for each part of your life and Orbit, where you see everything at once. New Page picks up where you left off, and your history never leaves your computer.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/chatyev/jiyda/releases/latest/download/JiydaSetup.exe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
         Download for Windows</a>
       <a class="btn ghost" href="#privacy">How Jiyda treats your data</a>
     </div>
-    <p class="meta">Free · Windows 10 and 11 · Oʻzbekcha, Русский, English</p>
-    <img class="shot" src="../assets/app-en.jpg" width="1600" height="1002" alt="Jiyda window with New Page: a search field, a few quick sites and a note that Jiyda protects you.">
+    <p class="meta">Free · Written in Rust · About 4 MB · Windows 10 and 11 · Oʻzbekcha, Русский, English</p>
+    <img class="shot" src="../assets/app-en.jpg" width="1600" height="1002" alt="Jiyda window with New Page: a search field with a soft glow in the Space color, and cards to continue the last page, reopen recent sites, switch Spaces and open bookmarks.">
   </div>
 
   <section id="features" class="wrap">
@@ -44,19 +45,34 @@
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></div>
         <h3>Spaces</h3><p>Separate contexts for work, study and home. Each Space keeps its own pages and its own cookies and logins.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-28 12 12)"/></svg></div>
-        <h3>Orbit</h3><p>All your open pages, grouped by what they are about. Find a page in a second instead of hunting through tabs.</p></div>
-      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
-        <h3>Later</h3><p>Put a page aside without closing it. Clear your head now, come back when you are ready.</p></div>
+        <h3>Orbit</h3><p>All your open pages, grouped by what they are about. Find a page in a second instead of hunting through tabs. Put a page aside in Later without closing it.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div>
+        <h3>New Page that picks up the thread</h3><p>Your last page, recently closed sites and your Spaces, right under the search. No wall of shortcuts: only what is already on your computer.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg></div>
         <h3>Split View</h3><p>Two pages side by side in one window: read and write, compare, take notes.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
         <h3>Command palette</h3><p>Ctrl+K opens pages, history, bookmarks and every command from one search field.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
         <h3>Protection built in</h3><p>Known trackers and ads are blocked out of the box. Sites ask before using your camera, microphone or location.</p></div>
-      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.52 2.3a.53.53 0 0 1 .95 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z"/></svg></div>
-        <h3>Move in a minute</h3><p>Bring your bookmarks and history from Chrome or Edge. Nothing is removed from the other browser.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></div>
+        <h3>Bookmarks at hand</h3><p>A button on the toolbar opens folders and search, Ctrl+D saves the page. Bring bookmarks and history from Chrome or Edge in a minute.</p></div>
       <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
         <h3>Undo instead of “Are you sure?”</h3><p>Closed a page or removed a bookmark by mistake? Press Undo. And after a crash your pages are still there.</p></div>
+    </div>
+  </section>
+
+  <section id="rust" class="wrap">
+    <h2>Built in Rust.</h2>
+    <p class="sub">Everything Jiyda does itself — Spaces, Orbit, protection, storing your history and bookmarks — is written in Rust, a language that rules out whole classes of memory errors. Pages are shown by Microsoft WebView2, the engine of Microsoft Edge.</p>
+    <div class="grid">
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></div>
+        <h3>No Electron</h3><p>Jiyda doesn’t ship its own copy of Chromium. Its Rust core drives the WebView2 engine that is already in Windows.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></div>
+        <h3>About 4 MB</h3><p>That is the whole installer: the page engine is usually already on Windows 10 and 11, so there is nothing heavy to download.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></div>
+        <h3>Engine kept up to date</h3><p>Windows updates WebView2 automatically, the same way it updates Microsoft Edge, so security fixes for the engine reach Jiyda too.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></div>
+        <h3>Code in the open</h3><p>Jiyda’s source code is public on GitHub: anyone can read how it handles your pages and your data.</p></div>
     </div>
   </section>
 
