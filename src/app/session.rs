@@ -186,7 +186,15 @@ impl App {
                 "js" => self.eval_ui(rest),
                 // Целый файл JS — сценарии E2E (tests/e2e): в одну строку они не помещаются.
                 "jsfile" => match std::fs::read_to_string(rest) {
-                    Ok(code) => self.eval_ui(&code),
+                    // Каждый файл — в своей области (косвенный eval): одинаковые имена
+                    // констант в разных сценариях не мешают друг другу. Не загрузился файл
+                    // (синтаксическая ошибка) — это ошибка интерфейса в журнале, прогон провален,
+                    // а не тихо пропущенные тесты.
+                    Ok(code) => self.eval_ui(&format!(
+                        "try {{ (0, eval)({code}) }} catch (e) {{ window.ipc.postMessage(JSON.stringify({{ type: 'log', msg: 'jsfile ' + {name} + ': ' + e }})) }}",
+                        code = json!(code),
+                        name = json!(rest),
+                    )),
                     Err(e) => log::warn!("automation: {rest}: {e}"),
                 },
                 "size" => {

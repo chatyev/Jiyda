@@ -26,4 +26,5 @@ import './find.js';
 import './peek.js';
 import './home.js';
 import './settings.js';
+import './onboarding.js';
 import './app.js';

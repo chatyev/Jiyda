@@ -101,9 +101,11 @@ fn uzbek_dictionary_has_the_same_keys_as_russian() {
     for key in &uz {
         assert!(ru.contains(key), "лишний ключ в узбекском: {key}");
     }
-    let mut seen = std::collections::HashSet::new();
-    for key in &uz {
-        assert!(seen.insert(key), "повтор в узбекском: {key}");
+    for (lang, keys) in [("русском", &ru), ("узбекском", &uz)] {
+        let mut seen = std::collections::HashSet::new();
+        for key in keys.iter() {
+            assert!(seen.insert(key), "повтор в {lang}: {key}");
+        }
     }
 }
 

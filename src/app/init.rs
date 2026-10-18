@@ -5,6 +5,8 @@ use super::*;
 impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>) -> Result<Self, String> {
         let paths = Paths::new();
+        // Самый первый запуск: настроек ещё нет (Config::load их создаст) — покажем знакомство.
+        let first_run = !paths.config.exists();
         let cfg = Config::load(&paths);
         // Язык — до всего, что пишет пользователю (в том числе имён пространств по умолчанию).
         let lang = i18n::init(&cfg.language);
@@ -130,6 +132,7 @@ impl App {
             writer: crate::config::Writer::new(),
             run_marker,
             recovery: None,
+            onboarding: first_run,
             frame,
             window,
             ui,

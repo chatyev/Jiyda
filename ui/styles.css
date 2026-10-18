@@ -790,3 +790,28 @@ body.fullscreen .layer .backdrop { inset: 0; }
   .space-dot, .privacy-dot, .switch::after { forced-color-adjust: none; }
   .layer .backdrop { background: transparent; }
 }
+
+/* ----- Знакомство (первый запуск, ui/js/onboarding.js) ----- */
+.onboarding { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px); opacity: 0; transition: opacity var(--t) var(--ease); }
+.onboarding.open { opacity: 1; }
+.ob-card { position: relative; width: min(560px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; background: var(--s1); border: 1px solid var(--line-2); border-radius: var(--r-xl); box-shadow: var(--shadow); padding: 40px 40px 24px; display: flex; flex-direction: column; gap: 28px; }
+.ob-skip { position: absolute; top: 14px; right: 14px; }
+.ob-body h1 { font: 600 26px/1.2 var(--font-display); margin: 0 0 10px; }
+.ob-lead { color: var(--text-2); font-size: 14px; line-height: 1.55; margin: 0; }
+.ob-logo { width: 56px; height: 56px; margin-bottom: 20px; }
+.ob-list { margin-top: 20px; border: 1px solid var(--line); border-radius: var(--r); }
+.ob-option { display: flex; align-items: center; gap: 16px; padding: 14px 16px; }
+.ob-option + .ob-option { border-top: 1px solid var(--line); }
+.ob-option .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ob-option .text b { font-weight: 500; font-size: 14px; }
+.ob-option .text span { font-size: 12px; color: var(--text-3); }
+.ob-done { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; }
+.ob-themes { margin-top: 20px; }
+.ob-actions { margin-top: 20px; }
+.ob-tips { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.ob-tip { display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--text-2); }
+.ob-tip kbd { min-width: 120px; text-align: center; }
+.ob-foot { display: flex; align-items: center; gap: 8px; }
+.ob-dots { display: flex; gap: 6px; margin-right: auto; }
+.ob-dots span { width: 6px; height: 6px; border-radius: 3px; background: var(--line-2); transition: width var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.ob-dots span.on { width: 18px; background: var(--accent); }

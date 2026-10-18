@@ -26,6 +26,16 @@ impl App {
             }
             Command::Bookmark => self.toggle_bookmark(),
             Command::ImportDismiss => self.dismiss_import_offer(),
+            Command::Onboarding => {
+                self.onboarding = true;
+                self.push_state();
+            }
+            Command::OnboardingDone => {
+                self.onboarding = false;
+                // Перенос из Chrome и Edge предлагался в знакомстве — карточка на New Page не нужна.
+                self.dismiss_import_offer();
+                self.push_state();
+            }
             Command::Downloads => {
                 self.push_downloads();
                 self.ui_command("downloads", Value::Null);

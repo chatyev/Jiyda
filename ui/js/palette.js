@@ -31,6 +31,7 @@ import { S } from './core.js';
     { t: 'Open bookmarks', icon: 'star', key: 'bookmarks', cmd: 'bookmarks' },
     { t: 'Bookmark this page', icon: 'star', key: 'bookmark', when: () => page() && !S.state.bookmarked, cmd: 'bookmark' },
     { t: 'Import bookmarks and history', icon: 'download', fn: () => S.layers.open('settings', { section: 'import' }) },
+    { t: 'Welcome tour', icon: 'sparkle', cmd: 'onboarding' },
     { t: 'Split current page', icon: 'columns', key: 'split', when: page, fn: () => open('split') },
     { t: 'Move page to Later', icon: 'inbox', key: 'later', when: page, cmd: 'later' },
     { t: 'Restore recently closed', icon: 'undo', key: 'closed', fn: () => S.layers.open('closed') },

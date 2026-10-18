@@ -114,6 +114,8 @@ commands! {
     Recover => "recover",
     RecoverDismiss => "recover_dismiss",
     ImportDismiss => "import_dismiss",
+    Onboarding => "onboarding",
+    OnboardingDone => "onboarding_done",
 }
 
 impl TryFrom<String> for Command {
