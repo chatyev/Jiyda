@@ -26,12 +26,12 @@ impl App {
             t.url = url.to_string();
         }
         if has_wv && let Some(wv) = self.pages.get(id).and_then(|t| t.view.as_ref()) {
-            wv.load_url(url).or_log("load_url");
+            wv.navigate(url);
         }
         self.activate(id);
     }
 
-    pub(super) fn with_active_wv(&self, f: impl FnOnce(&WebView)) {
+    pub(super) fn with_active_wv(&self, f: impl FnOnce(&View)) {
         if let Some(wv) = self.pages.active_page().and_then(|t| t.view.as_ref()) {
             f(wv);
         }

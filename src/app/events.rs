@@ -14,7 +14,7 @@ impl App {
             }
             UserEvent::FromTab { id, msg } => self.handle_tab_msg(id, &msg),
             UserEvent::Title { id, title } => {
-                let url = self.page_any(id).and_then(|t| t.view.as_ref()).and_then(|w| w.url().ok());
+                let url = self.page_any(id).and_then(|t| t.view.as_ref()).and_then(|w| w.url());
                 let tab_url = self.page_mut_any(id).map(|t| {
                     t.title = title.clone();
                     if let Some(u) = url.filter(|u| !u.is_empty()) {
@@ -43,7 +43,7 @@ impl App {
                 }
             }
             UserEvent::Download { id, url, path, ok } => {
-                self.active_downloads.forget(&url);
+                self.engine.forget_download(&url);
                 self.downloads.finished(&url, path.as_deref(), ok, now());
                 self.save_downloads();
                 // Страница, открытая только ради загрузки, остаётся пустой — закрываем её.
@@ -325,9 +325,9 @@ impl App {
             UiMsg::Modal { on } => {
                 self.ui_modal = on;
                 if on {
-                    self.ui.focus().or_log("focus");
+                    self.ui.focus();
                 } else if let Some(p) = &self.peek {
-                    p.view.focus().or_log("focus");
+                    p.view.focus();
                 } else {
                     self.on_focus();
                 }
@@ -347,7 +347,7 @@ impl App {
                 "reveal" => self.reveal_download(id),
                 "cancel" => {
                     if let Some(url) = self.downloads.get(id).map(|d| d.url.clone())
-                        && !self.active_downloads.cancel(&url)
+                        && !self.engine.cancel_download(&url)
                     {
                         self.toast(i18n::tr("This download can't be cancelled anymore"));
                     }
@@ -377,10 +377,10 @@ impl App {
             UiMsg::KeysRecord { on } => self.keys.recording.set(on),
             UiMsg::PermissionAnswer { id, decision } => {
                 // Сайт и вид разрешения — из самого запроса, а не от интерфейса.
-                if let Some(ask) = self.permission_requests.answer(id, decision.allows())
+                if let Some((origin, kind)) = self.engine.answer_permission(id, decision.allows())
                     && let Some(d) = decision.remembered()
                 {
-                    self.perms.borrow_mut().set(&ask.origin, ask.kind, d);
+                    self.perms.borrow_mut().set(&origin, kind, d);
                     self.save_permissions();
                 }
             }
@@ -409,6 +409,10 @@ impl App {
             UiMsg::UiBlur => {
                 let user = frame::user_moved_focus(&self.window);
                 log::debug!("интерфейс потерял фокус, пользователь ушёл: {user}");
+                // Тесты E2E (JIYDA_AUTOMATION): окно может быть не впереди, а мышь — нажата в
+                // другой программе (проверка кнопок системная); панели они закрывают сами.
+                #[cfg(debug_assertions)]
+                let user = user && std::env::var_os("JIYDA_AUTOMATION").is_none();
                 if user {
                     self.ui_command("close_pops", Value::Null);
                 }
@@ -426,11 +430,12 @@ impl App {
                 let id = if id == 0 { self.pages.active() } else { Some(id) };
                 let p = self.proxy.clone();
                 match id.and_then(|id| self.page_any(id)).and_then(|t| t.view.as_ref()) {
-                    Some(wv) => wv
-                        .evaluate_script_with_callback(&code, move |json| {
+                    Some(wv) => wv.eval_with(
+                        &code,
+                        Box::new(move |json| {
                             let _ = p.send_event(UserEvent::E2eResult { req, json });
-                        })
-                        .or_log("e2e eval"),
+                        }),
+                    ),
                     None => self.ui_data("e2e", json!({ "req": req, "error": "нет загруженной страницы" })),
                 }
             }

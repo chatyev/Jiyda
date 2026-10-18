@@ -1,13 +1,8 @@
 //! События WebView2, которых нет в wry: снимок страницы для Orbit, ход загрузки,
-//! полноэкранный элемент страницы (видео). Всё вызывается в главном потоке.
+//! полноэкранный элемент страницы (видео), значок сайта. Всё вызывается в главном потоке.
+//! (Раньше src/webhooks.rs; теперь — часть движка WebView2.)
 
-/// Ход загрузки: адрес, сколько получено и сколько всего (0 — неизвестно).
-#[derive(Debug, Clone)]
-pub struct Progress {
-    pub url: String,
-    pub received: u64,
-    pub total: u64,
-}
+use crate::engine::DownloadProgress as Progress;
 
 #[cfg(windows)]
 pub use win::*;

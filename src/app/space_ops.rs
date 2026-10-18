@@ -6,11 +6,11 @@ impl App {
     // ---------- Пространства ----------
 
     /// Страница в любом пространстве: события приходят и от страниц, которых сейчас не видно.
-    pub(super) fn page_any(&self, id: u64) -> Option<&Page<WebView>> {
+    pub(super) fn page_any(&self, id: u64) -> Option<&Page<View>> {
         self.pages.get(id).or_else(|| self.spaces.iter().find_map(|s| s.pages.get(id)))
     }
 
-    pub(super) fn page_mut_any(&mut self, id: u64) -> Option<&mut Page<WebView>> {
+    pub(super) fn page_mut_any(&mut self, id: u64) -> Option<&mut Page<View>> {
         if self.pages.get(id).is_some() {
             return self.pages.get_mut(id);
         }
@@ -31,7 +31,7 @@ impl App {
         }
         for t in self.pages.iter() {
             if let Some(wv) = &t.view {
-                wv.set_visible(false).or_log("set_visible");
+                wv.set_visible(false);
             }
         }
         // Страницы активного пространства живут в self.pages, остальные — в своих слотах.
@@ -69,7 +69,7 @@ impl App {
             id: meta.id,
             name: meta.name,
             color: meta.color,
-            ctx: WebContext::new(Some(spaces::profile_dir(&self.paths, meta.id))),
+            ctx: self.engine.profile(spaces::profile_dir(&self.paths, meta.id)),
             pages: PageList::with_id_base(vec![], spaces::page_id_base(meta.id)),
         });
         self.switch_space(self.spaces.len() - 1);
@@ -125,7 +125,7 @@ impl App {
         if idx == self.active_space || idx >= self.spaces.len() {
             return;
         }
-        self.permission_requests.drop_tab(id);
+        self.engine.drop_page(id);
         let Some((st, after)) = self.pages.take(id) else { return };
         self.spaces[idx].pages.insert_saved(st, now());
         let name = self.spaces[idx].name.clone();

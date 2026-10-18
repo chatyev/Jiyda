@@ -1,6 +1,9 @@
 //! Модульные тесты src/app/mod.rs (подключены там через `#[path]`, видят приватное).
 
-use super::{SPLIT_GAP, base64, find_script, js_string_result, parse_find_result, split_boxes};
+use super::{
+    KeyEvent, PageEvent, SPLIT_GAP, UserEvent, base64, find_script, js_string_result, page_event, parse_find_result,
+    split_boxes,
+};
 
 #[test]
 fn base64_matches_standard_alphabet_and_padding() {
@@ -67,4 +70,56 @@ fn find_result_rejects_bad_values() {
 fn find_script_calls_function_with_json_arguments() {
     let js = find_script("a\"b'</script>\n", "next");
     assert!(js.starts_with('(') && js.ends_with(r#")("a\"b'</script>\n", "next")"#), "{js}");
+}
+
+// ---------- События движка → события ядра (page_event) ----------
+
+#[test]
+fn engine_messages_go_to_ui_or_page() {
+    assert!(matches!(page_event(None, PageEvent::Message("m".into())), Some(UserEvent::FromUi(m)) if m == "m"));
+    assert!(matches!(
+        page_event(Some(7), PageEvent::Message("m".into())),
+        Some(UserEvent::FromTab { id: 7, msg }) if msg == "m"
+    ));
+}
+
+#[test]
+fn page_events_keep_their_page() {
+    assert!(
+        matches!(page_event(Some(3), PageEvent::Title("T".into())), Some(UserEvent::Title { id: 3, title }) if title == "T")
+    );
+    assert!(matches!(
+        page_event(Some(3), PageEvent::Load { started: false, url: "u".into() }),
+        Some(UserEvent::Load { id: 3, started: false, .. })
+    ));
+    assert!(matches!(
+        page_event(Some(3), PageEvent::Fullscreen(true)),
+        Some(UserEvent::PageFullscreen { id: 3, on: true })
+    ));
+    assert!(matches!(
+        page_event(Some(3), PageEvent::PermissionAsk { ask: 9, origin: "https://a.test".into(), kind: "camera" }),
+        Some(UserEvent::PermissionAsk { tab: 3, id: 9, kind: "camera", .. })
+    ));
+}
+
+#[test]
+fn keys_from_ui_and_pages() {
+    use crate::command::Command;
+    assert!(matches!(
+        page_event(None, PageEvent::Key(KeyEvent::Command(Command::Orbit))),
+        Some(UserEvent::Key { id: None, cmd: Command::Orbit })
+    ));
+    assert!(matches!(
+        page_event(Some(5), PageEvent::Key(KeyEvent::Command(Command::Orbit))),
+        Some(UserEvent::Key { id: Some(5), .. })
+    ));
+    assert!(
+        matches!(page_event(Some(5), PageEvent::Key(KeyEvent::Recorded("Ctrl+K".into()))), Some(UserEvent::KeyRecorded(c)) if c == "Ctrl+K")
+    );
+}
+
+#[test]
+fn page_only_events_without_page_are_dropped() {
+    assert!(page_event(None, PageEvent::Title("T".into())).is_none());
+    assert!(page_event(None, PageEvent::Favicon(vec![1])).is_none());
 }

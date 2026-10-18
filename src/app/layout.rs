@@ -39,7 +39,7 @@ impl App {
     /// Где страницы: активная или обе половины пары; Peek — поверх.
     pub fn layout(&mut self) {
         let (w, h) = self.window_size();
-        self.ui.set_bounds(rect(0.0, 0.0, w, h)).or_log("set_bounds");
+        self.ui.set_bounds(rect(0.0, 0.0, w, h));
         let content = self.content_box();
         let mut shown: Vec<(u64, Box4)> = Vec::new();
         if let Some(id) = self.page_fullscreen {
@@ -61,17 +61,17 @@ impl App {
             if let Some(wv) = &t.view {
                 match shown.iter().find(|(id, _)| *id == t.id) {
                     Some((_, b)) => {
-                        wv.set_bounds(rect(b.0, b.1, b.2, b.3)).or_log("set_bounds");
-                        wv.set_visible(true).or_log("set_visible");
+                        wv.set_bounds(rect(b.0, b.1, b.2, b.3));
+                        wv.set_visible(true);
                     }
                     None => {
-                        wv.set_visible(false).or_log("set_visible");
+                        wv.set_visible(false);
                     }
                 }
             }
         }
         if let Some(p) = &self.peek {
-            p.view.set_bounds(rect(p.rect.0, p.rect.1, p.rect.2, p.rect.3)).or_log("set_bounds");
+            p.view.set_bounds(rect(p.rect.0, p.rect.1, p.rect.2, p.rect.3));
         }
     }
 
@@ -79,7 +79,7 @@ impl App {
     pub(super) fn apply_region(&self) {
         frame::set_ui_region(
             &self.window,
-            &self.ui,
+            self.ui.native_handle(),
             &self.region,
             true,
             !self.chrome_visible(),

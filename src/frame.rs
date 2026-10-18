@@ -11,7 +11,7 @@
 //! Пустое место верхней панели тянет окно: интерфейс сообщает о нажатии, ядро запускает
 //! перетаскивание Windows (с прилипанием к краям); двойной щелчок разворачивает окно,
 //! правый — открывает системное меню (`show_system_menu`). CSS `app-region` не
-//! используется — почему, см. `configure_ui`.
+//! используется — почему, см. `configure_ui` в src/engine/webview2/mod.rs.
 
 /// Высота верхней панели в логических пикселях (`--chrome-h` в ui/styles.css).
 pub const CHROME_H: f64 = 46.0;
@@ -522,27 +522,26 @@ mod win {
         }
     }
 
-    /// Поднять интерфейс над страницами (новые WebView создаются поверх).
-    pub fn raise(ui: &wry::WebView) {
-        use wry::WebViewExtWindows;
+    /// Поднять окно интерфейса над страницами (новые страницы создаются поверх).
+    pub fn raise(ui_hwnd: isize) {
         // SAFETY: изменение порядка дочернего окна без перемещения и активации.
-        let _ =
-            unsafe { SetWindowPos(ui.hwnd(), Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) };
+        let _ = unsafe {
+            SetWindowPos(HWND(ui_hwnd as _), Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+        };
     }
 
-    /// Обрезать WebView интерфейса регионом: верхняя панель (если она есть), плавающие
+    /// Обрезать окно интерфейса (`ui_hwnd`, PageView::native_handle) регионом: верхняя панель (если она есть), плавающие
     /// элементы и всё окно при `full`, за вычетом дыр и кнопок окна. У не развёрнутого
     /// окна верхняя полоска остаётся окну — за неё Windows меняет высоту.
     /// `own_caption` — кнопки окна рисует Jiyda (окно без системной рамки).
     pub fn set_ui_region(
         window: &tao::window::Window,
-        ui: &wry::WebView,
+        ui_hwnd: isize,
         region: &UiRegion,
         chrome: bool,
         fullscreen: bool,
         own_caption: bool,
     ) {
-        use wry::WebViewExtWindows;
         let hwnd = hwnd_of(window);
         let s = scale(hwnd);
         let cl = client(hwnd);
@@ -577,31 +576,8 @@ mod win {
                     add((0, 0, w, border), RGN_DIFF);
                 }
             }
-            if SetWindowRgn(ui.hwnd(), Some(rgn), true) == 0 {
+            if SetWindowRgn(HWND(ui_hwnd as _), Some(rgn), true) == 0 {
                 let _ = DeleteObject(HRGN(rgn.0).into());
-            }
-        }
-    }
-
-    /// Настройки WebView интерфейса: без своих клавиш WebView (Ctrl+P, F5, Ctrl+F…) и
-    /// масштаба — у интерфейса они не нужны, а клавиши Jiyda по-прежнему приходят в
-    /// AcceleratorKeyPressed.
-    ///
-    /// CSS `app-region: drag` (SetIsNonClientRegionSupportEnabled) не включаем: пересчитывая
-    /// области перетаскивания, WebView2 синхронно двигает своё окно (UpdateDraggableRegions →
-    /// SetWindowPos), и это может навсегда остановить главный поток — так зависал Jiyda на CI.
-    /// Окно тянет ядро по сообщению интерфейса (UiMsg::WindowDrag, titlebar.js).
-    pub fn configure_ui(ui: &wry::WebView) {
-        use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
-        use windows::core::Interface;
-        use wry::WebViewExtWindows;
-        // SAFETY: настройки живого WebView.
-        unsafe {
-            if let Ok(s) = ui.webview().Settings() {
-                let _ = s.SetIsZoomControlEnabled(false);
-                if let Ok(s3) = s.cast::<ICoreWebView2Settings3>() {
-                    let _ = s3.SetAreBrowserAcceleratorKeysEnabled(false);
-                }
             }
         }
     }
@@ -622,19 +598,17 @@ pub fn user_moved_focus(_window: &tao::window::Window) -> bool {
     true
 }
 #[cfg(not(windows))]
-pub fn raise(_ui: &wry::WebView) {}
+pub fn raise(_ui_hwnd: isize) {}
 #[cfg(not(windows))]
 pub fn set_ui_region(
     _w: &tao::window::Window,
-    _ui: &wry::WebView,
+    _ui_hwnd: isize,
     _r: &UiRegion,
     _chrome: bool,
     _fullscreen: bool,
     _own: bool,
 ) {
 }
-#[cfg(not(windows))]
-pub fn configure_ui(_ui: &wry::WebView) {}
 #[cfg(not(windows))]
 pub fn show_system_menu(_window: &tao::window::Window) {}
 

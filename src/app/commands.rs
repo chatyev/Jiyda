@@ -47,17 +47,17 @@ impl App {
                 }
             }
             Command::Back => self.with_active_wv(|wv| {
-                wv.evaluate_script("history.back()").or_log("evaluate_script");
+                wv.eval("history.back()");
             }),
             Command::Forward => self.with_active_wv(|wv| {
-                wv.evaluate_script("history.forward()").or_log("evaluate_script");
+                wv.eval("history.forward()");
             }),
             Command::Reload => self.with_active_wv(|wv| {
-                wv.reload().or_log("reload");
+                wv.reload();
             }),
-            Command::HardReload => self.with_active_wv(webhooks::hard_reload),
+            Command::HardReload => self.with_active_wv(|wv| wv.hard_reload()),
             Command::Stop => self.with_active_wv(|wv| {
-                wv.evaluate_script("window.stop()").or_log("evaluate_script");
+                wv.eval("window.stop()");
             }),
             Command::Devtools => self.with_active_wv(|wv| wv.open_devtools()),
             Command::Fullscreen => self.toggle_fullscreen(),

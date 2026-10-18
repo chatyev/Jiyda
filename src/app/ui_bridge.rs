@@ -5,7 +5,7 @@ use super::*;
 impl App {
     // ---------- Состояние для интерфейса ----------
 
-    pub(super) fn space_pages(&self, i: usize) -> &PageList<WebView> {
+    pub(super) fn space_pages(&self, i: usize) -> &PageList<View> {
         if i == self.active_space { &self.pages } else { &self.spaces[i].pages }
     }
 
@@ -111,7 +111,7 @@ impl App {
     }
 
     pub(super) fn eval_ui(&self, js: &str) {
-        self.ui.evaluate_script(js).or_log("evaluate_script");
+        self.ui.eval(js);
     }
 
     /// Команда, которую выполняет интерфейс (открыть палитру, Orbit, панель…).

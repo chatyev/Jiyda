@@ -84,7 +84,7 @@ impl App {
             self.toast(i18n::tr("Open any page in this Space and try again"));
             return;
         };
-        match wv.clear_all_browsing_data() {
+        match wv.clear_profile_data() {
             Ok(()) => {
                 log::info!("данные сайтов пространства «{}» очищены", space.name);
                 self.toast(&i18n::trf("Site data in \u{201c}{}\u{201d} cleared", &[&space.name]));

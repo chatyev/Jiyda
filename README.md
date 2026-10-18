@@ -153,18 +153,18 @@ src/main.rs        — цикл событий окна
 src/app/           — ядро браузера (`App`): mod.rs — структура и общие помощники, остальное — методы по темам:
                      init (создание), session, updates, layout, ui_bridge (состояние для интерфейса),
                      pages, space_ops, split, data, prefs, ask, peek, commands, events, home
+src/engine/        — Engine Abstraction: граница ядра и движка страниц. mod.rs — интерфейс (PageView, PageEvent, Engine), webview2/ — единственная реализация (wry + WebView2 COM: страницы, интерфейс, клавиши, защита, разрешения, загрузки). wry и WebView2 видны только там — это проверяет тест
 src/ipc.rs         — сообщения интерфейса → ядро (граница интерфейса и ядра)
 src/command.rs     — команды браузера (горячие клавиши, меню, палитра)
 src/settings.rs    — изменения настроек из Settings и их проверка
-src/page_list.rs   — модель страниц без WebView: Now/Later, закрытие, сон и архив, Split View, Context, Ctrl+Tab
+src/page_list.rs   — модель страниц без движка: Now/Later, закрытие, сон и архив, Split View, Context, Ctrl+Tab
 src/orbit.rs       — смысловые группы Orbit
 src/spaces.rs      — Spaces: имена, цвета, папки профилей
 src/frame.rs       — рамка окна Windows: кнопки окна (Snap Layouts), регион прозрачного интерфейса
 src/keymap.rs      — сочетания клавиш и их переназначение
-src/hotkeys.rs     — перехват клавиш в WebView (AcceleratorKeyPressed), буфер обмена
-src/shield.rs      — блокировка трекеров и рекламы, счётчик за день
-src/permissions.rs — разрешения сайтов
-src/webhooks.rs    — снимки страниц для Orbit, ход загрузок, полноэкранные элементы, обновление без кэша
+src/hotkeys.rs     — что делать с нажатием (движок спрашивает до страницы), буфер обмена
+src/shield.rs      — списки трекеров и рекламы, исключения сайтов, счётчик за день
+src/permissions.rs — запомненные разрешения сайтов
 src/ai.rs          — Ask Jiyda (Anthropic Messages API; ключ — в диспетчере учётных данных Windows)
 src/net.rs         — HTTPS через WinHTTP
 src/instance.rs    — один экземпляр программы, ссылки из других программ

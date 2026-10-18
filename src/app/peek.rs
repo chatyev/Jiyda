@@ -14,12 +14,8 @@ impl App {
         let ph = (h - 96.0).max(240.0);
         let rect = (x + (w - pw) / 2.0, y + 56.0, pw, ph);
         let Some(view) = self.build_webview(id, &url, true) else { return };
-        view.set_bounds(wry::Rect {
-            position: LogicalPosition::new(rect.0, rect.1).into(),
-            size: LogicalSize::new(rect.2, rect.3).into(),
-        })
-        .or_log("set_bounds");
-        view.focus().or_log("focus");
+        view.set_bounds(Bounds::new(rect.0, rect.1, rect.2, rect.3));
+        view.focus();
         self.peek = Some(Peek { id, url, view, rect });
         self.push_state();
     }
@@ -28,7 +24,7 @@ impl App {
         if self.peek.take().is_some() {
             self.push_state();
             self.with_active_wv(|wv| {
-                wv.focus().or_log("focus");
+                wv.focus();
             });
         }
     }

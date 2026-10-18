@@ -37,10 +37,12 @@ impl App {
                 Some(wv) => {
                     job.want += 1;
                     let p = self.proxy.clone();
-                    wv.evaluate_script_with_callback(PAGE_TEXT_JS, move |json| {
-                        let _ = p.send_event(UserEvent::PageText { req, id, text: js_string_result(&json) });
-                    })
-                    .or_log("page text");
+                    wv.eval_with(
+                        PAGE_TEXT_JS,
+                        Box::new(move |json| {
+                            let _ = p.send_event(UserEvent::PageText { req, id, text: js_string_result(&json) });
+                        }),
+                    );
                 }
                 // Спящая страница: текста нет, есть заголовок и адрес.
                 None => job.pages.push((t.title.clone(), t.url.clone(), String::new())),

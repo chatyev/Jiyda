@@ -1,13 +1,14 @@
 //! Ядро браузера: окно, страницы, раскладка, обработка команд.
 //!
-//! Окно устроено слоями: внизу — WebView страниц (активная или две половины Split
-//! View), над ними — прозрачный WebView интерфейса (ui/*), обрезанный регионом
-//! (frame.rs): он получает мышь только там, где что-то рисует. Интерфейс и ядро
-//! общаются сообщениями — см. ipc.rs.
+//! Окно устроено слоями: внизу — страницы (активная или две половины Split View), над
+//! ними — прозрачный интерфейс (ui/*), обрезанный регионом (frame.rs): он получает мышь
+//! только там, где что-то рисует. Интерфейс и ядро общаются сообщениями — см. ipc.rs.
+//! Страницы показывает движок (src/engine): ядро не знает, что это WebView2.
 
 use crate::ai;
 use crate::command::Command;
 use crate::config::{Config, Paths};
+use crate::engine::{self, Bounds, Engine, PageEvent, PageId, Profile};
 use crate::frame::{self, CHROME_H, UiRegion};
 use crate::hotkeys::{self, KeyEvent, Keys};
 use crate::i18n;
@@ -25,7 +26,6 @@ use crate::shield;
 use crate::spaces;
 use crate::store::{DownloadState, Downloads, Favicons, HistEntry, History, SavedSpace, Session, now};
 use crate::update;
-use crate::webhooks;
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -33,8 +33,6 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 use tao::event_loop::{EventLoop, EventLoopProxy};
 use tao::window::{Fullscreen, Window, WindowBuilder};
-use wry::dpi::{LogicalPosition, LogicalSize};
-use wry::{NewWindowResponse, PageLoadEvent, Rect, WebContext, WebView, WebViewBuilder};
 
 // Методы `App` по темам. Структура и общие помощники — здесь, в mod.rs.
 mod ask;
@@ -135,7 +133,7 @@ pub enum UserEvent {
         path: Option<String>,
         ok: bool,
     },
-    DownloadProgress(webhooks::Progress),
+    DownloadProgress(engine::DownloadProgress),
     /// Результат поиска по странице (JSON от скрипта в странице).
     FindResult {
         id: u64,
@@ -198,6 +196,33 @@ pub enum UserEvent {
     },
 }
 
+/// Страница (или интерфейс), которую показывает движок.
+type View = engine::Page;
+
+/// Событие движка → событие ядра. Одно место, где события страниц превращаются в
+/// UserEvent; None — событию нужна страница, а пришло от интерфейса (такого не бывает).
+fn page_event(id: Option<PageId>, ev: PageEvent) -> Option<UserEvent> {
+    Some(match (id, ev) {
+        (None, PageEvent::Message(body)) => UserEvent::FromUi(body),
+        (Some(id), PageEvent::Message(msg)) => UserEvent::FromTab { id, msg },
+        (Some(id), PageEvent::Title(title)) => UserEvent::Title { id, title },
+        (Some(id), PageEvent::Load { started, url }) => UserEvent::Load { id, started, url },
+        (Some(id), PageEvent::Popup(url)) => UserEvent::Popup { id, url },
+        (_, PageEvent::DownloadStarted { url, path }) => UserEvent::DownloadStarted { url, path },
+        (Some(id), PageEvent::DownloadFinished { url, path, ok }) => UserEvent::Download { id, url, path, ok },
+        (_, PageEvent::DownloadProgress(p)) => UserEvent::DownloadProgress(p),
+        (Some(id), PageEvent::Favicon(png)) => UserEvent::Favicon { id, png },
+        (Some(id), PageEvent::Fullscreen(on)) => UserEvent::PageFullscreen { id, on },
+        (Some(id), PageEvent::Blocked(kind)) => UserEvent::Blocked { id, kind },
+        (Some(tab), PageEvent::PermissionAsk { ask, origin, kind }) => {
+            UserEvent::PermissionAsk { tab, id: ask, origin, kind }
+        }
+        (id, PageEvent::Key(KeyEvent::Command(cmd))) => UserEvent::Key { id, cmd },
+        (_, PageEvent::Key(KeyEvent::Recorded(combo))) => UserEvent::KeyRecorded(combo),
+        (None, _) => return None,
+    })
+}
+
 /// Base64 для data: URI (своя функция, чтобы не тянуть зависимость ради картинок).
 fn base64(data: &[u8]) -> String {
     const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -229,15 +254,15 @@ fn parse_find_result(json: &str) -> Option<(u64, Option<u64>)> {
     }
 }
 
-/// Пространство: свой профиль WebView2 (куки, логины, кэш) и свои страницы.
+/// Пространство: свой профиль браузера (куки, логины, кэш) и свои страницы.
 struct Space {
     id: u32,
     name: String,
     color: String,
     /// Страницы. У активного пространства здесь пустой список: его страницы — в `App::tabs`.
-    /// Стоит раньше `ctx`, чтобы при удалении пространства WebView закрылись до профиля.
-    pages: PageList<WebView>,
-    ctx: WebContext,
+    /// Стоит раньше `ctx`, чтобы при удалении пространства страницы закрылись до профиля.
+    pages: PageList<View>,
+    ctx: Profile,
 }
 
 /// Защита, общая для обработчиков всех WebView.
@@ -258,7 +283,7 @@ struct Peek {
     /// Номер, под которым страница станет настоящей (выделен заранее).
     id: u64,
     url: String,
-    view: WebView,
+    view: View,
     rect: Box4,
 }
 
@@ -308,12 +333,13 @@ pub struct App {
     /// `window`: подкласс снимается до того, как окно закроется.
     frame: Option<frame::Frame>,
     window: Window,
-    ui: WebView,
+    /// Интерфейс — тоже страница движка (прозрачная, поверх страниц сайтов).
+    ui: View,
     proxy: EventLoopProxy<UserEvent>,
     cfg: Config,
     paths: Paths,
     /// Страницы активного пространства.
-    pages: PageList<WebView>,
+    pages: PageList<View>,
     spaces: Vec<Space>,
     active_space: usize,
     /// Удалённые пространства, чьи папки данных ещё не стёрты (см. Session::deleted_spaces).
@@ -343,10 +369,9 @@ pub struct App {
     /// Заблокировано на странице с последнего перехода: (трекеры, реклама).
     page_blocks: HashMap<u64, (u64, u64)>,
     perms: Rc<RefCell<permissions::Store>>,
-    /// Запросы разрешений, ждущие ответа.
-    permission_requests: Rc<permissions::Requests>,
-    /// Идущие загрузки (для отмены).
-    active_downloads: Rc<webhooks::ActiveDownloads>,
+    /// Движок страниц (src/engine): создаёт страницы, держит запросы разрешений и
+    /// идущие загрузки.
+    engine: Box<dyn Engine>,
     /// Что интерфейс просил оставить ему (регион окна).
     region: UiRegion,
     /// Интерфейсу нужна клавиатура (открыт слой).
@@ -364,38 +389,6 @@ pub struct App {
     ai_key: Option<String>,
     ai_jobs: HashMap<u64, AiJob>,
     peek: Option<Peek>,
-}
-
-/// Общие настройки для всех WebView. Они обязаны совпадать, иначе WebView2
-/// откажется использовать одну папку данных для разных страниц.
-fn common<'a>(b: WebViewBuilder<'a>, cfg: &Config, paths: &Paths, theme: &str, dark: bool) -> WebViewBuilder<'a> {
-    let b = b
-        .with_devtools(cfg.devtools)
-        .with_hotkeys_zoom(true)
-        .with_clipboard(true)
-        .with_general_autofill_enabled(true)
-        // Подложка до загрузки страницы — под тему, чтобы не мелькал чужой цвет.
-        .with_background_color(if dark { (11, 15, 20, 255) } else { (255, 255, 255, 255) });
-    #[cfg(windows)]
-    let b = {
-        use wry::WebViewBuilderExtWindows;
-        // Сайты, которые умеют светлую и тёмную тему, показываются в теме Jiyda.
-        let b = b.with_browser_extensions_enabled(cfg.extensions).with_theme(page_theme(theme));
-        if cfg.extensions { b.with_extensions_path(paths.extensions.clone()) } else { b }
-    };
-    #[cfg(not(windows))]
-    let _ = (theme, paths);
-    b
-}
-
-/// Тема для страниц (CSS prefers-color-scheme): как выбрано в Jiyda.
-#[cfg(windows)]
-fn page_theme(theme: &str) -> wry::Theme {
-    match theme {
-        "light" => wry::Theme::Light,
-        "dark" => wry::Theme::Dark,
-        _ => wry::Theme::Auto,
-    }
 }
 
 /// Тема окна Windows для настройки темы; None — как в системе.
@@ -425,8 +418,8 @@ fn next_theme(theme: &str) -> &'static str {
     }
 }
 
-fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
-    Rect { position: LogicalPosition::new(x, y).into(), size: LogicalSize::new(w.max(1.0), h.max(1.0)).into() }
+fn rect(x: f64, y: f64, w: f64, h: f64) -> Bounds {
+    Bounds::new(x, y, w.max(1.0), h.max(1.0))
 }
 
 /// Стереть папки пространств, удалённых в прошлый раз. Возвращает те, что стереть

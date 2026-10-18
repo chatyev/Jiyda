@@ -5,112 +5,31 @@ use super::*;
 impl App {
     // ---------- Страницы ----------
 
-    pub(super) fn build_webview(&mut self, id: u64, url: &str, visible: bool) -> Option<WebView> {
-        let p = self.proxy.clone();
-        let (p1, p2, p3, p4, p5, p6) = (p.clone(), p.clone(), p.clone(), p.clone(), p.clone(), p);
+    /// Создать страницу движка для страницы `id` (в профиле активного пространства).
+    pub(super) fn build_webview(&mut self, id: u64, url: &str, visible: bool) -> Option<View> {
         let b = self.content_box();
-        let dark = theme_is_dark(&self.theme, &self.window);
-        let builder = common(
-            WebViewBuilder::new_with_web_context(&mut self.spaces[self.active_space].ctx),
-            &self.cfg,
-            &self.paths,
-            &self.theme,
-            dark,
-        )
-        .with_url(url)
-        .with_bounds(rect(b.0, b.1, b.2, b.3))
-        .with_visible(visible)
-        .with_initialization_script(format!(
-            "window.__JIYDA_PAGE = {};\n{TAB_JS}",
-            json!({ "selection": self.cfg.selection_toolbar, "lang": i18n::code() })
-        ))
-        .with_ipc_handler(move |req| {
-            let _ = p1.send_event(UserEvent::FromTab { id, msg: req.body().clone() });
-        })
-        .with_document_title_changed_handler(move |title| {
-            let _ = p2.send_event(UserEvent::Title { id, title });
-        })
-        .with_on_page_load_handler(move |ev, url| {
-            let started = matches!(ev, PageLoadEvent::Started);
-            let _ = p3.send_event(UserEvent::Load { id, started, url });
-        })
-        .with_new_window_req_handler(move |url, features| {
-            // Всплывающие окна с заданным размером (вход через Google и т.п.)
-            // оставляем окнами, иначе ломается window.opener. Остальное — страницей.
-            if features.size.is_some() {
-                NewWindowResponse::Allow
-            } else {
-                let _ = p4.send_event(UserEvent::Popup { id, url });
-                NewWindowResponse::Deny
-            }
-        })
-        .with_download_started_handler(move |url, path| {
-            let path = path.display().to_string();
-            let _ = p5.send_event(UserEvent::DownloadStarted { url, path });
-            true
-        })
-        .with_download_completed_handler(move |url, path, ok| {
-            let path = path.map(|p| p.display().to_string());
-            let _ = p6.send_event(UserEvent::Download { id, url, path, ok });
-        });
-        let wv = match builder.build_as_child(&self.window) {
-            Ok(wv) => wv,
+        let spec = engine::PageSpec {
+            id,
+            url,
+            bounds: rect(b.0, b.1, b.2, b.3),
+            visible,
+            theme: engine::Theme::from_setting(&self.theme),
+            dark: theme_is_dark(&self.theme, &self.window),
+            init_script: format!(
+                "window.__JIYDA_PAGE = {};\n{TAB_JS}",
+                json!({ "selection": self.cfg.selection_toolbar, "lang": i18n::code() })
+            ),
+            download_dir: &self.cfg.download_dir,
+        };
+        match self.engine.create_page(&self.window, &mut self.spaces[self.active_space].ctx, spec) {
+            Ok(view) => Some(view),
             Err(e) => {
                 log::error!("не удалось создать страницу: {e}");
                 self.toast(&i18n::trf("WebView2 error: {}", &[&e]));
-                return None;
+                None
             }
-        };
-        self.hook_webview(&wv, id);
-        Some(wv)
+        }
     }
-
-    /// Подключить к WebView страницы клавиши, защиту, разрешения, загрузки.
-    pub(super) fn hook_webview(&self, wv: &WebView, id: u64) {
-        let p = self.proxy.clone();
-        hotkeys::install(wv, self.keys.clone(), move |ev| {
-            let _ = p.send_event(match ev {
-                KeyEvent::Command(cmd) => UserEvent::Key { id: Some(id), cmd },
-                KeyEvent::Recorded(c) => UserEvent::KeyRecorded(c),
-            });
-        });
-        let shield = self.shield.clone();
-        let p = self.proxy.clone();
-        shield::install(
-            wv,
-            move |page| shield.borrow().blocks_on(page),
-            move |kind| {
-                let _ = p.send_event(UserEvent::Blocked { id, kind });
-            },
-        );
-        let perms = self.perms.clone();
-        let p = self.proxy.clone();
-        self.permission_requests.install(
-            wv,
-            id,
-            move |origin, kind| perms.borrow().get(origin, kind),
-            move |ask| {
-                let _ =
-                    p.send_event(UserEvent::PermissionAsk { tab: id, id: ask.id, origin: ask.origin, kind: ask.kind });
-            },
-        );
-        let p = self.proxy.clone();
-        webhooks::watch_downloads(wv, self.active_downloads.clone(), move |pr| {
-            let _ = p.send_event(UserEvent::DownloadProgress(pr));
-        });
-        let p = self.proxy.clone();
-        webhooks::watch_favicon(wv, move |png| {
-            let _ = p.send_event(UserEvent::Favicon { id, png });
-        });
-        let p = self.proxy.clone();
-        webhooks::watch_fullscreen(wv, move |on| {
-            let _ = p.send_event(UserEvent::PageFullscreen { id, on });
-        });
-        webhooks::set_download_folder(wv, &self.cfg.download_dir);
-        // Новые WebView ложатся поверх — интерфейс должен остаться выше.
-        frame::raise(&self.ui);
-    }
-
     pub(super) fn open_tab(&mut self, url: String, background: bool, parent: Option<u64>) -> u64 {
         let id = self.pages.alloc_id();
         let webview = self.build_webview(id, &url, false);
@@ -158,7 +77,7 @@ impl App {
         if !self.ui_modal
             && let Some(wv) = self.pages.get(id).and_then(|t| t.view.as_ref())
         {
-            wv.focus().or_log("focus");
+            wv.focus();
         }
         self.sleep_idle_tabs();
         self.push_state();
@@ -217,7 +136,7 @@ impl App {
     /// Закрыть страницу. `undo` — показать «Page closed · Undo».
     pub(super) fn close_tab(&mut self, id: u64, undo: bool) {
         let http = self.pages.get(id).is_some_and(|t| !t.pinned && t.url.starts_with("http"));
-        self.permission_requests.drop_tab(id);
+        self.engine.drop_page(id);
         self.page_blocks.remove(&id);
         if let Some(after) = self.pages.close(id, now()) {
             self.after_close(after);
@@ -249,7 +168,7 @@ impl App {
     /// Move to Later.
     pub(super) fn move_to_later(&mut self, id: u64) {
         let Some(after) = self.pages.move_to_later(id) else { return };
-        self.permission_requests.drop_tab(id);
+        self.engine.drop_page(id);
         let was_active = after.was_active;
         self.after_close(after);
         self.toast_action(
@@ -263,15 +182,15 @@ impl App {
     /// самому окну, а не WebView внутри — передаём туда, где ждут ввода с клавиатуры.
     pub fn on_focus(&self) {
         if self.ui_modal {
-            self.ui.focus().or_log("focus");
+            self.ui.focus();
             return;
         }
         match self.pages.active_page().and_then(|t| t.view.as_ref()) {
             Some(wv) => {
-                wv.focus().or_log("focus");
+                wv.focus();
             }
             None => {
-                self.ui.focus().or_log("focus");
+                self.ui.focus();
             }
         }
     }
@@ -280,7 +199,7 @@ impl App {
     /// иначе фокус ни у кого, и Ctrl+T и другие клавиши не работают до клика мышью.
     pub(super) fn focus_ui_if_empty(&self) {
         if self.pages.active().is_none() {
-            self.ui.focus().or_log("focus");
+            self.ui.focus();
         }
     }
 
@@ -342,11 +261,11 @@ impl App {
     pub(super) fn capture(&self, id: u64) {
         let Some(wv) = self.pages.get(id).and_then(|t| t.view.as_ref()) else { return };
         let p = self.proxy.clone();
-        webhooks::capture(wv, move |jpeg| {
+        wv.capture_preview(Box::new(move |jpeg| {
             if let Some(jpeg) = jpeg {
                 let _ = p.send_event(UserEvent::Preview { id, jpeg });
             }
-        });
+        }));
     }
 
     // ---------- Поиск по странице ----------
@@ -373,10 +292,12 @@ impl App {
         let Some(id) = self.pages.active() else { return };
         let proxy = self.proxy.clone();
         self.with_active_wv(|wv| {
-            wv.evaluate_script_with_callback(&find_script(query, mode), move |json| {
-                let _ = proxy.send_event(UserEvent::FindResult { id, json });
-            })
-            .or_log("find");
+            wv.eval_with(
+                &find_script(query, mode),
+                Box::new(move |json| {
+                    let _ = proxy.send_event(UserEvent::FindResult { id, json });
+                }),
+            );
         });
     }
 }

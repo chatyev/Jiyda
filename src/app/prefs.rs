@@ -66,12 +66,12 @@ impl App {
                 // Уже открытым страницам — сразу, новым — через скрипт при создании.
                 let js = format!("window.__jiydaSel && window.__jiydaSel({on})");
                 for wv in self.all_views() {
-                    wv.evaluate_script(&js).or_log("evaluate_script");
+                    wv.eval(&js);
                 }
             }
             SettingChange::DownloadDir(_) => {
                 for wv in self.all_views() {
-                    webhooks::set_download_folder(wv, &self.cfg.download_dir);
+                    wv.set_download_folder(&self.cfg.download_dir);
                 }
             }
             SettingChange::Shortcut(_) | SettingChange::ShortcutReset(_) => {
@@ -88,7 +88,7 @@ impl App {
     }
 
     /// Все загруженные WebView страниц во всех пространствах.
-    pub(super) fn all_views(&self) -> impl Iterator<Item = &WebView> {
+    pub(super) fn all_views(&self) -> impl Iterator<Item = &View> {
         self.pages.iter().chain(self.spaces.iter().flat_map(|s| s.pages.iter())).filter_map(|t| t.view.as_ref())
     }
 
@@ -96,19 +96,12 @@ impl App {
         self.theme = theme.to_string();
         self.window.set_theme(window_theme(&self.theme));
         // Уже открытые страницы во всех пространствах — тоже.
-        #[cfg(windows)]
-        {
-            use wry::WebViewExtWindows;
-            let theme = page_theme(&self.theme);
-            self.ui.set_theme(theme).or_log("set_theme");
-            let views = self
-                .pages
-                .iter()
-                .chain(self.spaces.iter().flat_map(|s| s.pages.iter()))
-                .filter_map(|t| t.view.as_ref());
-            for wv in views {
-                wv.set_theme(theme).or_log("set_theme");
-            }
+        let theme = engine::Theme::from_setting(&self.theme);
+        self.ui.set_theme(theme);
+        let views =
+            self.pages.iter().chain(self.spaces.iter().flat_map(|s| s.pages.iter())).filter_map(|t| t.view.as_ref());
+        for wv in views {
+            wv.set_theme(theme);
         }
         self.push_state();
         self.save();
@@ -161,7 +154,7 @@ impl App {
         self.shield.borrow_mut().allow = self.cfg.shield_allow.clone();
         self.save_config();
         self.with_active_wv(|wv| {
-            wv.reload().or_log("reload");
+            wv.reload();
         });
         self.ui_data("security", self.security_json());
     }
