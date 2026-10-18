@@ -53,7 +53,15 @@ function Invoke-Session([string]$data, [string[]]$specFiles, [string]$runCall, [
         $fs = [IO.File]::Open($log, 'Open', 'Read', 'ReadWrite')
         try { $fs.Position = $offset; (New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8)).ReadToEnd() } finally { $fs.Dispose() }
     }
-    $send = { param([string[]]$lines) Set-Content -Path $cmdFile -Value $lines -Encoding utf8NoBOM }
+    # Jiyda читает и удаляет automation.txt каждые 250 мс; пока удаление не завершилось,
+    # Windows не даёт создать файл заново («Access denied») — тогда повторяем.
+    $send = {
+        param([string[]]$lines)
+        for ($i = 0; ; $i++) {
+            try { Set-Content -Path $cmdFile -Value $lines -Encoding utf8NoBOM -ErrorAction Stop; return }
+            catch { if ($i -ge 50) { throw } Start-Sleep -Milliseconds 100 }
+        }
+    }
     $wait = {
         param([string]$pattern, [int]$sec, [scriptblock]$retry)
         $until = (Get-Date).AddSeconds($sec)
