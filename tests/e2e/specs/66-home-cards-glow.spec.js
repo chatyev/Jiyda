@@ -50,6 +50,14 @@ E2E.test('glow: search, cards and focus follow the Space color', async (t) => {
   await t.waitFor(() => getComputedStyle(search).borderTopColor !== teal[1], 'контур поиска перекрасился');
   t.ok(css(document.documentElement, '--focus-ring') !== teal[2], 'кольцо фокуса — того же цвета');
   t.ok(!/0, 229, 255|168, 85, 247/.test(getComputedStyle(search).boxShadow), 'никаких постоянных cyan/purple');
+  // Акцент интерфейса (главные кнопки, переключатели, выделение) — тот же цвет Space.
+  t.eq(css(document.documentElement, '--accent'), glow(), '--accent = --glow');
+  const btn = S.h('button', { class: 'btn primary', text: 'x' });
+  document.body.append(btn);
+  const orange = getComputedStyle(btn).backgroundColor;
+  t.post({ type: 'space_color', index: 0, color: 'teal' });
+  await t.waitFor(() => getComputedStyle(btn).backgroundColor !== orange, 'главная кнопка перекрасилась вместе со Space');
+  btn.remove();
   t.post({ type: 'space_color', index: 0, color: 'violet' });
 });
 

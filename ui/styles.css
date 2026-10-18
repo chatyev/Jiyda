@@ -23,12 +23,14 @@
   --text-2: #9DA6B2;
   --text-3: #7A8390; /* muted; чуть светлее #69727E, чтобы на --s1 был контраст AA для мелкого текста */
   /* Акцент и состояния */
-  --accent: #9CCB7B; /* зелёный листа из значка Jiyda */
+  /* Акцент — цвет текущего Space (--glow ниже): кнопки, переключатели, выделение и подсветка
+     в одном цвете. Зелёный листа остаётся в значке Jiyda. */
+  --accent: var(--glow);
   --accent-ink: #0B0F14;
   --hover: rgba(255, 255, 255, 0.05);
   --press: rgba(255, 255, 255, 0.08);
-  --sel: rgba(156, 203, 123, 0.10);
-  --sel-line: rgba(156, 203, 123, 0.30);
+  --sel: color-mix(in oklab, var(--glow) 12%, transparent);
+  --sel-line: color-mix(in oklab, var(--glow) 32%, transparent);
   --ok: #4CC38A;
   --warn: #E5B454;
   --danger: #F2555A;
@@ -70,12 +72,12 @@
   --text: #10151C;
   --text-2: #4A5361;
   --text-3: #636C79;
-  --accent: #3B6E2C; /* тёмный зелёный листа: контраст 6:1 на белом */
+  --accent: var(--glow); /* тёмный оттенок цвета Space: белый текст на нём читается */
   --accent-ink: #FFFFFF;
   --hover: rgba(15, 23, 42, 0.05);
   --press: rgba(15, 23, 42, 0.08);
-  --sel: rgba(59, 110, 44, 0.10);
-  --sel-line: rgba(59, 110, 44, 0.35);
+  --sel: color-mix(in oklab, var(--glow) 10%, transparent);
+  --sel-line: color-mix(in oklab, var(--glow) 36%, transparent);
   --ok: #1E8E5A;
   --warn: #A86B00;
   --danger: #C4314B;
