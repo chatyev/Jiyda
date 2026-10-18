@@ -144,10 +144,7 @@ impl App {
                 self.capture(id);
             }
         }
-        // Запуски для разработки (отладочная сборка, своя папка данных) сами не проверяют:
-        // десятки таких запусков подряд тратят лимит GitHub на запросы с этого адреса.
-        let dev_run = cfg!(debug_assertions) || crate::config::data_dir_override().is_some();
-        if self.cfg.check_updates && !dev_run && t >= self.updates.next_check {
+        if self.auto_update_checks() && t >= self.updates.next_check {
             self.updates.next_check = t + UPDATE_CHECK_EVERY;
             self.check_updates(false);
         }
@@ -201,7 +198,17 @@ impl App {
         }
     }
 
+    /// Проверять обновления по расписанию. Запуски для разработки (отладочная сборка, своя
+    /// папка данных) сами не проверяют: десятки таких запусков подряд тратят лимит GitHub
+    /// на запросы с этого адреса.
+    fn auto_update_checks(&self) -> bool {
+        self.cfg.check_updates && !cfg!(debug_assertions) && crate::config::data_dir_override().is_none()
+    }
+
     /// Когда циклу событий проснуться, чтобы вызвать `tick`.
+    /// Каждый срок здесь `tick` сдвигает или снимает, когда он наступил: срок, который
+    /// остаётся в прошлом, будил бы цикл впустую, а Waker (main.rs) повтор того же срока
+    /// не пересылает — и цикл засыпал бы до первого события.
     pub fn next_wakeup(&self) -> Instant {
         let mut at = self.next_sleep_check;
         #[cfg(debug_assertions)]
@@ -214,7 +221,7 @@ impl App {
         if let Some(c) = self.capture_due.iter().map(|(_, at)| *at).min() {
             at = at.min(c);
         }
-        if self.cfg.check_updates {
+        if self.auto_update_checks() {
             at = at.min(self.updates.next_check);
         }
         at
