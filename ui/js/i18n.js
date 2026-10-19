@@ -173,6 +173,7 @@ import { S } from './core.js';
     'Default browser': 'Браузер по умолчанию', 'Open Windows Settings to choose Jiyda for links.': 'Откройте «Параметры Windows», чтобы выбрать Jiyda для ссылок.',
     'Install Jiyda with its installer to make it available as a default browser.': 'Установите Jiyda установщиком — тогда его можно будет выбрать браузером по умолчанию.',
     'Open Windows Settings': 'Открыть «Параметры»', 'Check for updates automatically': 'Проверять обновления автоматически',
+    'Beta versions': 'Бета-версии', 'Get new features a few days before everyone else. Beta versions may have more bugs.': 'Новые возможности — на несколько дней раньше всех. В бета-версиях может быть больше ошибок.',
     'Jiyda {0}. Updates come from GitHub Releases.': 'Jiyda {0}. Обновления — с GitHub Releases.', 'Check now': 'Проверить сейчас',
     'Jiyda protects you by default — you shouldn’t have to manage it.': 'Jiyda защищает вас сам — управлять этим не обязательно.', 'Block trackers and ads': 'Блокировать трекеры и рекламу',
     'Blocked today: {0} trackers, {1} ads.': 'Сегодня заблокировано: трекеров — {0}, рекламы — {1}.', 'Known trackers and ad networks are allowed to load.': 'Известные трекеры и рекламные сети загружаются.',

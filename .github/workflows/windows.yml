@@ -93,8 +93,10 @@ jobs:
 
       # Постоянное имя для кнопки «Скачать» на сайте:
       # releases/latest/download/JiydaSetup.exe всегда ведёт на последнюю версию.
+      # Только для обычных выпусков: у предрелиза (v0.6.5-beta.1) постоянного имени нет,
+      # latest/download ведёт на последний обычный выпуск.
       - name: Установщик с постоянным именем
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
         shell: pwsh
         run: Copy-Item (Get-Item target/installer/JiydaSetup-*.exe | Select-Object -First 1) target/installer/JiydaSetup.exe
 
@@ -103,6 +105,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: Jiyda ${{ github.ref_name }}
+          # Метка с дефисом (v0.6.5-beta.1) — предрелиз: его видит только канал Beta.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           body_path: docs/releases/${{ github.ref_name }}.md
           # Seyro 0.5.0 обновляется через отдельный репозиторий-мост chatyev/seyro (релиз 0.6.0
           # с SeyroSetup-0.6.0.exe): адреса этого репозитория он не принимает.

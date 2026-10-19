@@ -5,7 +5,8 @@
 //! Последнюю версию узнаём не через API GitHub (без входа — 60 запросов в час на адрес,
 //! их легко исчерпать за одним роутером), а по перенаправлению обычной страницы:
 //! github.com/…/releases/latest ведёт на …/releases/tag/v<версия> последнего выпуска
-//! (черновики и предрелизы туда не попадают). Установщик — по известному адресу рядом.
+//! (черновики и предрелизы туда не попадают). Канал Beta читает ленту releases.atom —
+//! в ней и предрелизы (v0.6.5-beta.1). Установщик — по известному адресу рядом.
 //!
 //! Сеть — через WinHTTP из Windows: системные прокси и сертификаты, без своих
 //! библиотек HTTPS. Запросы идут только на github.com.
@@ -14,6 +15,8 @@ use std::path::{Path, PathBuf};
 
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 const LATEST_PAGE: &str = "https://github.com/chatyev/jiyda/releases/latest";
+/// Лента выпусков (с предрелизами) — для канала Beta.
+const FEED: &str = "https://github.com/chatyev/jiyda/releases.atom";
 /// Куда ведёт LATEST_PAGE: страница выпуска с меткой.
 const TAG_PREFIX: &str = "https://github.com/chatyev/jiyda/releases/tag/";
 /// Скачиваем только отсюда.
@@ -47,17 +50,60 @@ impl std::fmt::Display for CheckError {
     }
 }
 
-/// «0.3.0», «v0.3.0», «1.2» → (0, 3, 0). Предрелизы («0.4.0-beta») не принимаем.
-pub fn parse_version(s: &str) -> Option<(u64, u64, u64)> {
+/// Версия Jiyda: «0.6.4», «v0.6.4», «1.2», предрелиз — «0.6.5-beta.1», «0.7.0-rc».
+/// Предрелиз младше самой версии (0.6.5-beta.2 < 0.6.5), метки сравниваются по алфавиту
+/// (alpha < beta < rc), номера — как числа.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Version {
+    pub core: (u64, u64, u64),
+    stage: Stage,
+}
+
+/// Порядок вариантов задаёт порядок версий: предрелиз раньше выпуска.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Stage {
+    Pre(String, u64),
+    Release,
+}
+
+impl Version {
+    pub fn is_prerelease(&self) -> bool {
+        matches!(self.stage, Stage::Pre(..))
+    }
+}
+
+pub fn parse_version(s: &str) -> Option<Version> {
     let s = s.trim().trim_start_matches('v');
-    let mut parts = s.split('.');
+    let (core, pre) = match s.split_once('-') {
+        Some((c, p)) => (c, Some(p)),
+        None => (s, None),
+    };
+    let mut parts = core.split('.');
     let mut next = |required: bool| match parts.next() {
         Some(p) if !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()) => p.parse().ok(),
         None if !required => Some(0),
         _ => None,
     };
-    let v = (next(true)?, next(true)?, next(false)?);
-    parts.next().is_none().then_some(v)
+    let core = (next(true)?, next(true)?, next(false)?);
+    if parts.next().is_some() {
+        return None;
+    }
+    let stage = match pre {
+        None => Stage::Release,
+        // Метка — строчные латинские буквы, номер необязателен: «beta», «beta.2», «rc.1».
+        Some(p) => {
+            let (label, n) = match p.split_once('.') {
+                Some((l, n)) if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => (l, n.parse().ok()?),
+                Some(_) => return None,
+                None => (p, 0),
+            };
+            if label.is_empty() || !label.bytes().all(|b| b.is_ascii_lowercase()) {
+                return None;
+            }
+            Stage::Pre(label.to_string(), n)
+        }
+    };
+    Some(Version { core, stage })
 }
 
 pub fn is_newer(candidate: &str, current: &str) -> bool {
@@ -72,7 +118,7 @@ pub fn is_newer(candidate: &str, current: &str) -> bool {
 pub fn release_from_location(location: &str) -> Option<Release> {
     let prefix = location.get(..TAG_PREFIX.len()).filter(|p| p.eq_ignore_ascii_case(TAG_PREFIX))?;
     let tag = &location[prefix.len()..];
-    if tag.is_empty() || !tag.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.') {
+    if tag.is_empty() || !tag.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') {
         return None;
     }
     let version = tag.trim_start_matches('v');
@@ -108,8 +154,15 @@ pub fn looks_like_installer(data: &[u8]) -> bool {
 /// после установки (см. [Run] в installer/jiyda.iss).
 pub const INSTALLER_ARGS: [&str; 5] = ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/update=1"];
 
-/// Есть ли версия новее этой. Ok(None) — у нас последняя.
-pub fn check() -> Result<Option<Release>, CheckError> {
+/// Есть ли версия новее этой. `beta` — канал Beta: учитываются и предрелизы.
+/// Ok(None) — у нас последняя.
+pub fn check(beta: bool) -> Result<Option<Release>, CheckError> {
+    let release = if beta { latest_any()? } else { latest_stable()? };
+    Ok(release.filter(|r| is_newer(&r.version, CURRENT)))
+}
+
+/// Последний обычный выпуск — по перенаправлению releases/latest (без предрелизов).
+fn latest_stable() -> Result<Option<Release>, CheckError> {
     let r = crate::net::redirect(LATEST_PAGE, std::time::Duration::from_secs(60)).map_err(CheckError::Other)?;
     let release = match (r.status, r.location) {
         (301 | 302 | 303 | 307 | 308, Some(location)) => release_from_location(&location)
@@ -117,7 +170,28 @@ pub fn check() -> Result<Option<Release>, CheckError> {
         (403 | 429, _) => return Err(CheckError::Limited),
         (status, _) => return Err(CheckError::Other(format!("сервер ответил {status}"))),
     };
-    Ok(is_newer(&release.version, CURRENT).then_some(release))
+    Ok(Some(release).filter(|r| parse_version(&r.version).is_some_and(|v| !v.is_prerelease())))
+}
+
+/// Канал Beta: последний выпуск или предрелиз из ленты releases.atom — обычной страницы
+/// GitHub, а не API с его лимитом 60 запросов в час.
+fn latest_any() -> Result<Option<Release>, CheckError> {
+    let r = crate::net::https("GET", FEED, &[], None, 1024 * 1024, std::time::Duration::from_secs(60))
+        .map_err(CheckError::Other)?;
+    match r.status {
+        200 => Ok(latest_in_feed(&String::from_utf8_lossy(&r.body))),
+        403 | 429 => Err(CheckError::Limited),
+        status => Err(CheckError::Other(format!("сервер ответил {status}"))),
+    }
+}
+
+/// Самый новый выпуск в ленте: ссылки …/releases/tag/<метка>; чужие и непонятные
+/// метки пропускаются так же, как в перенаправлении.
+pub fn latest_in_feed(xml: &str) -> Option<Release> {
+    xml.split("href=\"")
+        .skip(1)
+        .filter_map(|rest| release_from_location(rest.split('"').next()?))
+        .max_by(|a, b| parse_version(&a.version).cmp(&parse_version(&b.version)))
 }
 
 /// Скачать установщик в `dir` и вернуть путь к нему. Сначала — его SHA-256 из того же

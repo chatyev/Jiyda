@@ -4,6 +4,8 @@
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
+; Числовая часть версии (0.6.5 из 0.6.5-beta.1): VersionInfoVersion принимает только числа.
+#define AppNumVersion Copy(AppVersion, 1, Pos("-", AppVersion + "-") - 1)
 
 [Setup]
 ; AppId нельзя менять: по нему Windows узнаёт, что это обновление уже установленного
@@ -13,7 +15,7 @@ AppName=Jiyda
 AppVersion={#AppVersion}
 AppVerName=Jiyda {#AppVersion}
 AppPublisher=Jiyda
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppNumVersion}
 ; Для текущего пользователя, без прав администратора: %LOCALAPPDATA%\Programs\Jiyda.
 PrivilegesRequired=lowest
 DefaultDirName={autopf}\Jiyda

@@ -175,6 +175,7 @@ import { S } from './core.js';
     'Default browser': 'Asosiy brauzer', 'Open Windows Settings to choose Jiyda for links.': 'Havolalar uchun Jiydani tanlash uchun Windows sozlamalarini oching.',
     'Install Jiyda with its installer to make it available as a default browser.': 'Jiydani asosiy brauzer sifatida tanlash uchun uni oʻrnatuvchi orqali oʻrnating.',
     'Open Windows Settings': 'Windows sozlamalarini ochish', 'Check for updates automatically': 'Yangilanishlarni avtomatik tekshirish',
+    'Beta versions': 'Beta versiyalar', 'Get new features a few days before everyone else. Beta versions may have more bugs.': 'Yangi imkoniyatlar — hammadan bir necha kun oldin. Beta versiyalarda xatolar koʻproq boʻlishi mumkin.',
     'Jiyda {0}. Updates come from GitHub Releases.': 'Jiyda {0}. Yangilanishlar GitHub Releasesdan keladi.', 'Check now': 'Hozir tekshirish',
     'Jiyda protects you by default — you shouldn’t have to manage it.': 'Jiyda sizni sukut boʻyicha himoya qiladi — buni boshqarishingiz shart emas.', 'Block trackers and ads': 'Treker va reklamani bloklash',
     'Blocked today: {0} trackers, {1} ads.': 'Bugun bloklandi: {0} ta treker, {1} ta reklama.', 'Known trackers and ad networks are allowed to load.': 'Maʼlum trekerlar va reklama tarmoqlari yuklanadi.',

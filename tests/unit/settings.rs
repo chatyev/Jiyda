@@ -10,6 +10,7 @@ fn parse(json: &str) -> Option<SettingChange> {
 fn parses_typed_values() {
     assert_eq!(parse(r#"{"key":"theme","value":"dark"}"#), Some(SettingChange::Theme(Theme::Dark)));
     assert_eq!(parse(r#"{"key":"sleep_minutes","value":30}"#), Some(SettingChange::SleepMinutes(30)));
+    assert_eq!(parse(r#"{"key":"beta_updates","value":true}"#), Some(SettingChange::BetaUpdates(true)));
     assert_eq!(
         parse(r#"{"key":"shortcut","value":{"cmd":"orbit","keys":"Alt+O"}}"#),
         Some(SettingChange::Shortcut(Shortcut { cmd: Command::Orbit, keys: "Alt+O".into() }))

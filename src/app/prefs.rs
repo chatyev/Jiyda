@@ -15,6 +15,7 @@ impl App {
             "devtools": c.devtools,
             "custom_titlebar": c.custom_titlebar,
             "check_updates": c.check_updates,
+            "beta_updates": c.beta_updates,
             "language": c.language,
             "shield": c.shield,
             "shield_allow": c.shield_allow,
@@ -76,6 +77,20 @@ impl App {
             }
             SettingChange::Shortcut(_) | SettingChange::ShortcutReset(_) => {
                 *self.keys.map.borrow_mut() = Keymap::new(&self.cfg.shortcuts);
+            }
+            // Канал сменился — проверить сразу (если проверки включены). Ушли из Beta —
+            // уже предложенный предрелиз больше не предлагаем.
+            SettingChange::BetaUpdates(on) => {
+                if !on
+                    && self
+                        .updates
+                        .release
+                        .as_ref()
+                        .is_some_and(|r| update::parse_version(&r.version).is_some_and(|v| v.is_prerelease()))
+                {
+                    self.updates.release = None;
+                }
+                self.updates.next_check = Instant::now();
             }
             _ => {}
         }

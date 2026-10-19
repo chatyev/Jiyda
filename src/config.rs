@@ -72,6 +72,8 @@ pub struct Config {
     pub custom_titlebar: bool,
     /// Проверять новые версии на GitHub (при запуске и раз в 12 часов) и предлагать обновиться.
     pub check_updates: bool,
+    /// Канал Beta: предлагать и предрелизы (v0.6.5-beta.1), а не только обычные выпуски.
+    pub beta_updates: bool,
     /// Язык интерфейса: "auto" (как в Windows), "ru", "en" или "uz" (узбекский, латиница).
     pub language: String,
     /// Переназначенные горячие клавиши: команда → «Ctrl+Shift+K» ("" — без клавиш).
@@ -106,6 +108,7 @@ impl Default for Config {
             devtools: true,
             custom_titlebar: true,
             check_updates: true,
+            beta_updates: false,
             language: "auto".into(),
             shortcuts: BTreeMap::new(),
             shield: true,

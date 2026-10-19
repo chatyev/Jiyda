@@ -13,8 +13,9 @@ impl App {
         }
         self.updates.busy = true;
         let proxy = self.proxy.clone();
+        let beta = self.cfg.beta_updates;
         std::thread::spawn(move || {
-            let _ = proxy.send_event(UserEvent::UpdateChecked { result: update::check(), manual });
+            let _ = proxy.send_event(UserEvent::UpdateChecked { result: update::check(beta), manual });
         });
     }
 

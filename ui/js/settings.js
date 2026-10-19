@@ -94,7 +94,9 @@ import { S } from './core.js';
           S.h('button', { class: 'btn', text: S.t('Open Windows Settings'), on: { click: () => S.cmd('default_browser') } })),
         row(S.t('Check for updates automatically'), S.t('Jiyda {0}. Updates come from GitHub Releases.', c.version), S.h('span', { style: { display: 'flex', gap: '12px', alignItems: 'center' } },
           S.h('button', { class: 'btn ghost', text: S.t('Check now'), on: { click: () => S.cmd('check_updates') } }),
-          toggle('check_updates', c.check_updates, S.t('Check for updates automatically'))))),
+          toggle('check_updates', c.check_updates, S.t('Check for updates automatically')))),
+        row(S.t('Beta versions'), S.t('Get new features a few days before everyone else. Beta versions may have more bugs.'),
+          toggle('beta_updates', c.beta_updates, S.t('Beta versions')))),
     ];
   }
 

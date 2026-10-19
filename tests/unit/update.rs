@@ -4,12 +4,56 @@ use super::*;
 
 #[test]
 fn versions_parse() {
-    assert_eq!(parse_version("0.3.0"), Some((0, 3, 0)));
-    assert_eq!(parse_version("v1.12.7"), Some((1, 12, 7)));
-    assert_eq!(parse_version("2.1"), Some((2, 1, 0)));
-    for bad in ["", "v", "1", "1.x.0", "0.4.0-beta", "1.2.3.4", "1..2", " "] {
+    let core = |s: &str| parse_version(s).map(|v| v.core);
+    assert_eq!(core("0.3.0"), Some((0, 3, 0)));
+    assert_eq!(core("v1.12.7"), Some((1, 12, 7)));
+    assert_eq!(core("2.1"), Some((2, 1, 0)));
+    assert_eq!(core("0.6.5-beta.1"), Some((0, 6, 5)));
+    assert!(parse_version("0.6.5-beta.1").unwrap().is_prerelease());
+    assert!(parse_version("0.7.0-rc").unwrap().is_prerelease());
+    assert!(!parse_version("0.6.4").unwrap().is_prerelease());
+    for bad in [
+        "",
+        "v",
+        "1",
+        "1.x.0",
+        "1.2.3.4",
+        "1..2",
+        " ",
+        "0.4.0-",
+        "0.4.0-Beta",
+        "0.4.0-beta.",
+        "0.4.0-beta.x",
+        "0.4.0-beta.1.2",
+        "0.4.0-be-ta",
+    ] {
         assert_eq!(parse_version(bad), None, "{bad}");
     }
+}
+
+#[test]
+fn prerelease_is_older_than_its_release() {
+    assert!(is_newer("0.6.5", "0.6.5-beta.3"));
+    assert!(is_newer("0.6.5-beta.2", "0.6.5-beta.1"));
+    assert!(is_newer("0.6.5-beta.10", "0.6.5-beta.9"));
+    assert!(is_newer("0.6.5-rc.1", "0.6.5-beta.4"));
+    assert!(is_newer("0.6.5-beta.1", "0.6.4"));
+    assert!(!is_newer("0.6.5-beta.1", "0.6.5"));
+    assert!(!is_newer("0.6.4", "0.6.5-beta.1"));
+}
+
+#[test]
+fn beta_channel_takes_the_newest_tag_from_the_feed() {
+    let feed = r#"<feed><link rel="alternate" href="https://github.com/chatyev/jiyda/releases"/>
+      <entry><link rel="alternate" type="text/html" href="https://github.com/chatyev/jiyda/releases/tag/v0.6.4"/></entry>
+      <entry><link rel="alternate" type="text/html" href="https://github.com/chatyev/jiyda/releases/tag/v0.6.5-beta.2"/></entry>
+      <entry><link rel="alternate" type="text/html" href="https://github.com/chatyev/jiyda/releases/tag/v0.6.5-beta.10"/></entry>
+      <entry><link rel="alternate" href="https://evil.example/chatyev/jiyda/releases/tag/v9.9.9"/></entry>
+      <entry><link rel="alternate" href="https://github.com/chatyev/jiyda/releases/tag/nightly"/></entry></feed>"#;
+    let r = latest_in_feed(feed).unwrap();
+    assert_eq!(r.version, "0.6.5-beta.10");
+    assert_eq!(r.url, "https://github.com/chatyev/jiyda/releases/download/v0.6.5-beta.10/JiydaSetup-0.6.5-beta.10.exe");
+    assert_eq!(latest_in_feed("<feed></feed>"), None);
 }
 
 #[test]
@@ -52,7 +96,7 @@ fn foreign_or_odd_redirects_are_rejected() {
         "http://github.com/chatyev/jiyda/releases/tag/v0.6.0",
         "https://github.com/someone/jiyda/releases/tag/v0.6.0",
         "https://github.com/chatyev/jiyda/releases/tag/nightly",
-        "https://github.com/chatyev/jiyda/releases/tag/v0.7.0-beta",
+        "https://github.com/chatyev/jiyda/releases/tag/v0.7.0-Beta",
         "https://github.com/chatyev/jiyda/releases/tag/v0.6.0/../../x",
         "https://github.com/chatyev/jiyda/releases/tag/",
         "",
