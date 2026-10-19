@@ -33,7 +33,7 @@ import { S } from './core.js';
       body: [
         S.h('img', { class: 'ob-logo', src: S.cfg.logo, alt: '' }),
         S.h('h1', { text: S.t('Welcome to Jiyda') }),
-        S.h('p', { class: 'ob-lead', text: S.t('A calmer way to browse. A few quick choices and you’re ready — it takes a minute.') }),
+        S.h('p', { class: 'ob-lead', text: S.t('Every page in its place. A few quick choices and you’re ready — it takes a minute.') }),
       ],
       next: S.t('Get started'),
     };

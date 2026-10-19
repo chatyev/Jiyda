@@ -123,7 +123,7 @@ import { S } from './core.js';
     'Passwords stay in the other browser.': 'Parollar boshqa brauzerda qoladi.', 'Import': 'Koʻchirish',
     // Знакомство (первый запуск)
     'Welcome tour': 'Jiyda bilan tanishuv', 'Welcome to Jiyda': 'Jiydaga xush kelibsiz',
-    'A calmer way to browse. A few quick choices and you’re ready — it takes a minute.': 'Internetga sokinroq yoʻl. Bir nechta tezkor tanlov — va hammasi tayyor, bir daqiqa vaqt oladi.',
+    'Every page in its place. A few quick choices and you’re ready — it takes a minute.': 'Har bir sahifa — oʻz joyida. Bir nechta tezkor tanlov — va hammasi tayyor, bir daqiqa vaqt oladi.',
     'Get started': 'Boshlash', 'Continue': 'Davom etish', 'Skip': 'Oʻtkazib yuborish', 'Done': 'Tayyor', 'Bring your bookmarks': 'Xatchoʻplaringizni koʻchiring',
     'Move bookmarks and history from the browser you used before. Nothing is removed there, and passwords stay in that browser.': 'Avval foydalangan brauzeringizdan xatchoʻplar va tarixni koʻchiring. U yerdan hech narsa oʻchirilmaydi, parollar esa oʻsha brauzerda qoladi.',
     'Imported: {0} bookmarks and {1} history entries.': 'Koʻchirildi: {0} ta xatchoʻp, tarixdan {1} ta yozuv.',

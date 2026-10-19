@@ -121,7 +121,7 @@ import { S } from './core.js';
     'Passwords stay in the other browser.': 'Пароли останутся в другом браузере.', 'Import': 'Перенести',
     // Знакомство (первый запуск)
     'Welcome tour': 'Знакомство с Jiyda', 'Welcome to Jiyda': 'Добро пожаловать в Jiyda',
-    'A calmer way to browse. A few quick choices and you’re ready — it takes a minute.': 'Интернет — спокойнее. Несколько быстрых настроек — и всё готово, это займёт минуту.',
+    'Every page in its place. A few quick choices and you’re ready — it takes a minute.': 'Каждая страница — на своём месте. Несколько быстрых настроек — и всё готово, это займёт минуту.',
     'Get started': 'Начать', 'Continue': 'Дальше', 'Skip': 'Пропустить', 'Done': 'Готово', 'Bring your bookmarks': 'Перенесите закладки',
     'Move bookmarks and history from the browser you used before. Nothing is removed there, and passwords stay in that browser.': 'Перенесите закладки и историю из браузера, которым пользовались раньше. Там ничего не удалится, а пароли останутся в том браузере.',
     'Imported: {0} bookmarks and {1} history entries.': 'Перенесено: закладок — {0}, записей истории — {1}.',
