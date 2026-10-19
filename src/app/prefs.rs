@@ -16,6 +16,8 @@ impl App {
             "custom_titlebar": c.custom_titlebar,
             "check_updates": c.check_updates,
             "beta_updates": c.beta_updates,
+            "telemetry": c.telemetry,
+            "telemetry_info": self.telemetry_json(),
             "language": c.language,
             "shield": c.shield,
             "shield_allow": c.shield_allow,
@@ -80,6 +82,7 @@ impl App {
             }
             // Канал сменился — проверить сразу (если проверки включены). Ушли из Beta —
             // уже предложенный предрелиз больше не предлагаем.
+            SettingChange::Telemetry(on) => self.set_telemetry(on),
             SettingChange::BetaUpdates(on) => {
                 if !on
                     && self

@@ -121,10 +121,28 @@ import { S } from './core.js';
           S.t(S.permissionKind(kind)[1]), ' · ', d === 'allow' ? S.t('Allowed') : S.t('Blocked'),
           S.h('button', { title: S.t('Reset'), attrs: { 'aria-label': S.t('Reset') }, on: { click: () => S.post({ type: 'permission_revoke', origin, kind }) } }, S.icon('x', 'i12')))))))
         : [S.h('div', { class: 'setting' }, S.h('div', { class: 'desc', text: S.t('No saved decisions. When a site asks, “Allow once” never saves anything.') }))])),
+      ...improve(c),
       sub(S.t('Clear browsing data')),
       card(
         row(S.t('Browsing history'), S.t('Visited pages in all Spaces.'), S.h('button', { class: 'btn danger', text: S.t('Clear…'), on: { click: () => S.palette('confirm', { what: 'data' }) } })),
         row(S.t('Cookies, cache and saved passwords'), S.t('For the current Space “{0}”.', S.space().name), S.h('button', { class: 'btn danger', text: S.t('Clear…'), on: { click: () => S.palette('confirm', { what: 'data' }) } }))),
+    ];
+  }
+
+  // «Помочь улучшить Jiyda» (src/telemetry.rs): только если в сборке есть адрес приёма.
+  // «Что отправляется» показывает сегодняшний отчёт ровно таким, каким он уйдёт.
+  let showReport = false;
+  function improve(c) {
+    const info = c.telemetry_info || {};
+    if (!info.available) return [];
+    return [
+      sub(S.t('Help improve Jiyda')),
+      card(
+        row(S.t('Send anonymous usage statistics'), S.t('Once a day: Jiyda and Windows versions, how often Jiyda starts and crashes, which features are used. Never addresses, page titles, searches or anything you type.'),
+          toggle('telemetry', c.telemetry, S.t('Send anonymous usage statistics'))),
+        c.telemetry ? row(S.t('What is sent'), S.t('Today’s report, exactly as it will be sent.'),
+          S.h('button', { class: 'btn ghost', text: showReport ? S.t('Hide') : S.t('Show'), attrs: { 'aria-expanded': String(showReport) }, on: { click: () => { showReport = !showReport; draw(); } } })) : null,
+        c.telemetry && showReport ? S.h('pre', { class: 'telemetry-report', text: JSON.stringify(info.preview, null, 2) }) : null),
     ];
   }
 

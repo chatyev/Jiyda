@@ -31,6 +31,9 @@ impl App {
                 self.push_state();
             }
             Command::OnboardingDone => {
+                if self.onboarding {
+                    self.metric(crate::telemetry::Event::OnboardingCompleted);
+                }
                 self.onboarding = false;
                 // Перенос из Chrome и Edge предлагался в знакомстве — карточка на New Page не нужна.
                 self.dismiss_import_offer();

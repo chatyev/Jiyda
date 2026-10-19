@@ -49,6 +49,7 @@ mod prefs;
 mod session;
 mod space_ops;
 mod split;
+mod telemetry_ops;
 mod ui_assets;
 mod ui_bridge;
 mod updates;
@@ -76,6 +77,10 @@ const PANE_H: f64 = 30.0;
 /// Первая проверка обновлений — чуть позже запуска, чтобы не мешать загрузке страниц.
 const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(10);
 const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(12 * 3600);
+/// Статистика (если включена): первая попытка отправить отчёт — чуть позже запуска,
+/// дальше — раз в час (отчёт за день уходит один раз, когда день закончился).
+const TELEMETRY_FIRST: Duration = Duration::from_secs(120);
+const TELEMETRY_EVERY: Duration = Duration::from_secs(3600);
 /// «Недавние» на New Page: столько сайтов из истории.
 const HOME_RECENT: usize = 3;
 /// Ctrl+Tab, нажатый вскоре после предыдущего, идёт дальше по списку последних страниц.
@@ -203,6 +208,10 @@ pub enum UserEvent {
     Imported {
         label: String,
         data: Box<crate::import::Imported>,
+    },
+    /// Отчёты статистики за эти дни сервер принял (telemetry_ops.rs).
+    TelemetrySent {
+        days: Vec<String>,
     },
 }
 
@@ -341,6 +350,11 @@ pub struct App {
     writer: crate::config::Writer,
     /// Метка «Jiyda работает»: снимается при выходе (recovery.rs).
     run_marker: crate::recovery::RunMarker,
+    /// «Помочь улучшить Jiyda» (telemetry.rs): счётчики, очередь отчётов, куда слать.
+    telemetry: crate::telemetry::Telemetry,
+    telemetry_url: Option<String>,
+    telemetry_busy: bool,
+    next_telemetry: Instant,
     /// Прошлый запуск оборвался: страница, что была на экране, — её откроет «Открыть
     /// снова» на New Page. None — открывать нечего или уже открыли.
     recovery: Option<u64>,

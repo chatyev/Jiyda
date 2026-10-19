@@ -235,6 +235,45 @@ pub fn registered_as_browser() -> bool {
     false
 }
 
+/// Строковое значение реестра: `machine` — HKLM, иначе HKCU. None — нет такого.
+#[cfg(windows)]
+pub fn reg_string(key: &str, value: &str, machine: bool) -> Option<String> {
+    use windows::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RegGetValueW};
+    use windows::core::PCWSTR;
+    let root = if machine { HKEY_LOCAL_MACHINE } else { HKEY_CURRENT_USER };
+    let (k, v) = (wide(key), wide(value));
+    let mut buf = [0u16; 256];
+    let mut len = (buf.len() * 2) as u32;
+    // SAFETY: буфер и его размер в байтах — наши; RegGetValueW пишет строку с нулём в конце.
+    unsafe {
+        RegGetValueW(
+            root,
+            PCWSTR(k.as_ptr()),
+            PCWSTR(v.as_ptr()),
+            RRF_RT_REG_SZ,
+            None,
+            Some(buf.as_mut_ptr().cast()),
+            Some(&mut len),
+        )
+        .ok()
+        .ok()?;
+    }
+    let n = (len as usize / 2).saturating_sub(1).min(buf.len());
+    Some(String::from_utf16_lossy(&buf[..n]))
+}
+
+/// Выбран ли Jiyda браузером по умолчанию (ссылки https открываются им).
+#[cfg(windows)]
+pub fn is_default_browser() -> bool {
+    reg_string(r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice", "ProgId", false)
+        .is_some_and(|p| p == "SeyroHTML")
+}
+
+#[cfg(not(windows))]
+pub fn is_default_browser() -> bool {
+    false
+}
+
 /// Открыть в «Параметрах» страницу Jiyda в «Приложениях по умолчанию». Назначить себя
 /// браузером по умолчанию молча Windows 10/11 не дают — выбор делает пользователь.
 /// Через ShellExecute: `explorer ms-settings:...` «Параметры» не открывает.

@@ -175,6 +175,11 @@ import { S } from './core.js';
     'Default browser': 'Asosiy brauzer', 'Open Windows Settings to choose Jiyda for links.': 'Havolalar uchun Jiydani tanlash uchun Windows sozlamalarini oching.',
     'Install Jiyda with its installer to make it available as a default browser.': 'Jiydani asosiy brauzer sifatida tanlash uchun uni oʻrnatuvchi orqali oʻrnating.',
     'Open Windows Settings': 'Windows sozlamalarini ochish', 'Check for updates automatically': 'Yangilanishlarni avtomatik tekshirish',
+    // Statistika (src/telemetry.rs)
+    'Help improve Jiyda': 'Jiydani yaxshilashga yordam berish', 'Send anonymous usage statistics': 'Anonim foydalanish statistikasini yuborish',
+    'Once a day: Jiyda and Windows versions, how often Jiyda starts and crashes, which features are used. Never addresses, page titles, searches or anything you type.': 'Kuniga bir marta: Jiyda va Windows versiyalari, Jiyda qanchalik tez-tez ishga tushishi va ishdan chiqishi, qaysi imkoniyatlardan foydalanilishi. Manzillar, sahifa sarlavhalari, qidiruv soʻrovlari va siz yozgan narsalar hech qachon yuborilmaydi.',
+    'Send anonymous usage statistics once a day. Never addresses, searches or anything you type.': 'Kuniga bir marta anonim statistika yuborish. Manzillar, qidiruv soʻrovlari va siz yozgan narsalar hech qachon yuborilmaydi.',
+    'What is sent': 'Nima yuboriladi', 'Today’s report, exactly as it will be sent.': 'Bugungi hisobot — aynan yuboriladigan koʻrinishda.', 'Show': 'Koʻrsatish', 'Hide': 'Yashirish',
     'Beta versions': 'Beta versiyalar', 'Get new features a few days before everyone else. Beta versions may have more bugs.': 'Yangi imkoniyatlar — hammadan bir necha kun oldin. Beta versiyalarda xatolar koʻproq boʻlishi mumkin.',
     'Jiyda {0}. Updates come from GitHub Releases.': 'Jiyda {0}. Yangilanishlar GitHub Releasesdan keladi.', 'Check now': 'Hozir tekshirish',
     'Jiyda protects you by default — you shouldn’t have to manage it.': 'Jiyda sizni sukut boʻyicha himoya qiladi — buni boshqarishingiz shart emas.', 'Block trackers and ads': 'Treker va reklamani bloklash',

@@ -191,6 +191,8 @@ import { S } from './core.js';
     open(a = {}) {
       layer.hidden = false;
       panel.setAttribute('aria-label', S.t('Command palette'));
+      // Для статистики «Помочь улучшить Jiyda» (выключена — ядро ничего не считает).
+      S.post({ type: 'metric', name: 'command_palette_used' });
       setMode(a.mode || 'default', a.arg || null);
       S.loadHistory();
       requestAnimationFrame(() => { layer.classList.add('open'); input.focus(); });

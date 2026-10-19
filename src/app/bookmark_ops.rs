@@ -207,6 +207,9 @@ impl App {
             "импорт из {label}: закладок {bookmarks}, записей истории {history}, значков {}",
             data.favicons.len()
         );
+        if bookmarks > 0 || history > 0 {
+            self.metric(crate::telemetry::Event::ImportCompleted);
+        }
         self.cfg.import_offered = true;
         self.save_config();
         self.save();

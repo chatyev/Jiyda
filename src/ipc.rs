@@ -30,6 +30,11 @@ pub type Rect4 = [f64; 4];
 pub enum UiMsg {
     /// Интерфейс загрузился и ждёт состояние.
     Ready,
+    /// Событие для статистики «Помочь улучшить Jiyda» по имени (telemetry::Event::from_ui):
+    /// неизвестные имена отбрасываются.
+    Metric {
+        name: String,
+    },
     /// Команда браузера — те же имена, что у горячих клавиш (keymap.rs).
     Cmd {
         k: crate::command::Command,

@@ -70,6 +70,11 @@ jobs:
 
       - name: Установщик
         shell: pwsh
+        # Адрес приёма статистики «Помочь улучшить Jiyda» (src/telemetry.rs) — переменная
+        # репозитория TELEMETRY_URL (Settings → Secrets and variables → Actions → Variables).
+        # Не задана — в сборке этой функции нет.
+        env:
+          JIYDA_TELEMETRY_URL: ${{ vars.TELEMETRY_URL }}
         run: ./installer/build.ps1
 
       # Контрольная сумма рядом с установщиком: Jiyda сверяет её перед запуском обновления

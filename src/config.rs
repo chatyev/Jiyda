@@ -72,6 +72,8 @@ pub struct Config {
     pub custom_titlebar: bool,
     /// Проверять новые версии на GitHub (при запуске и раз в 12 часов) и предлагать обновиться.
     pub check_updates: bool,
+    /// «Помочь улучшить Jiyda»: раз в сутки анонимный отчёт (telemetry.rs). По умолчанию выключено.
+    pub telemetry: bool,
     /// Канал Beta: предлагать и предрелизы (v0.6.5-beta.1), а не только обычные выпуски.
     pub beta_updates: bool,
     /// Язык интерфейса: "auto" (как в Windows), "ru", "en" или "uz" (узбекский, латиница).
@@ -109,6 +111,7 @@ impl Default for Config {
             custom_titlebar: true,
             check_updates: true,
             beta_updates: false,
+            telemetry: false,
             language: "auto".into(),
             shortcuts: BTreeMap::new(),
             shield: true,
@@ -144,6 +147,8 @@ pub struct Paths {
     pub log: PathBuf,
     /// Метка «Jiyda работает» (recovery.rs): осталась после запуска — тот оборвался.
     pub running: PathBuf,
+    /// «Помочь улучшить Jiyda»: счётчики дня и неотправленные отчёты (telemetry.rs).
+    pub telemetry: PathBuf,
 }
 
 impl Paths {
@@ -166,6 +171,7 @@ impl Paths {
             extensions: base.join("extensions"),
             log: base.join("jiyda.log"),
             running: base.join("running"),
+            telemetry: base.join("telemetry.json"),
         };
         let _ = std::fs::create_dir_all(&p.webview_data);
         let _ = std::fs::create_dir_all(&p.extensions);

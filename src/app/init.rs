@@ -17,6 +17,11 @@ impl App {
                 "прошлый запуск Jiyda оборвался (сбой или снятие процесса): страницы восстановлены без загрузки"
             );
         }
+        // Статистика — только если пользователь её включил и в сборке есть адрес приёма.
+        let telemetry_url = crate::telemetry::endpoint();
+        let mut telemetry =
+            crate::telemetry::Telemetry::load(&paths.telemetry, cfg.telemetry && telemetry_url.is_some());
+        telemetry.started(update::CURRENT, crashed, &shield::today());
         let mut session = Session::load(&paths.session);
         let theme = session
             .theme
@@ -132,6 +137,10 @@ impl App {
         let mut app = Self {
             writer: crate::config::Writer::new(),
             run_marker,
+            telemetry,
+            telemetry_url,
+            telemetry_busy: false,
+            next_telemetry: Instant::now() + TELEMETRY_FIRST,
             recovery: None,
             onboarding: first_run,
             frame,

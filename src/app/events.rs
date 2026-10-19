@@ -77,6 +77,7 @@ impl App {
             UserEvent::UpdateChecked { result, manual } => self.on_update_checked(result, manual),
             UserEvent::UpdateDownloaded { result } => self.on_update_downloaded(result),
             UserEvent::Imported { label, data } => self.on_imported(label, *data),
+            UserEvent::TelemetrySent { days } => self.on_telemetry_sent(days),
             UserEvent::Favicon { id, png } => {
                 let uri = format!("data:image/png;base64,{}", base64(&png));
                 let url = self.page_mut_any(id).map(|t| {
@@ -229,6 +230,11 @@ impl App {
 
     pub(super) fn handle_ui(&mut self, msg: UiMsg) {
         match msg {
+            UiMsg::Metric { name } => {
+                if let Some(ev) = crate::telemetry::Event::from_ui(&name) {
+                    self.metric(ev);
+                }
+            }
             UiMsg::Ready => {
                 self.layout();
                 self.push_state();

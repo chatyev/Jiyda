@@ -21,6 +21,7 @@ impl App {
         if idx == self.active_space || idx >= self.spaces.len() {
             return;
         }
+        self.metric(crate::telemetry::Event::WorkspaceUsed);
         if self.find_open {
             self.find_open = false;
             self.run_find("", "clear");

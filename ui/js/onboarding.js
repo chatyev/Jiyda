@@ -82,7 +82,10 @@ import { S } from './core.js';
         S.h('p', { class: 'ob-lead', text: S.t('Jiyda doesn’t collect your history, searches or page contents. There are no ads and no analytics.') }),
         S.h('div', { class: 'ob-list' },
           option(S.t('Block trackers and ads'), S.t('Known trackers and ad networks don’t load. You can turn it off for a single site.'), toggle('shield', cfg.shield, S.t('Block trackers and ads'))),
-          option(S.t('Check for updates automatically'), S.t('Jiyda asks GitHub for a new version twice a day and installs it only when you agree.'), toggle('check_updates', cfg.check_updates, S.t('Check for updates automatically')))),
+          option(S.t('Check for updates automatically'), S.t('Jiyda asks GitHub for a new version twice a day and installs it only when you agree.'), toggle('check_updates', cfg.check_updates, S.t('Check for updates automatically'))),
+          cfg.telemetry_info && cfg.telemetry_info.available
+            ? option(S.t('Help improve Jiyda'), S.t('Send anonymous usage statistics once a day. Never addresses, searches or anything you type.'), toggle('telemetry', cfg.telemetry, S.t('Help improve Jiyda')))
+            : null),
       ],
       next: S.t('Continue'),
     };

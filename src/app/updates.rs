@@ -74,6 +74,7 @@ impl App {
             Ok(p) => p,
             Err(e) => {
                 log::error!("не удалось скачать обновление: {e}");
+                self.metric(crate::telemetry::Event::UpdateFailed);
                 self.toast(i18n::tr("Couldn't download the update"));
                 self.push_state();
                 return;
@@ -88,6 +89,7 @@ impl App {
             }
             Err(e) => {
                 log::error!("не удалось запустить установщик {}: {e}", path.display());
+                self.metric(crate::telemetry::Event::UpdateFailed);
                 self.toast(i18n::tr("Couldn't start the update installer"));
                 self.push_state();
             }

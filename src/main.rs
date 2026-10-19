@@ -26,6 +26,7 @@ mod settings;
 mod shield;
 mod spaces;
 mod store;
+mod telemetry;
 mod update;
 
 use app::{App, UserEvent};

@@ -44,6 +44,9 @@ impl App {
         if let Some(s) = self.history.take_changes() {
             self.writer.write(&self.paths.history, s);
         }
+        if let Some(s) = self.telemetry.take_changes() {
+            self.writer.write(&self.paths.telemetry, s);
+        }
         if let Some(s) = self.bookmarks.take_changes() {
             self.writer.write(&self.paths.bookmarks, s);
         }
@@ -151,6 +154,7 @@ impl App {
             self.updates.next_check = t + UPDATE_CHECK_EVERY;
             self.check_updates(false);
         }
+        self.telemetry_tick(t);
         // Все события пачки обработаны — одно обновление интерфейса вместо десятков.
         self.flush_state();
     }
@@ -234,6 +238,9 @@ impl App {
         }
         if self.auto_update_checks() {
             at = at.min(self.updates.next_check);
+        }
+        if self.telemetry.is_on() && !self.telemetry_busy {
+            at = at.min(self.next_telemetry);
         }
         at
     }
