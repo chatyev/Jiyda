@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarklar — Jiyda</title>
+<meta name="description" content="Jiyda Microsoft Edge va Google Chrome bilan solishtirganda qancha xotira va protsessor sarflashi va bu qanday oʻlchangani.">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" hreflang="en" href="../en/benchmarks.html">
+<link rel="alternate" hreflang="ru" href="../ru/benchmarks.html">
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
+  <nav aria-label="Site">
+    <a href="./#features">Imkoniyatlar</a>
+    <a href="privacy.html">Maxfiylik</a>
+    <a href="security.html">Xavfsizlik</a>
+    <span class="langs" aria-label="Language"><a href="benchmarks.html" aria-current="true">Oʻz</a><a href="../ru/benchmarks.html" hreflang="ru" lang="ru">Ру</a><a href="../en/benchmarks.html" hreflang="en" lang="en">En</a></span>
+  </nav>
+</header>
+
+<main class="wrap doc">
+  <h1>Benchmarklar</h1>
+  <p class="date">2026-yil 19-oktabrdagi oʻlchovlar</p>
+
+  <div class="summary"><p><strong>Qisqacha:</strong> bitta sahifa ochiq boʻlganda Jiyda Edge va Chromedan kamroq xotira sarflaydi va boʻsh turganda protsessorni deyarli yuklamaydi. 10 va undan ortiq sahifada unga taxminan 1,7–2 baravar koʻproq xotira kerak, 50 sahifani birdaniga ochish esa bir necha soniya oladi. Ikkalasini ham eʼlon qilamiz — ikkinchisi ustida ishlayapmiz.</p></div>
+
+  <h2>Natijalar</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Brauzer</th><th>Sahifalar</th><th>Ishga tushishdan birinchi sahifagacha, ms</th><th>Barcha sahifalar yuklandi, ms</th><th>Shaxsiy xotira, MB</th><th>Ishchi toʻplam, MB</th><th>Boʻsh turgandagi protsessor, bir yadroning %</th></tr>
+    <tr><td><strong>Jiyda</strong></td><td>1</td><td>315</td><td>315</td><td>317</td><td>422</td><td>0,08</td></tr>
+    <tr><td>Microsoft Edge</td><td>1</td><td>369</td><td>369</td><td>391</td><td>755</td><td>0,78</td></tr>
+    <tr><td>Google Chrome</td><td>1</td><td>266</td><td>266</td><td>330</td><td>659</td><td>3,36</td></tr>
+    <tr><td><strong>Jiyda</strong></td><td>10</td><td>—</td><td>954</td><td>925</td><td>1000</td><td>1,64</td></tr>
+    <tr><td>Microsoft Edge</td><td>10</td><td>—</td><td>447</td><td>633</td><td>1269</td><td>1,95</td></tr>
+    <tr><td>Google Chrome</td><td>10</td><td>—</td><td>307</td><td>541</td><td>1187</td><td>3,59</td></tr>
+    <tr><td><strong>Jiyda</strong></td><td>50</td><td>—</td><td>6441</td><td>3100</td><td>3508</td><td>4,3</td></tr>
+    <tr><td>Microsoft Edge</td><td>50</td><td>—</td><td>890</td><td>1624</td><td>3548</td><td>1,56</td></tr>
+    <tr><td>Google Chrome</td><td>50</td><td>—</td><td>667</td><td>1444</td><td>3545</td><td>5,47</td></tr>
+  </table></div>
+  <p><strong>Kompyuter:</strong> AMD Ryzen 7 7800X3D, 32 GB RAM, Windows 11 (26300-yigʻma). Jiyda 0.6.4 (WebView2 155.0.4283.62), Microsoft Edge 155.0.4283.62, Google Chrome 155.0.8059.84.</p>
+
+  <h2>Qanday oʻlchadik</h2>
+  <ul>
+    <li>Har bir oʻlchov brauzerni yangi boʻsh profil bilan ishga tushiradi va lokal serverdan bitta maqola-sahifaning (matn, jadvallar, rasmlar, animatsiyasiz) 1, 10 yoki 50 nusxasini ochadi — internetsiz.</li>
+    <li>Har bir sahifa oʻz manzilidan (127.0.0.1, 127.0.0.2…) keladi, shuning uchun 50 sahifa — oddiy varaqlar kabi 50 ta turli sayt.</li>
+    <li>“Ishga tushishdan birinchi sahifagacha” — brauzer ishga tushgandan sahifaning load hodisasigacha boʻlgan vaqt; “barcha sahifalar yuklandi” — oxirgisining load hodisasigacha.</li>
+    <li>Xotira — yuklangandan 10 soniya keyin brauzerning barcha jarayonlari (asosiy, sahifalar, GPU va boshqalar) boʻyicha yigʻindi. <em>Shaxsiy xotira</em> — faqat brauzer band qilgani; <em>ishchi toʻplam</em> umumiy xotirani ham hisoblaydi va toʻliqlik uchun keltirilgan.</li>
+    <li>Boʻsh turgandagi protsessor — shu jarayonlarning hech narsa qilinmagan 20 soniyadagi protsessor vaqti, bir yadroning foizida.</li>
+    <li>Har bir raqam — bitta qizdirishdan keyingi uchta oʻlchovning medianasi.</li>
+  </ul>
+
+  <h2>Bu raqamlar nimani aytmaydi</h2>
+  <ul>
+    <li>Bu bitta kompyuter va har bir brauzerning bitta versiyasi. Boshqa uskunada natijalar boshqacha boʻladi.</li>
+    <li>Batareyadan ishlash vaqti va nosozliklar soni bu yerda oʻlchanmaydi — ular uchun noutbuklarda uzoq kuzatish kerak.</li>
+    <li>50 sahifani birdaniga ochish — odatiy holat emas. Jiyda sessiyani tiklaganda sahifalar siz ochmaguningizcha “uxlab” turadi.</li>
+  </ul>
+
+  <h2>Benchmarklar nimani allaqachon tuzatdi</h2>
+  <p>Birinchi oʻlchov Jiyda yuqori panelidagi animatsiyali yogʻdu uni doim qayta chizib, boʻsh turganda protsessor yadrosining taxminan 13% ini olganini koʻrsatdi. U olib tashlandi: endi taxminan 0,1%.</p>
+
+  <h2>Takrorlash</h2>
+  <p>Skript, sahifa va har bir oʻlchovning xom natijalari repozitoriyda: <a href="https://github.com/chatyev/jiyda/tree/main/bench">bench/</a>. Oʻz kompyuteringizda <code>bench/run.ps1</code> ni ishga tushiring.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="privacy.html">Maxfiylik</a>
+    <a href="terms.html">Shartlar</a>
+    <a href="security.html">Xavfsizlik</a>
+    <a href="benchmarks.html">Benchmarklar</a>
+    <a href="https://github.com/chatyev/jiyda/releases">Yangiliklar</a>
+    <a href="../licenses.html">Litsenziyalar</a>
+    <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>
+    <span class="made">© 2026 Jiyda</span>
+  </div>
+</footer>
+</body>
+</html>

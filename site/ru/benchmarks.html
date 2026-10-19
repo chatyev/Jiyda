@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Бенчмарки — Jiyda</title>
+<meta name="description" content="Сколько памяти и процессора тратит Jiyda по сравнению с Microsoft Edge и Google Chrome и как это измерено.">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" hreflang="en" href="../en/benchmarks.html">
+<link rel="alternate" hreflang="uz" href="../uz/benchmarks.html">
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="./"><img src="../assets/mark.png" alt="" width="30" height="30">Jiyda</a>
+  <nav aria-label="Site">
+    <a href="./#features">Возможности</a>
+    <a href="privacy.html">Приватность</a>
+    <a href="security.html">Безопасность</a>
+    <span class="langs" aria-label="Language"><a href="../uz/benchmarks.html" hreflang="uz" lang="uz">Oʻz</a><a href="benchmarks.html" aria-current="true">Ру</a><a href="../en/benchmarks.html" hreflang="en" lang="en">En</a></span>
+  </nav>
+</header>
+
+<main class="wrap doc">
+  <h1>Бенчмарки</h1>
+  <p class="date">Замеры 19 октября 2026 года</p>
+
+  <div class="summary"><p><strong>Коротко:</strong> с одной открытой страницей Jiyda тратит меньше памяти, чем Edge и Chrome, и почти не нагружает процессор в простое. С 10 страницами и больше ему нужно примерно в 1,7–2 раза больше памяти, а открыть 50 страниц разом занимает несколько секунд. Публикуем и то, и другое — над вторым работаем.</p></div>
+
+  <h2>Результаты</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Браузер</th><th>Страниц</th><th>Запуск до первой страницы, мс</th><th>Все страницы загружены, мс</th><th>Частная память, МБ</th><th>Рабочий набор, МБ</th><th>Процессор в простое, % одного ядра</th></tr>
+    <tr><td><strong>Jiyda</strong></td><td>1</td><td>315</td><td>315</td><td>317</td><td>422</td><td>0,08</td></tr>
+    <tr><td>Microsoft Edge</td><td>1</td><td>369</td><td>369</td><td>391</td><td>755</td><td>0,78</td></tr>
+    <tr><td>Google Chrome</td><td>1</td><td>266</td><td>266</td><td>330</td><td>659</td><td>3,36</td></tr>
+    <tr><td><strong>Jiyda</strong></td><td>10</td><td>—</td><td>954</td><td>925</td><td>1000</td><td>1,64</td></tr>
+    <tr><td>Microsoft Edge</td><td>10</td><td>—</td><td>447</td><td>633</td><td>1269</td><td>1,95</td></tr>
+    <tr><td>Google Chrome</td><td>10</td><td>—</td><td>307</td><td>541</td><td>1187</td><td>3,59</td></tr>
+    <tr><td><strong>Jiyda</strong></td><td>50</td><td>—</td><td>6441</td><td>3100</td><td>3508</td><td>4,3</td></tr>
+    <tr><td>Microsoft Edge</td><td>50</td><td>—</td><td>890</td><td>1624</td><td>3548</td><td>1,56</td></tr>
+    <tr><td>Google Chrome</td><td>50</td><td>—</td><td>667</td><td>1444</td><td>3545</td><td>5,47</td></tr>
+  </table></div>
+  <p><strong>Компьютер:</strong> AMD Ryzen 7 7800X3D, 32 ГБ ОЗУ, Windows 11 (сборка 26300). Jiyda 0.6.4 (WebView2 155.0.4283.62), Microsoft Edge 155.0.4283.62, Google Chrome 155.0.8059.84.</p>
+
+  <h2>Как измеряли</h2>
+  <ul>
+    <li>Каждый прогон запускает браузер с новым пустым профилем и открывает 1, 10 или 50 копий одной и той же страницы-статьи (текст, таблицы, картинки, без анимаций) с локального сервера — без интернета.</li>
+    <li>Каждая страница — со своего адреса (127.0.0.1, 127.0.0.2…), так что 50 страниц — это 50 разных сайтов, как обычные вкладки.</li>
+    <li>«Запуск до первой страницы» — время от запуска браузера до события load страницы; «все страницы загружены» — до события load последней.</li>
+    <li>Память — сумма по всем процессам браузера (главный, страницы, GPU и другие) через 10 секунд после загрузки. <em>Частная память</em> — та, что занята только браузером; <em>рабочий набор</em> учитывает и общую память и приведён для полноты.</li>
+    <li>Процессор в простое — процессорное время всех этих процессов за 20 секунд без действий, в процентах от одного ядра.</li>
+    <li>Каждое число — медиана трёх прогонов после одного прогрева.</li>
+  </ul>
+
+  <h2>Чего эти цифры не говорят</h2>
+  <ul>
+    <li>Это одна машина и одна версия каждого браузера. На другом железе результаты будут другими.</li>
+    <li>Время работы от батареи и частота сбоев здесь не меряются — для них нужны долгие наблюдения на ноутбуках.</li>
+    <li>Открывать 50 страниц разом — необычно. Когда Jiyda восстанавливает сессию, страницы «спят», пока вы их не откроете.</li>
+  </ul>
+
+  <h2>Что бенчмарки уже исправили</h2>
+  <p>Первый прогон показал, что анимированный отсвет на верхней панели Jiyda постоянно её перерисовывал и в простое занимал около 13% ядра процессора. Его больше нет: теперь около 0,1%.</p>
+
+  <h2>Повторить</h2>
+  <p>Скрипт, страница и сырые результаты каждого прогона — в репозитории: <a href="https://github.com/chatyev/jiyda/tree/main/bench">bench/</a>. Запустите <code>bench/run.ps1</code> на своём компьютере.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="privacy.html">Приватность</a>
+    <a href="terms.html">Условия</a>
+    <a href="security.html">Безопасность</a>
+    <a href="benchmarks.html">Бенчмарки</a>
+    <a href="https://github.com/chatyev/jiyda/releases">Что нового</a>
+    <a href="../licenses.html">Лицензии</a>
+    <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>
+    <span class="made">© 2026 Jiyda</span>
+  </div>
+</footer>
+</body>
+</html>
