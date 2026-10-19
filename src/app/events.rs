@@ -208,7 +208,11 @@ impl App {
                         }
                     }
                     a @ ("explain" | "translate" | "ask") => {
-                        self.ui_command("ask_selection", json!({ "action": a, "text": text }))
+                        if self.page_ai.allow(Instant::now()) {
+                            self.ui_command("ask_selection", json!({ "action": a, "text": text }))
+                        } else {
+                            log::warn!("страница слишком часто открывает Ask Jiyda, заблокировано");
+                        }
                     }
                     _ => {}
                 }

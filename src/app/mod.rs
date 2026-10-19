@@ -65,6 +65,10 @@ const SLEEP_CHECK: Duration = Duration::from_secs(60);
 /// Сколько страниц сайты могут открыть (window.open, Ctrl/средний клик) за окно времени.
 const PAGE_TABS_MAX: usize = 10;
 const PAGE_TABS_WINDOW: Duration = Duration::from_secs(5);
+/// Сколько раз страница может открыть Ask Jiyda с действием (Explain, Translate): каждое —
+/// платный запрос по ключу пользователя, а сообщение может прислать и сам сайт.
+const PAGE_AI_MAX: usize = 3;
+const PAGE_AI_WINDOW: Duration = Duration::from_secs(60);
 /// Промежуток между половинами Split View, в нём разделитель (`--split-gap` в ui/styles.css).
 const SPLIT_GAP: f64 = 6.0;
 /// Строка над половинами Split View: значок, сайт, действия (`--pane-h`).
@@ -368,6 +372,7 @@ pub struct App {
     save_due: Option<Instant>,
     next_sleep_check: Instant,
     page_tabs: RateLimit,
+    page_ai: RateLimit,
     /// Окно закрывают — main.rs завершит цикл событий.
     exit_requested: bool,
     maximized: bool,

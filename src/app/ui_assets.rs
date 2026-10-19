@@ -13,6 +13,16 @@ pub(super) const INDEX_URL: &str = "jiyda://ui/index.html";
 /// Так WebView2 видит адреса интерфейса (wry: with_https_scheme).
 pub(super) const ORIGIN: &str = "https://jiyda.ui/";
 
+/// Политика безопасности страницы интерфейса: только свои файлы, картинки ещё из data:
+/// (значки сайтов, снимки страниц). Никаких внешних скриптов, запросов в сеть, фреймов и
+/// форм — даже если в интерфейс попадёт чужая разметка, она ничего не загрузит и никуда
+/// не отправит. eval разрешён только отладочной сборке: на нём работают сценарии E2E.
+pub(super) const CSP: &str = if cfg!(debug_assertions) {
+    "default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+} else {
+    "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+};
+
 /// Встроенный файл: байты и тип. Путь — относительно ui/, например «js/core.js».
 pub(super) fn asset(path: &str) -> Option<(&'static [u8], &'static str)> {
     let path = path.trim_start_matches('/');

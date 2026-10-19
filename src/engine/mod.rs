@@ -167,6 +167,8 @@ pub struct UiSpec {
     pub scheme: &'static str,
     /// Файл интерфейса по пути: байты и MIME-тип; None — 404.
     pub asset: AssetFn,
+    /// Content-Security-Policy страницы интерфейса.
+    pub csp: &'static str,
     /// Куда интерфейсу можно переходить (остальное — открыть страницей, см. `on_leave`).
     pub is_own_url: fn(&str) -> bool,
     /// Интерфейс пытается уйти на сайт — открыть его страницей.

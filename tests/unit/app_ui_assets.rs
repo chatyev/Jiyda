@@ -117,3 +117,21 @@ fn uzbek_dictionary_is_latin() {
         assert!(!line.chars().any(|c| ('\u{400}'..='\u{4ff}').contains(&c)), "кириллица: {line}");
     }
 }
+
+#[test]
+fn csp_allows_only_own_files() {
+    for must in [
+        "default-src 'none'",
+        "script-src 'self'",
+        "connect-src 'none'",
+        "frame-src 'none'",
+        "object-src 'none'",
+        "base-uri 'none'",
+    ] {
+        assert!(CSP.contains(must), "нет {must}");
+    }
+    // Ни одного внешнего адреса и встроенных скриптов.
+    assert!(!CSP.contains("http") && !CSP.contains("*"), "{CSP}");
+    assert!(!CSP.contains("script-src 'self' 'unsafe-inline'"));
+    assert_eq!(CSP.contains("unsafe-eval"), cfg!(debug_assertions), "eval — только в отладочной сборке");
+}

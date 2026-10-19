@@ -96,15 +96,35 @@ fn wry_theme(t: Theme) -> wry::Theme {
 }
 
 /// Ответ на запрос интерфейса к своему протоколу (`<scheme>://ui/…`).
-fn respond(asset: AssetFn, req: &Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
+fn respond(asset: AssetFn, csp: &str, req: &Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
     let response = match asset(req.uri().path()) {
-        Some((data, mime)) => Response::builder().header(CONTENT_TYPE, mime).body(Cow::Borrowed(data)),
+        Some((data, mime)) => Response::builder()
+            .header(CONTENT_TYPE, mime)
+            .header("Content-Security-Policy", csp)
+            .header("X-Content-Type-Options", "nosniff")
+            .body(Cow::Borrowed(data)),
         None => {
             log::warn!("интерфейс запросил несуществующий файл: {}", req.uri());
             Response::builder().status(StatusCode::NOT_FOUND).body(Cow::Borrowed(&b""[..]))
         }
     };
     response.unwrap_or_else(|_| Response::new(Cow::Borrowed(&b""[..])))
+}
+
+/// Куда интерфейсу можно перейти: только на свои страницы. Сайт (http, https) открывается
+/// страницей Jiyda (`leave`), всё остальное (file:, data:, javascript:, about: …) запрещено —
+/// иначе чужой документ занял бы место интерфейса вместе с его правами.
+fn ui_navigation(is_own: fn(&str) -> bool, url: &str, leave: impl FnOnce(String)) -> bool {
+    if is_own(url) {
+        return true;
+    }
+    let lower = url.get(..8).unwrap_or(url).to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        leave(url.to_string());
+    } else {
+        log::warn!("интерфейс не переходит на {url}");
+    }
+    false
 }
 
 /// Настройки WebView интерфейса: без своих клавиш WebView (Ctrl+P, F5, Ctrl+F…) и
@@ -146,28 +166,33 @@ impl Engine for WebView2Engine {
             use wry::WebViewBuilderExtWindows;
             builder.with_https_scheme(true)
         };
-        let asset = spec.asset;
+        let (asset, csp) = (spec.asset, spec.csp);
         let is_own = spec.is_own_url;
-        let on_leave = spec.on_leave;
+        let on_leave = Rc::new(spec.on_leave);
+        let leave_popup = on_leave.clone();
         let emit = self.emit(None);
         let ui = builder
             .with_transparent(true)
             .with_background_color((0, 0, 0, 0))
-            .with_custom_protocol(spec.scheme.into(), move |_, req| respond(asset, &req))
+            .with_custom_protocol(spec.scheme.into(), move |_, req| respond(asset, csp, &req))
             .with_url(&spec.url)
             .with_bounds(rect(spec.bounds))
             .with_initialization_script(&spec.init_script)
-            .with_ipc_handler(move |req| emit(PageEvent::Message(req.body().clone())))
-            .with_navigation_handler(move |url| {
-                // Интерфейс никуда не уходит: внешние ссылки открываем страницей.
-                if is_own(&url) {
-                    true
-                } else if url.starts_with("http://") || url.starts_with("https://") {
-                    on_leave(url);
-                    false
+            // Команды браузеру принимаем только от самого интерфейса: окажись в его WebView
+            // чужой документ, он не должен управлять Jiyda через window.ipc.
+            .with_ipc_handler(move |req| {
+                if is_own(&req.uri().to_string()) {
+                    emit(PageEvent::Message(req.body().clone()));
                 } else {
-                    true
+                    log::warn!("сообщение интерфейсу не из интерфейса отклонено: {}", req.uri());
                 }
+            })
+            .with_navigation_handler(move |url| ui_navigation(is_own, &url, |u| on_leave(u)))
+            // Ссылка с target=_blank или window.open из интерфейса — обычная страница Jiyda,
+            // а не отдельное окно WebView2.
+            .with_new_window_req_handler(move |url, _| {
+                ui_navigation(is_own, &url, |u| leave_popup(u));
+                NewWindowResponse::Deny
             })
             .build_as_child(window)
             .map_err(|e| e.to_string())?;

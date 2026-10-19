@@ -102,6 +102,7 @@ impl App {
             url: ui_assets::INDEX_URL.into(),
             scheme: ui_assets::SCHEME,
             asset: ui_assets::asset,
+            csp: ui_assets::CSP,
             is_own_url: ui_assets::is_ui_url,
             on_leave: Box::new(move |url| {
                 let _ = nav_proxy.send_event(UserEvent::OpenTab { url, background: false });
@@ -151,6 +152,7 @@ impl App {
             save_due: None,
             next_sleep_check: Instant::now() + SLEEP_CHECK,
             page_tabs: RateLimit::new(PAGE_TABS_MAX, PAGE_TABS_WINDOW),
+            page_ai: RateLimit::new(PAGE_AI_MAX, PAGE_AI_WINDOW),
             exit_requested: false,
             maximized: false,
             fullscreen: false,
