@@ -166,6 +166,7 @@ impl App {
             maximized: false,
             fullscreen: false,
             page_fullscreen: None,
+            sidebar: 0.0,
             updates: Updates::new(),
             keys,
             shield: shield_state,

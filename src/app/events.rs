@@ -326,6 +326,17 @@ impl App {
             UiMsg::BookmarkFolder { parent, title } => self.new_bookmark_folder(parent, &title),
             UiMsg::BookmarkOpenAll { id } => self.open_bookmark_folder(id),
             UiMsg::BookmarkAdd { url, title, parent } => self.add_bookmark(&url, &title, parent),
+            UiMsg::BookmarksExport => self.export_bookmarks(),
+            // Файл больше 20 МБ — не закладки.
+            UiMsg::BookmarksImportHtml { html } if html.len() <= 20 * 1024 * 1024 => self.import_bookmarks_html(&html),
+            UiMsg::BookmarksImportHtml { .. } => self.toast(i18n::tr("No new bookmarks in this file")),
+            UiMsg::Sidebar { width } => {
+                let width = if width.is_finite() { width.clamp(0.0, 600.0) } else { 0.0 };
+                if width != self.sidebar {
+                    self.sidebar = width;
+                    self.layout();
+                }
+            }
             UiMsg::Import { source, bookmarks, history } => {
                 self.start_import(&source, crate::import::What { bookmarks, history })
             }

@@ -70,23 +70,33 @@ import { S } from './core.js';
   const btn = S.$('#bm-btn');
   const title = S.h('h2');
   const folderBtn = S.iconBtn('folder-plus', 'New folder', () => S.post({ type: 'bookmark_folder', title: S.t('New folder') }), 'sm');
-  const importBtn = S.iconBtn('download', 'Import…', () => openImport(), 'sm');
-  const closeBtn = S.iconBtn('x', 'Close', () => S.layers.close('bookmarks'), 'sm');
+  const moreBtn = S.iconBtn('more', 'More', (e) => moreMenu(e.currentTarget), 'sm');
+  const dockBtn = S.iconBtn('pin', 'Keep open on the side', () => setDocked(!docked), 'sm');
+  const closeBtn = S.iconBtn('x', 'Close', () => closePanel(), 'sm');
+  // Файл HTML с закладками другого браузера: выбирает пользователь, читаем здесь, разбирает ядро.
+  const fileInput = S.h('input', { type: 'file', hidden: true, attrs: { accept: '.html,.htm,text/html' } });
   const search = S.h('input', { attrs: { spellcheck: 'false', autocomplete: 'off' } });
   const addRow = S.h('button', { class: 'row bm-add' });
   const list = S.h('div', { class: 'panel-body bm-list', attrs: { role: 'tree' } });
   const panel = S.h('div', { class: 'pop bm-panel right', hidden: true, attrs: { role: 'dialog', 'data-hit': '22' } },
-    S.h('div', { class: 'bm-head' }, title, folderBtn, importBtn, closeBtn),
+    S.h('div', { class: 'bm-head' }, title, folderBtn, moreBtn, dockBtn, closeBtn),
     S.h('div', { class: 'bm-search' }, S.h('label', { class: 'search-field' }, S.icon('search', 'i16'), search)),
     addRow, list);
   panel.tabIndex = -1;
   S.$('#popovers').append(panel);
+  document.body.append(fileInput);
 
   const expanded = new Set();
-  let rows = [], sel = 0, editing = null, returnTo = null;
+  let rows = [], sel = 0, editing = null, returnTo = null, commitEdit = null, dragId = null;
+  // Закреплённая панель: справа во всю высоту, страница ужимается рядом (UiMsg::Sidebar).
+  // Выбор помним в этом браузере (localStorage): это удобство, а не настройка.
+  const DOCK_W = 340;
+  let docked = false;
+  try { docked = localStorage.getItem('jiyda.bookmarks.docked') === '1'; } catch (_) { /* нет хранилища */ }
+  let dockedShown = false;
 
   function drawButton() {
-    const open = S.layers.isOpen('bookmarks');
+    const open = S.layers.isOpen('bookmarks') || dockedShown;
     btn.classList.toggle('on', open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     btn.title = S.withKey(S.t('Bookmarks'), 'bookmarks');
@@ -121,12 +131,17 @@ import { S } from './core.js';
   function editor(n, depth) {
     const name = S.h('input', { type: 'text', value: n.title, attrs: { 'aria-label': S.t('Name'), spellcheck: 'false' } });
     const url = n.children ? null : S.h('input', { type: 'text', value: n.url, attrs: { 'aria-label': S.t('Address'), spellcheck: 'false' } });
+    commitEdit = () => {
+      commitEdit = null;
+      if (name.value !== n.title || (url && url.value !== n.url)) S.post({ type: 'bookmark_edit', id: n.id, title: name.value, url: url ? url.value : null });
+    };
     const save = () => {
       editing = null;
-      S.post({ type: 'bookmark_edit', id: n.id, title: name.value, url: url ? url.value : null });
+      commitEdit();
+      draw();
       requestAnimationFrame(() => search.focus());
     };
-    const cancel = () => { editing = null; draw(); search.focus(); };
+    const cancel = () => { editing = null; commitEdit = null; draw(); search.focus(); };
     for (const inp of [name, url]) {
       if (!inp) continue;
       inp.addEventListener('keydown', (e) => {
@@ -202,13 +217,75 @@ import { S } from './core.js';
     el.addEventListener('auxclick', (e) => { if (e.button === 1 && !isFolder) { e.preventDefault(); open(n, 'background'); } });
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); sel = i; mark(false); rowMenu(e, n); });
     el.addEventListener('mousemove', () => { if (sel !== i) { sel = i; mark(false); } });
+    if (!sub) dragAndDrop(el, n);
     rows.push({ el, n, depth });
     return el;
   }
 
+  const zoneOf = (e, el, folder) => {
+    const r = el.getBoundingClientRect();
+    const y = (e.clientY - r.top) / r.height;
+    return folder && y > 0.25 && y < 0.75 ? 'into' : y < 0.5 ? 'before' : 'after';
+  };
+  const clearDrop = () => { for (const r of rows) r.el.classList.remove('drop-before', 'drop-after', 'drop-into'); };
+  function dragAndDrop(el, n) {
+    el.draggable = true;
+    el.addEventListener('dragstart', (e) => {
+      dragId = n.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', n.url || n.title || '');
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => { dragId = null; el.classList.remove('dragging'); clearDrop(); });
+    el.addEventListener('dragover', (e) => {
+      if (dragId === null || dragId === n.id) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      clearDrop();
+      el.classList.add('drop-' + zoneOf(e, el, !!n.children));
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drop-before', 'drop-after', 'drop-into'));
+    el.addEventListener('drop', (e) => {
+      if (dragId === null || dragId === n.id) return;
+      e.preventDefault();
+      const zone = zoneOf(e, el, !!n.children);
+      const id = dragId;
+      dragId = null;
+      clearDrop();
+      if (zone === 'into') {
+        expanded.add(n.id);
+        S.post({ type: 'bookmark_move', id, parent: n.id });
+      } else {
+        const parent = parentOf(n.id);
+        const siblings = parent === null ? items : (find(parent) || {}).children || [];
+        const j = siblings.indexOf(n);
+        S.post({ type: 'bookmark_move', id, parent, index: zone === 'before' ? j : j + 1 });
+      }
+    });
+  }
+
+  // Меню «⋯» в шапке: перенос из браузеров и файлы HTML.
+  function moreMenu(anchor) {
+    S.menu.open(anchor, [
+      { label: S.t('Import from Chrome or Edge'), icon: 'download', action: openImport },
+      { label: S.t('Import from HTML file…'), icon: 'file', action: () => fileInput.click() },
+      { label: S.t('Export to HTML file'), icon: 'file-text', action: () => S.post({ type: 'bookmarks_export' }) },
+    ]);
+  }
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => S.post({ type: 'bookmarks_import_html', html: String(reader.result || '') });
+    reader.readAsText(file);
+  });
+
   function draw() {
     title.textContent = S.t('Bookmarks');
-    for (const [b, l] of [[folderBtn, S.t('New folder')], [importBtn, S.t('Import from Chrome or Edge')], [closeBtn, S.t('Close')]]) { b.title = l; b.setAttribute('aria-label', l); }
+    const dockLabel = docked ? S.t('Float over the page') : S.t('Keep open on the side');
+    for (const [b, l] of [[folderBtn, S.t('New folder')], [moreBtn, S.t('More actions')], [dockBtn, dockLabel], [closeBtn, S.t('Close')]]) { b.title = l; b.setAttribute('aria-label', l); }
+    dockBtn.setAttribute('aria-pressed', docked ? 'true' : 'false');
     drawAdd();
     rows = [];
     const out = [];
@@ -318,18 +395,16 @@ import { S } from './core.js';
     open() {
       // Фокус вернётся туда, откуда открыли с клавиатуры (кнопка на панели).
       returnTo = document.activeElement === btn ? btn : null;
-      search.value = '';
-      search.placeholder = S.t('Search bookmarks…');
-      search.setAttribute('aria-label', S.t('Search bookmarks…'));
-      panel.setAttribute('aria-label', S.t('Bookmarks'));
-      sel = 0; editing = null;
-      S.loadHistory();
+      prepare();
       draw();
       S.show(panel);
       requestAnimationFrame(() => search.focus());
     },
     close() {
+      if (commitEdit) commitEdit();
       editing = null;
+      // Панель закрепили — слой закрылся, а панель осталась сбоку.
+      if (dockedShown) return;
       // Список устаревает, пока панель закрыта: при открытии он рисуется заново.
       S.hide(panel, () => S.fill(list));
       if (returnTo && returnTo.isConnected) returnTo.focus({ preventScroll: true });
@@ -337,7 +412,69 @@ import { S } from './core.js';
     },
   });
   btn.addEventListener('click', () => S.cmd('bookmarks'));
-  S.on('command:bookmarks', () => S.layers.toggle('bookmarks'));
+  S.on('command:bookmarks', () => {
+    if (!docked) S.layers.toggle('bookmarks');
+    else if (dockedShown) closePanel();
+    else showDocked();
+  });
+
+  function prepare() {
+    search.value = '';
+    search.placeholder = S.t('Search bookmarks…');
+    search.setAttribute('aria-label', S.t('Search bookmarks…'));
+    panel.setAttribute('aria-label', S.t('Bookmarks'));
+    sel = 0; editing = null;
+    S.loadHistory();
+  }
+  function sidebar() {
+    document.body.classList.toggle('bm-docked', dockedShown);
+    S.post({ type: 'sidebar', width: dockedShown ? DOCK_W : 0 });
+    drawButton();
+  }
+  function showDocked() {
+    prepare();
+    dockedShown = true;
+    panel.classList.add('docked');
+    panel.dataset.hit = '0';
+    draw();
+    S.show(panel);
+    sidebar();
+    requestAnimationFrame(() => search.focus());
+  }
+  function closePanel() {
+    if (!dockedShown) { S.layers.close('bookmarks'); return; }
+    if (commitEdit) commitEdit();
+    editing = null;
+    dockedShown = false;
+    sidebar();
+    S.hide(panel, () => { panel.classList.remove('docked'); panel.dataset.hit = '22'; S.fill(list); });
+  }
+  // Закрепить сбоку или вернуть плавающей поверх страницы — панель остаётся открытой.
+  function setDocked(on) {
+    docked = on;
+    try { localStorage.setItem('jiyda.bookmarks.docked', on ? '1' : '0'); } catch (_) { /* нет хранилища */ }
+    if (on) {
+      dockedShown = true;
+      panel.classList.add('docked');
+      panel.dataset.hit = '0';
+      S.layers.close('bookmarks');
+      sidebar();
+    } else {
+      dockedShown = false;
+      panel.classList.remove('docked');
+      panel.dataset.hit = '22';
+      sidebar();
+      S.layers.open('bookmarks');
+    }
+    draw();
+  }
+  // Закреплённую панель Esc не закрывает: только правку и поиск.
+  panel.addEventListener('keydown', (e) => {
+    if (!dockedShown || e.key !== 'Escape') return;
+    if (editing !== null) { editing = null; commitEdit = null; draw(); }
+    else if (search.value) { search.value = ''; draw(); }
+    e.preventDefault();
+  });
 
   // ---------- Окно закладки (Ctrl+D, ☆) ----------
   const dlg = S.h('div', { class: 'pop bm-dialog right', hidden: true, attrs: { role: 'dialog', 'data-hit': '22' } });

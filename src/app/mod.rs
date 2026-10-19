@@ -394,6 +394,8 @@ pub struct App {
     fullscreen: bool,
     /// Страница развернула на весь экран свой элемент (видео).
     page_fullscreen: Option<u64>,
+    /// Ширина закреплённой панели закладок справа (UiMsg::Sidebar): страницы уже на неё.
+    sidebar: f64,
     updates: Updates,
     keys: Rc<Keys>,
     shield: Rc<RefCell<ShieldState>>,

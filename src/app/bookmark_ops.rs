@@ -239,3 +239,41 @@ fn is_web_url(url: &str) -> bool {
     let lower = url.get(..8).unwrap_or(url).to_ascii_lowercase();
     lower.starts_with("http://") || lower.starts_with("https://")
 }
+
+impl App {
+    // ---------- Закладки в файле HTML ----------
+
+    /// Сохранить все закладки файлом HTML в папку загрузок (его открывают Chrome, Edge, Firefox).
+    pub(super) fn export_bookmarks(&mut self) {
+        let Some(dir) = self.download_dir() else {
+            self.toast(i18n::tr("Couldn't save the file"));
+            return;
+        };
+        let path = dir.join(format!("jiyda-bookmarks-{}.html", shield::today()));
+        match std::fs::write(&path, crate::bookmarks_html::export(self.bookmarks.items())) {
+            Ok(()) => self.toast_action(
+                &i18n::trf("Bookmarks saved to {}", &[&path.display()]),
+                i18n::tr("Show in folder"),
+                json!({ "type": "cmd", "k": "open_downloads_folder" }),
+            ),
+            Err(e) => {
+                log::error!("не удалось сохранить закладки в {}: {e}", path.display());
+                self.toast(i18n::tr("Couldn't save the file"));
+            }
+        }
+    }
+
+    /// Перенести закладки из файла HTML (выбранного в панели закладок) отдельной папкой.
+    /// Адреса, которые уже есть в закладках, пропускаются.
+    pub(super) fn import_bookmarks_html(&mut self, html: &str) {
+        let nodes = crate::bookmarks_html::parse(html);
+        let added = self.bookmarks.import(i18n::tr("Imported bookmarks"), nodes);
+        if added > 0 {
+            self.metric(crate::telemetry::Event::ImportCompleted);
+            self.bookmarks_changed();
+            self.toast(&i18n::trf("Imported {} bookmarks", &[&added]));
+        } else {
+            self.toast(i18n::tr("No new bookmarks in this file"));
+        }
+    }
+}

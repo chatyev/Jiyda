@@ -191,6 +191,90 @@ E2E.test('bookmarks: suggested in the address bar and palette', async (t) => {
   await clearBookmarks(t);
 });
 
+E2E.test('bookmarks: an edit is saved when the panel closes by clicking away', async (t) => {
+  await clearBookmarks(t);
+  await t.open('a.html');
+  addActive(t);
+  await t.waitFor(() => t.state().bookmarked, 'A в закладках');
+  t.cmd('bookmarks');
+  await t.waitFor(() => t.layerOpen('bookmarks') && panelRows(t).length === 1, 'строка A');
+  t.key(t.$('.bm-panel input'), 'F2');
+  const name = await t.waitFor(() => t.$('.bm-panel .bm-edit input'), 'правка открыта');
+  t.type(name, 'A renamed');
+  S.layers.closePops(); // так закрывает панель щелчок по странице
+  await t.waitFor(async () => (await bookmarks(t))[0].title === 'A renamed', 'правка сохранилась');
+});
+
+E2E.test('bookmarks: drag a bookmark into a folder and before another one', async (t) => {
+  await clearBookmarks(t);
+  await t.open('a.html');
+  addActive(t);
+  t.post({ type: 'bookmark_folder', title: 'Work' });
+  await t.open('b.html', 'current');
+  addActive(t);
+  await t.waitFor(async () => (await bookmarks(t)).length === 3, 'A, Work, B');
+  t.cmd('bookmarks');
+  await t.waitFor(() => t.layerOpen('bookmarks') && panelRows(t).length === 3, 'три строки');
+  const rowOf = (text) => panelRows(t).find((r) => r.textContent.includes(text));
+  const drag = (from, to, where) => {
+    const dt = new DataTransfer();
+    const r = to.getBoundingClientRect();
+    const y = where === 'into' ? r.top + r.height / 2 : where === 'before' ? r.top + 2 : r.bottom - 2;
+    from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    to.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+    to.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+    from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+  };
+  drag(rowOf('Page B'), rowOf('Page A'), 'before');
+  await t.waitFor(async () => (await bookmarks(t)).map((n) => n.title).join() === 'Page B,Page A,Work', 'B перед A');
+  await t.waitFor(() => panelRows(t).length === 3 && rowOf('Work'), 'панель перерисована');
+  drag(rowOf('Page A'), rowOf('Work'), 'into');
+  const items = await t.waitFor(async () => { const b = await bookmarks(t); return byTitle(b, 'Work').children.length === 1 && b; }, 'A в папке Work');
+  t.eq(items.map((n) => n.title), ['Page B', 'Work'], 'наверху B и папка');
+});
+
+E2E.test('bookmarks: export to an HTML file and import one back', async (t) => {
+  await clearBookmarks(t);
+  await t.open('a.html');
+  addActive(t);
+  await t.waitFor(() => t.state().bookmarked, 'A в закладках');
+  t.post({ type: 'bookmarks_export' });
+  await t.waitFor(() => t.$$('.toast').some((x) => x.textContent.includes('jiyda-bookmarks-')), 'файл сохранён в загрузки');
+  const html = '<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>Firefox</H3><DL><p>'
+    + '<DT><A HREF="https://html.fixture.test/">From HTML</A><DT><A HREF="javascript:alert(1)">JS</A>'
+    + `<DT><A HREF="${t.url('a.html')}">Duplicate A</A></DL><p></DL><p>`;
+  t.post({ type: 'bookmarks_import_html', html });
+  const items = await t.waitFor(async () => { const b = await bookmarks(t); return links(b).length === 2 && b; }, 'перенесена одна новая ссылка');
+  t.ok(links(items).some((n) => n.url === 'https://html.fixture.test/'), 'ссылка из файла');
+  t.ok(!links(items).some((n) => n.url.startsWith('javascript:')), 'javascript: не перенесён');
+  await clearBookmarks(t);
+});
+
+E2E.test('bookmarks: the panel docks to the side and the page makes room', async (t) => {
+  await clearBookmarks(t);
+  await t.open('a.html');
+  const before = await t.evalPage('innerWidth');
+  t.cmd('bookmarks');
+  await t.waitFor(() => t.layerOpen('bookmarks'), 'панель открыта');
+  t.$('.bm-panel .bm-head [aria-pressed]').click();
+  await t.waitFor(() => t.$('.bm-panel').classList.contains('docked') && !t.layerOpen('bookmarks'), 'закреплена, это уже не всплывающий слой');
+  const docked = await t.waitFor(async () => { const w = await t.evalPage('innerWidth'); return w < before - 300 && w; }, 'страница ужалась');
+  t.ok(docked <= before - 320, `ширина страницы ${before} → ${docked}`);
+  S.layers.open('palette');
+  await t.waitFor(() => t.layerOpen('palette'), 'палитра');
+  t.ok(!t.$('.bm-panel').hidden, 'закреплённая панель не закрывается другими слоями');
+  S.layers.closeAll();
+  t.cmd('bookmarks');
+  await t.waitFor(async () => (await t.evalPage('innerWidth')) === before, 'закрыли — страница снова во всю ширину');
+  t.ok(t.$('#bm-btn').getAttribute('aria-expanded') === 'false', 'кнопка отжата');
+  // Вернуть плавающий режим для остальных сценариев.
+  t.cmd('bookmarks');
+  await t.waitFor(() => !t.$('.bm-panel').hidden, 'открыта закреплённой');
+  t.$('.bm-panel .bm-head [aria-pressed]').click();
+  await t.waitFor(() => t.layerOpen('bookmarks') && !t.$('.bm-panel').classList.contains('docked'), 'снова поверх страницы');
+  S.layers.closeAll();
+});
+
 E2E.test('import: New Page offers to import from the browsers found', async (t) => {
   await t.waitFor(() => t.state().importOffer, 'ядро предлагает перенос');
   t.eq(t.state().importOffer.browsers, ['Google Chrome', 'Microsoft Edge'], 'найдены оба браузера');

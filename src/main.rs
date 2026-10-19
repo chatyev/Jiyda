@@ -4,6 +4,7 @@
 mod ai;
 mod app;
 mod bookmarks;
+mod bookmarks_html;
 mod command;
 mod config;
 mod engine;

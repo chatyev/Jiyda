@@ -178,6 +178,7 @@ import { S } from './core.js';
     'Once a day: Jiyda and Windows versions, how often Jiyda starts and crashes, which features are used. Never addresses, page titles, searches or anything you type.': 'Раз в день: версии Jiyda и Windows, как часто Jiyda запускается и падает, какими функциями пользуются. Никогда — адреса, заголовки страниц, поисковые запросы и то, что вы печатаете.',
     'Send anonymous usage statistics once a day. Never addresses, searches or anything you type.': 'Отправлять раз в день анонимную статистику. Никогда — адреса, поисковые запросы и то, что вы печатаете.',
     'What is sent': 'Что отправляется', 'Today’s report, exactly as it will be sent.': 'Сегодняшний отчёт — ровно таким, каким он уйдёт.', 'Show': 'Показать', 'Hide': 'Скрыть',
+    'Keep open on the side': 'Закрепить сбоку', 'Float over the page': 'Поверх страницы', 'Import from HTML file…': 'Импорт из файла HTML…', 'Export to HTML file': 'Сохранить в файл HTML',
     'Beta versions': 'Бета-версии', 'Get new features a few days before everyone else. Beta versions may have more bugs.': 'Новые возможности — на несколько дней раньше всех. В бета-версиях может быть больше ошибок.',
     'Jiyda {0}. Updates come from GitHub Releases.': 'Jiyda {0}. Обновления — с GitHub Releases.', 'Check now': 'Проверить сейчас',
     'Jiyda protects you by default — you shouldn’t have to manage it.': 'Jiyda защищает вас сам — управлять этим не обязательно.', 'Block trackers and ads': 'Блокировать трекеры и рекламу',

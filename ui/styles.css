@@ -718,6 +718,18 @@ body.fullscreen .layer .backdrop { inset: 0; }
   border-color: color-mix(in oklab, var(--glow) 22%, var(--line));
 }
 body.fullscreen .bm-panel { top: 8px; max-height: calc(100vh - 16px); }
+/* Закреплённая сбоку: во всю высоту под верхней панелью, страница ужата рядом (ядро:
+   UiMsg::Sidebar), New Page — тоже. Ширина — DOCK_W в bookmarks.js. */
+.bm-panel.docked { top: var(--chrome-h); right: 0; bottom: 0; width: 340px; max-height: none; border-radius: 0; border-width: 0 0 0 1px; box-shadow: none; }
+body.fullscreen .bm-panel.docked { top: 0; }
+body.bm-docked .stage { right: 340px; }
+.bm-panel.docked .bm-add .row-sub { display: none; }
+.bm-head .icon-btn[aria-pressed="true"] { color: var(--glow); background: var(--glow-soft); }
+/* Перетаскивание: куда ляжет закладка — линия до или после строки, рамка — внутрь папки. */
+.bm-list .row.dragging { opacity: 0.45; }
+.bm-list .row.drop-before { box-shadow: inset 0 2px 0 var(--glow); }
+.bm-list .row.drop-after { box-shadow: inset 0 -2px 0 var(--glow); }
+.bm-list .row.drop-into { background: var(--glow-soft); box-shadow: inset 0 0 0 1px var(--glow); }
 .bm-head { display: flex; align-items: center; gap: 2px; padding: 12px 8px 6px 16px; }
 .bm-head h2 { flex: 1; font: 600 15px/1.2 var(--font); }
 .bm-search { padding: 4px 12px 6px; }

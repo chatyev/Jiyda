@@ -18,6 +18,9 @@ impl App {
     /// Область страницы: (x, y, ширина, высота) в логических пикселях.
     pub(super) fn content_box(&self) -> Box4 {
         let (w, h) = self.window_size();
+        // Закреплённая панель закладок справа — страница рядом с ней, а не под ней (кроме
+        // полноэкранного видео со страницы).
+        let w = if self.page_fullscreen.is_none() { (w - self.sidebar).max(200.0) } else { w };
         if self.chrome_visible() { (0.0, CHROME_H, w, h - CHROME_H) } else { (0.0, 0.0, w, h) }
     }
 
