@@ -23,9 +23,9 @@
 
 <main class="wrap doc">
   <h1>Privacy Policy</h1>
-  <p class="date">Effective 18 October 2026 · Applies to Jiyda 0.6.3 and later and to this website</p>
+  <p class="date">Effective 19 October 2026 · Applies to Jiyda 0.6.5 and later and to this website</p>
 
-  <div class="summary"><p><strong>In short:</strong> Jiyda does not collect your browsing history, the addresses you visit, your searches or the contents of pages. Everything Jiyda keeps about your browsing stays on your computer. Jiyda itself talks to the internet only to check for updates and, if you set it up, to answer your questions with Ask Jiyda. Websites you visit and Microsoft WebView2, the engine that shows pages, have their own rules, described below.</p></div>
+  <div class="summary"><p><strong>In short:</strong> Jiyda does not collect your browsing history, the addresses you visit, your searches or the contents of pages. Everything Jiyda keeps about your browsing stays on your computer. Jiyda itself talks to the internet only to check for updates and, if you set it up, to answer your questions with Ask Jiyda. If you turn on <em>Help improve Jiyda</em> (off by default), it also sends one short anonymous report a day with counts only. Websites you visit and Microsoft WebView2, the engine that shows pages, have their own rules, described below.</p></div>
 
   <h2>Who we are</h2>
   <p>Jiyda is developed and published by Dmitriy Chatiev, Republic of Uzbekistan (“we”). For anything about privacy, write to <a href="mailto:d.chatyev@gmail.com">d.chatyev@gmail.com</a>.</p>
@@ -48,8 +48,9 @@
     <tr><td>Installing an update you accepted</td><td>GitHub (Microsoft)</td><td>The download request for the installer and its checksum.</td></tr>
     <tr><td>Ask Jiyda, only after you add your own API key and only when you ask a question or press an action</td><td>Anthropic</td><td>Your question and the context you chose: the text of the current page, selected text, or titles and addresses of pages. Anthropic processes it under its own terms for API customers.</td></tr>
     <tr><td>You search from the address bar</td><td>Your search engine (Google by default; you can change it)</td><td>Your search query, as on that search engine’s own website.</td></tr>
+    <tr><td>Only if you turn on <em>Help improve Jiyda</em> (Settings → Privacy &amp; Security; off by default): once a day</td><td>The Jiyda statistics server, run on Cloudflare</td><td>One anonymous report described in <a href="#statistics">Usage statistics</a> below. Cloudflare sees your IP address to deliver the request; we do not store it.</td></tr>
   </table></div>
-  <p>That is the complete list for Jiyda itself. There is no account, no sign-in, no analytics, no advertising and no crash reporting service.</p>
+  <p>That is the complete list for Jiyda itself. There is no account, no sign-in, no advertising and no crash reporting service, and no analytics unless you turn on <em>Help improve Jiyda</em>.</p>
 
   <h2>What Jiyda does not collect</h2>
   <ul>
@@ -57,9 +58,19 @@
     <li>Search queries and anything you type into pages</li>
     <li>Page contents, cookies, passwords and form data</li>
     <li>Names of files you download</li>
-    <li>Usage statistics, device identifiers or crash reports</li>
+    <li>Device identifiers or crash reports</li>
   </ul>
-  <p>If we ever add optional usage statistics, they will be off until you turn them on, they will never include the items above, and this policy will describe them before they ship.</p>
+
+  <h2 id="statistics">Usage statistics (optional)</h2>
+  <p><em>Help improve Jiyda</em> is off until you turn it on in Settings → Privacy &amp; Security or during the welcome tour. When it is on, Jiyda sends one report a day for the previous day. Settings → <em>What is sent</em> shows today’s report exactly as it will be sent. The report contains only:</p>
+  <ul>
+    <li>a random install number, created when you turn statistics on and deleted when you turn them off;</li>
+    <li>the versions of Jiyda and Windows;</li>
+    <li>how many times that day Jiyda started and closed unexpectedly, and whether updates succeeded or failed;</li>
+    <li>how many times you switched Spaces and opened the command palette, and whether you finished the welcome tour or an import;</li>
+    <li>roughly how many pages are open, as a range (for example, 6–10), and whether Jiyda is your default browser.</li>
+  </ul>
+  <p>It never contains the items listed above: no addresses, titles, searches, typed text or page contents. We use the reports only to count active users and find crashes and broken features, keep them for at most 13 months, and do not share or sell them. When you turn statistics off, the install number is deleted from your computer, and anything sent before can no longer be linked to you. To have past reports deleted, write to us with the install number shown in <em>What is sent</em>.</p>
 
   <h2>Microsoft WebView2</h2>
   <p>Jiyda shows web pages with <strong>Microsoft Edge WebView2</strong>, a component of Windows made by Microsoft and based on Chromium. Microsoft installs and updates it through Windows. Like other parts of Windows, WebView2 may send diagnostic data to Microsoft according to your Windows diagnostic data settings and the <a href="https://www.microsoft.com/privacy/privacystatement">Microsoft Privacy Statement</a>. Jiyda does not control that. You can limit it in Windows Settings → Privacy &amp; security → Diagnostics &amp; feedback.</p>
@@ -78,17 +89,18 @@
   <p>If you email us, we receive your address and whatever you include, for example a log file. We use it only to answer you and fix problems, keep it no longer than needed for that (at most two years), and delete it earlier if you ask.</p>
 
   <h2>Where data is processed</h2>
-  <p>Data stored by Jiyda stays on your computer. GitHub, Microsoft and Anthropic are companies based in the United States and may process the requests described above outside Uzbekistan.</p>
+  <p>Data stored by Jiyda stays on your computer. GitHub, Microsoft, Anthropic and Cloudflare (which runs our statistics server) are companies based in the United States and may process the requests described above outside Uzbekistan.</p>
 
   <h2>Your choices and deleting data</h2>
   <ul>
     <li>Clear history: Settings → Privacy &amp; Security, or the History panel.</li>
     <li>Clear cookies, cache and saved passwords of a Space: Settings → Privacy &amp; Security.</li>
     <li>Turn off update checks: Settings → General.</li>
+    <li>Turn usage statistics on or off: Settings → Privacy &amp; Security → <em>Help improve Jiyda</em>.</li>
     <li>Remove the Ask Jiyda key: Settings → AI Assistant.</li>
     <li>Remove everything: uninstall Jiyda and delete the folder <code>%LOCALAPPDATA%\Jiyda</code>.</li>
   </ul>
-  <p>Because we do not hold data about your browsing, there is nothing about it for us to send you or delete. For emails you sent us, write and we will delete them.</p>
+  <p>Because we do not hold data about your browsing, there is nothing about it for us to send you or delete. For emails you sent us and for usage statistics reports, write and we will delete them.</p>
 
   <h2>Children</h2>
   <p>Jiyda is a general-purpose browser and does not knowingly collect information from anyone, including children.</p>
