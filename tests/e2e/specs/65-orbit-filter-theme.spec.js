@@ -68,7 +68,6 @@ E2E.test('orbit filter: works together with search and resets on reopen', async 
 
 const bg = (el, pseudo) => getComputedStyle(el, pseudo || null).backgroundImage;
 const homeShown = (t) => t.$('.home') && !t.$('.home').hidden;
-const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'reduced';
 
 E2E.test('space color: top bar and New Page are gradients', async (t) => {
   await t.waitFor(() => homeShown(t), 'New Page');
@@ -91,14 +90,15 @@ E2E.test('space color: changing the color repaints top bar and New Page', async 
   t.post({ type: 'space_color', index: 0, color: 'violet' });
 });
 
-E2E.test('space color: top bar shimmers unless motion is reduced; New Page stays still', async (t) => {
+E2E.test('space color: nothing animates forever while Jiyda is idle', async (t) => {
   await t.waitFor(() => homeShown(t), 'New Page');
-  const top = getComputedStyle(t.$('#chrome'), '::before').animationName;
-  if (reducedMotion()) t.eq(top, 'none', 'при «меньше движения» перелива нет');
-  else t.ok(top && top !== 'none', `перелив верхней панели (animation-name: ${top})`);
-  // New Page в покое не перерисовывается: ни фон, ни свечение поиска не анимируются по кругу.
-  const running = document.getAnimations().filter((a) => t.$('#home').contains(a.effect && a.effect.target) && a.effect.getTiming().iterations === Infinity);
-  t.eq(running.length, 0, 'на New Page нет бесконечных анимаций');
+  t.eq(getComputedStyle(t.$('#chrome'), '::before').animationName, 'none', 'отсвет верхней панели неподвижен');
+  // В покое интерфейс не перерисовывается: бесконечная анимация отнимала процессор (bench/run.ps1).
+  const forever = () => document.getAnimations().filter((a) => a.effect && a.effect.getTiming().iterations === Infinity);
+  t.eq(forever().length, 0, 'на New Page нет бесконечных анимаций');
+  await t.open('a.html');
+  await t.sleep(300);
+  t.eq(forever().length, 0, 'и со страницей тоже');
 });
 
 E2E.test('space color: switching spaces changes the window color', async (t) => {

@@ -102,7 +102,7 @@
    --space (цвет текущего Space, ставит core.js) — типизированное свойство: при смене
    пространства или цвета окно перетекает в новый цвет, а не перескакивает. Для перелива —
    соседние оттенки того же цвета (OKLCH): в любом цвете Space переливы остаются «своими».
-   Красятся верхняя панель (градиент + медленный блик), New Page (дрейфующие пятна света),
+   Красятся верхняя панель (градиент + неподвижный отсвет), New Page (пятна света),
    строки Split View и затемнение под слоями. Фон body прозрачен — под ним страница. */
 @property --space { syntax: '<color>'; inherits: true; initial-value: #9B8CFF; }
 :root {
@@ -110,12 +110,9 @@
   --space-3: oklch(from var(--space) l c calc(h - 45));
   transition: --space 700ms var(--ease);
 }
-@keyframes space-sheen { from { background-position: 0% 0; } to { background-position: 100% 0; } }
 :root[data-motion="reduced"] { transition: none; }
-:root[data-motion="reduced"] .chrome::before { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) { transition: none; }
-  :root:not([data-motion="full"]) .chrome::before { animation: none; }
 }
 
 /* ----- Подсветка: один источник цвета — текущий Space -----
@@ -256,15 +253,15 @@ kbd {
   z-index: 30;
   transition: transform var(--t-large) var(--ease), opacity var(--t) var(--ease);
 }
-/* Медленный блик соседних оттенков; гаснет до кнопок окна. Под кнопками панели (z-index: -1
-   внутри панели — над её фоном, под содержимым). */
+/* Отсвет соседних оттенков; гаснет до кнопок окна. Под кнопками панели (z-index: -1 внутри
+   панели — над её фоном, под содержимым). Неподвижный: бесконечный перелив перерисовывал
+   панель каждый кадр и отнимал ~8% ядра в простое (bench/run.ps1). */
 .chrome::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: linear-gradient(100deg, transparent 0%,
-    color-mix(in srgb, var(--space-3) 18%, transparent) 30%,
-    color-mix(in srgb, var(--space-2) 16%, transparent) 45%, transparent 60%) 0 0 / 300% 100%;
+    color-mix(in srgb, var(--space-3) 18%, transparent) 22%,
+    color-mix(in srgb, var(--space-2) 16%, transparent) 38%, transparent 56%);
   mask-image: linear-gradient(90deg, #000 55%, transparent 82%);
-  animation: space-sheen 18s ease-in-out infinite alternate;
 }
 .chrome::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--line); pointer-events: none; }
 .chrome-left, .chrome-right { display: flex; align-items: center; gap: 2px; flex: none; }
@@ -311,8 +308,11 @@ body.no-caption .caption-space, body.fullscreen .caption-space { width: 8px; }
 .addr-hint { flex: none; margin-right: 4px; }
 .address.editing .addr-hint, .address.editing .addr-act { display: none; }
 .addr-progress { position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; border-radius: 1px; overflow: hidden; opacity: 0; transition: opacity var(--t) var(--ease); }
-.addr-progress::after { content: ""; position: absolute; top: 0; bottom: 0; width: 30%; background: var(--accent); border-radius: 1px; animation: progress 1.1s var(--ease) infinite; }
+.addr-progress::after { content: ""; position: absolute; top: 0; bottom: 0; width: 30%; background: var(--accent); border-radius: 1px; }
+/* Бегунок движется только пока страница грузится: невидимая бесконечная анимация тоже
+   перерисовывала бы панель каждый кадр. */
 .address.loading .addr-progress { opacity: 0.9; }
+.address.loading .addr-progress::after { animation: progress 1.1s var(--ease) infinite; }
 @keyframes progress { from { left: -30%; } to { left: 100%; } }
 
 /* Чтение: второстепенное приглушается, пока мышь не вернётся к панели. */
