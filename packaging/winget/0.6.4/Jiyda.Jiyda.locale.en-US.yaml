@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
+PackageIdentifier: Jiyda.Jiyda
+PackageVersion: 0.6.4
+PackageLocale: en-US
+Publisher: Dmitriy Chatiev
+PublisherUrl: https://chatyev.github.io/jiyda/
+PublisherSupportUrl: https://github.com/chatyev/jiyda/issues
+PrivacyUrl: https://chatyev.github.io/jiyda/en/privacy.html
+Author: Dmitriy Chatiev
+PackageName: Jiyda
+PackageUrl: https://chatyev.github.io/jiyda/
+# Пока в репозитории нет лицензии (docs/license-options.md): бесплатно, все права защищены.
+License: Freeware
+LicenseUrl: https://chatyev.github.io/jiyda/en/terms.html
+Copyright: © 2026 Dmitriy Chatiev
+ShortDescription: A Windows browser written in Rust, with Spaces and Orbit instead of a tab strip.
+Description: |-
+  Jiyda is a free browser for Windows written in Rust and made in Uzbekistan. Instead of a row of tabs,
+  pages live in Spaces, each with its own cookies and logins, and Orbit shows every open page grouped
+  at a glance. New Page picks up where you left off, trackers and ads are blocked out of the box, and
+  your history never leaves your computer. Pages are shown by Microsoft Edge WebView2.
+Moniker: jiyda
+Tags:
+  - browser
+  - web-browser
+  - privacy
+  - rust
+  - webview2
+ReleaseNotesUrl: https://github.com/chatyev/jiyda/releases/tag/v0.6.4
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0
