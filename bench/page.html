@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmark article</title>
+<!-- Страница бенчмарка (bench/run.ps1): обычная статья — текст, таблица, картинки SVG,
+     немного стилей и скрипта, без анимаций и сети. Загрузилась — сообщает серверу. -->
+<style>
+  body { font: 17px/1.6 Georgia, serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font: 700 34px/1.2 system-ui, sans-serif; } h2 { font: 600 22px/1.3 system-ui, sans-serif; margin-top: 2em; }
+  figure { margin: 24px 0; } figcaption { font-size: 14px; color: #666; }
+  table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #ddd; padding: 6px 10px; }
+  nav a { margin-right: 12px; }
+</style>
+</head>
+<body>
+<nav id="nav"></nav>
+<h1>Samarkand: a city on the Silk Road</h1>
+<main id="main"></main>
+<script>
+  // Содержимое строится скриптом: так страница одинаково весит во всех браузерах и
+  // похожа на обычную статью (несколько сотен элементов, текст, таблица, картинки).
+  const words = 'the city of Samarkand lies in a valley of the Zarafshan river and for centuries stood on the road between China and the Mediterranean merchants scholars and travellers met in its bazaars and madrasas'.split(' ');
+  const sentence = (n, k) => { const w = []; for (let i = 0; i < n; i++) w.push(words[(i * 7 + k) % words.length]); const s = w.join(' '); return s[0].toUpperCase() + s.slice(1) + '.'; };
+  const main = document.getElementById('main');
+  for (let i = 0; i < 6; i++) document.getElementById('nav').insertAdjacentHTML('beforeend', `<a href="#s${i}">Section ${i + 1}</a>`);
+  for (let s = 0; s < 6; s++) {
+    let html = `<h2 id="s${s}">Section ${s + 1}</h2>`;
+    for (let p = 0; p < 8; p++) html += `<p>${[0, 1, 2, 3, 4].map((k) => sentence(18 + k, s * 31 + p * 7 + k)).join(' ')}</p>`;
+    html += `<figure><svg viewBox="0 0 400 160" width="100%" role="img"><rect width="400" height="160" fill="hsl(${s * 50},45%,85%)"/>${Array.from({ length: 24 }, (_, j) => `<circle cx="${(j * 37) % 400}" cy="${(j * 53) % 160}" r="${6 + (j % 5) * 3}" fill="hsl(${(s * 50 + j * 9) % 360},55%,55%)"/>`).join('')}</svg><figcaption>Figure ${s + 1}</figcaption></figure>`;
+    html += '<table><tr><th>Year</th><th>Event</th><th>Population</th></tr>' + Array.from({ length: 8 }, (_, r) => `<tr><td>${1300 + s * 100 + r * 10}</td><td>${sentence(6, r + s)}</td><td>${(r + 1) * (s + 2) * 1000}</td></tr>`).join('') + '</table>';
+    main.insertAdjacentHTML('beforeend', html);
+  }
+  addEventListener('load', () => fetch('/__ready' + location.search, { cache: 'no-store' }).catch(() => {}));
+</script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+{
+  "environment": {
+    "date": "2026-10-19",
+    "cpu": "AMD Ryzen 7 7800X3D 8-Core Processor",
+    "ram_gb": 31.0,
+    "windows": "Windows 10 Pro 26H2 (build 26300)",
+    "jiyda": "0.6.4",
+    "webview2": "155.0.4283.62",
+    "edge": "155.0.4283.62",
+    "chrome": "155.0.8059.84",
+    "runs": 3,
+    "settle_s": 10,
+    "idle_s": 20
+  },
+  "summary": [
+    {
+      "browser": "jiyda",
+      "tabs": 1,
+      "startup_ms": 315.0,
+      "all_loaded_ms": 315.0,
+      "ws_mb": 421.5,
+      "private_mb": 317.3,
+      "idle_cpu_pct": 0.08,
+      "loaded_ok": true
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 10,
+      "startup_ms": null,
+      "all_loaded_ms": 954.0,
+      "ws_mb": 999.9,
+      "private_mb": 925.4,
+      "idle_cpu_pct": 1.64,
+      "loaded_ok": true
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 50,
+      "startup_ms": null,
+      "all_loaded_ms": 6441.0,
+      "ws_mb": 3507.7,
+      "private_mb": 3100.2,
+      "idle_cpu_pct": 4.3,
+      "loaded_ok": true
+    },
+    {
+      "browser": "edge",
+      "tabs": 1,
+      "startup_ms": 369.0,
+      "all_loaded_ms": 369.0,
+      "ws_mb": 755.4,
+      "private_mb": 391.1,
+      "idle_cpu_pct": 0.78,
+      "loaded_ok": true
+    },
+    {
+      "browser": "edge",
+      "tabs": 10,
+      "startup_ms": null,
+      "all_loaded_ms": 447.0,
+      "ws_mb": 1269.3,
+      "private_mb": 633.2,
+      "idle_cpu_pct": 1.95,
+      "loaded_ok": true
+    },
+    {
+      "browser": "edge",
+      "tabs": 50,
+      "startup_ms": null,
+      "all_loaded_ms": 890.0,
+      "ws_mb": 3547.8,
+      "private_mb": 1623.5,
+      "idle_cpu_pct": 1.56,
+      "loaded_ok": true
+    },
+    {
+      "browser": "chrome",
+      "tabs": 1,
+      "startup_ms": 266.0,
+      "all_loaded_ms": 266.0,
+      "ws_mb": 658.8,
+      "private_mb": 329.7,
+      "idle_cpu_pct": 3.36,
+      "loaded_ok": true
+    },
+    {
+      "browser": "chrome",
+      "tabs": 10,
+      "startup_ms": null,
+      "all_loaded_ms": 307.0,
+      "ws_mb": 1187.2,
+      "private_mb": 540.5,
+      "idle_cpu_pct": 3.59,
+      "loaded_ok": true
+    },
+    {
+      "browser": "chrome",
+      "tabs": 50,
+      "startup_ms": null,
+      "all_loaded_ms": 667.0,
+      "ws_mb": 3544.7,
+      "private_mb": 1444.1,
+      "idle_cpu_pct": 5.47,
+      "loaded_ok": true
+    }
+  ],
+  "runs": [
+    {
+      "browser": "jiyda",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 315.0,
+      "all_ms": 315.0,
+      "processes": 8,
+      "ws_mb": 422.6,
+      "private_mb": 310.4,
+      "idle_cpu_pct": 0.08
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 312.0,
+      "all_ms": 312.0,
+      "processes": 8,
+      "ws_mb": 421.5,
+      "private_mb": 317.7,
+      "idle_cpu_pct": 0.16
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 319.0,
+      "all_ms": 319.0,
+      "processes": 8,
+      "ws_mb": 421.1,
+      "private_mb": 317.3,
+      "idle_cpu_pct": 0.08
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 351.0,
+      "all_ms": 904.0,
+      "processes": 17,
+      "ws_mb": 996.8,
+      "private_mb": 925.4,
+      "idle_cpu_pct": 0.55
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 348.0,
+      "all_ms": 975.0,
+      "processes": 17,
+      "ws_mb": 999.9,
+      "private_mb": 916.9,
+      "idle_cpu_pct": 5.39
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 322.0,
+      "all_ms": 954.0,
+      "processes": 17,
+      "ws_mb": 1001.4,
+      "private_mb": 954.9,
+      "idle_cpu_pct": 1.64
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 346.0,
+      "all_ms": 6420.0,
+      "processes": 57,
+      "ws_mb": 3508.3,
+      "private_mb": 3103.2,
+      "idle_cpu_pct": 2.97
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 341.0,
+      "all_ms": 6566.0,
+      "processes": 57,
+      "ws_mb": 3507.3,
+      "private_mb": 3085.9,
+      "idle_cpu_pct": 6.33
+    },
+    {
+      "browser": "jiyda",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 342.0,
+      "all_ms": 6441.0,
+      "processes": 57,
+      "ws_mb": 3507.7,
+      "private_mb": 3100.2,
+      "idle_cpu_pct": 4.3
+    },
+    {
+      "browser": "edge",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 373.0,
+      "all_ms": 373.0,
+      "processes": 16,
+      "ws_mb": 759.1,
+      "private_mb": 391.1,
+      "idle_cpu_pct": 1.09
+    },
+    {
+      "browser": "edge",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 354.0,
+      "all_ms": 354.0,
+      "processes": 16,
+      "ws_mb": 755.4,
+      "private_mb": 392.4,
+      "idle_cpu_pct": 0.78
+    },
+    {
+      "browser": "edge",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 369.0,
+      "all_ms": 369.0,
+      "processes": 16,
+      "ws_mb": 754.3,
+      "private_mb": 388.1,
+      "idle_cpu_pct": 0.47
+    },
+    {
+      "browser": "edge",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 408.0,
+      "all_ms": 447.0,
+      "processes": 25,
+      "ws_mb": 1264.1,
+      "private_mb": 622.0,
+      "idle_cpu_pct": 2.19
+    },
+    {
+      "browser": "edge",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 420.0,
+      "all_ms": 455.0,
+      "processes": 25,
+      "ws_mb": 1270.4,
+      "private_mb": 634.1,
+      "idle_cpu_pct": 0.7
+    },
+    {
+      "browser": "edge",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 408.0,
+      "all_ms": 446.0,
+      "processes": 25,
+      "ws_mb": 1269.3,
+      "private_mb": 633.2,
+      "idle_cpu_pct": 1.95
+    },
+    {
+      "browser": "edge",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 737.0,
+      "all_ms": 913.0,
+      "processes": 65,
+      "ws_mb": 3550.8,
+      "private_mb": 1623.5,
+      "idle_cpu_pct": 1.56
+    },
+    {
+      "browser": "edge",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 708.0,
+      "all_ms": 887.0,
+      "processes": 65,
+      "ws_mb": 3545.6,
+      "private_mb": 1619.5,
+      "idle_cpu_pct": 2.27
+    },
+    {
+      "browser": "edge",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 775.0,
+      "all_ms": 890.0,
+      "processes": 65,
+      "ws_mb": 3547.8,
+      "private_mb": 1624.0,
+      "idle_cpu_pct": 1.17
+    },
+    {
+      "browser": "chrome",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 269.0,
+      "all_ms": 269.0,
+      "processes": 12,
+      "ws_mb": 658.8,
+      "private_mb": 329.7,
+      "idle_cpu_pct": 3.59
+    },
+    {
+      "browser": "chrome",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 262.0,
+      "all_ms": 262.0,
+      "processes": 12,
+      "ws_mb": 654.6,
+      "private_mb": 328.9,
+      "idle_cpu_pct": 3.36
+    },
+    {
+      "browser": "chrome",
+      "tabs": 1,
+      "loaded": 1,
+      "first_ms": 266.0,
+      "all_ms": 266.0,
+      "processes": 12,
+      "ws_mb": 659.3,
+      "private_mb": 332.1,
+      "idle_cpu_pct": 2.89
+    },
+    {
+      "browser": "chrome",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 301.0,
+      "all_ms": 305.0,
+      "processes": 21,
+      "ws_mb": 1186.2,
+      "private_mb": 546.6,
+      "idle_cpu_pct": 3.67
+    },
+    {
+      "browser": "chrome",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 483.0,
+      "all_ms": 517.0,
+      "processes": 21,
+      "ws_mb": 1191.6,
+      "private_mb": 540.5,
+      "idle_cpu_pct": 2.89
+    },
+    {
+      "browser": "chrome",
+      "tabs": 10,
+      "loaded": 10,
+      "first_ms": 301.0,
+      "all_ms": 307.0,
+      "processes": 21,
+      "ws_mb": 1187.2,
+      "private_mb": 536.3,
+      "idle_cpu_pct": 3.59
+    },
+    {
+      "browser": "chrome",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 510.0,
+      "all_ms": 672.0,
+      "processes": 61,
+      "ws_mb": 3545.1,
+      "private_mb": 1444.1,
+      "idle_cpu_pct": 6.02
+    },
+    {
+      "browser": "chrome",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 510.0,
+      "all_ms": 658.0,
+      "processes": 61,
+      "ws_mb": 3544.2,
+      "private_mb": 1443.2,
+      "idle_cpu_pct": 5.39
+    },
+    {
+      "browser": "chrome",
+      "tabs": 50,
+      "loaded": 50,
+      "first_ms": 536.0,
+      "all_ms": 667.0,
+      "processes": 61,
+      "ws_mb": 3544.7,
+      "private_mb": 1445.6,
+      "idle_cpu_pct": 5.47
+    }
+  ]
+}
